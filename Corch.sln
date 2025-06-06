@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{898D680A-A8D7-4C53-845E-2D6C289F860D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CorchEdges", "src\CorchEdges\CorchEdges.csproj", "{2B5B9404-5FD5-4BBF-821A-C618247BEC6C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CorchEdges.Tests", "tests\CorchEdges.Tests\CorchEdges.Tests.csproj", "{4308F7F2-02AC-4595-860E-2C695C5BB95E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2B5B9404-5FD5-4BBF-821A-C618247BEC6C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B5B9404-5FD5-4BBF-821A-C618247BEC6C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B5B9404-5FD5-4BBF-821A-C618247BEC6C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B5B9404-5FD5-4BBF-821A-C618247BEC6C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4308F7F2-02AC-4595-860E-2C695C5BB95E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4308F7F2-02AC-4595-860E-2C695C5BB95E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4308F7F2-02AC-4595-860E-2C695C5BB95E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4308F7F2-02AC-4595-860E-2C695C5BB95E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2B5B9404-5FD5-4BBF-821A-C618247BEC6C} = {898D680A-A8D7-4C53-845E-2D6C289F860D}
+	EndGlobalSection
+EndGlobal
