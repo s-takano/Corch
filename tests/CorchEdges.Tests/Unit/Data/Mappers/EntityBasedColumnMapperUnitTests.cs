@@ -10,27 +10,27 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
     public class EntityBasedColumnMapperUnitTests
     {
         private readonly EntityBasedColumnMapper _columnMapper;
-        
+
         public EntityBasedColumnMapperUnitTests()
         {
             var customColumnMappings = new Dictionary<string, Dictionary<string, string>>
             {
                 {
-                    "CustomSheet", new Dictionary<string, string>  // ✅ This should be source name
+                    "CustomSheet", new Dictionary<string, string> // ✅ This should be source name
                     {
                         { "OriginalId", "Id" },
                         { "OriginalName", "Name" }
                     }
                 },
                 {
-                    "AnotherSheet", new Dictionary<string, string>  // ✅ This should be source name  
+                    "AnotherSheet", new Dictionary<string, string> // ✅ This should be source name  
                     {
                         { "契約ID", "Id" },
                         { "物件名", "Title" }
                     }
                 },
                 {
-                    "TestSheet", new Dictionary<string, string>  // ✅ This should be source name
+                    "TestSheet", new Dictionary<string, string> // ✅ This should be source name
                     {
                         { "Code", "ProductCode" },
                         { "Description", "ProductDescription" }
@@ -40,15 +40,16 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
 
             _columnMapper = new EntityBasedColumnMapper(customColumnMappings);
         }
-        
+
         [Theory]
-        [InlineData("CustomSheet", "OriginalId", "Id")]           // Changed from "custom_table"
-        [InlineData("CustomSheet", "OriginalName", "Name")]       // Changed from "custom_table"
-        [InlineData("AnotherSheet", "契約ID", "Id")]               // Changed from "another_table"
-        [InlineData("AnotherSheet", "物件名", "Title")]            // Changed from "another_table"
-        [InlineData("TestSheet", "Code", "ProductCode")]           // Changed from "test_data_table"
+        [InlineData("CustomSheet", "OriginalId", "Id")] // Changed from "custom_table"
+        [InlineData("CustomSheet", "OriginalName", "Name")] // Changed from "custom_table"
+        [InlineData("AnotherSheet", "契約ID", "Id")] // Changed from "another_table"
+        [InlineData("AnotherSheet", "物件名", "Title")] // Changed from "another_table"
+        [InlineData("TestSheet", "Code", "ProductCode")] // Changed from "test_data_table"
         [InlineData("TestSheet", "Description", "ProductDescription")] // Changed from "test_data_table"
-        public void MapColumnName_WithCustomMappings_ReturnsCorrectMapping(string tableName, string originalColumn, string expectedColumn)
+        public void MapColumnName_WithCustomMappings_ReturnsCorrectMapping(string tableName, string originalColumn,
+            string expectedColumn)
         {
             // Act
             var result = _columnMapper.MapColumnName(tableName, originalColumn);
@@ -64,7 +65,8 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         public void MapColumnName_WithUnmappedColumn_ThrowsArgumentException(string tableName, string originalColumn)
         {
             // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => _columnMapper.MapColumnName(tableName, originalColumn));
+            var exception =
+                Assert.Throws<ArgumentException>(() => _columnMapper.MapColumnName(tableName, originalColumn));
             Assert.Contains("Invalid column", exception.Message);
             Assert.Contains(originalColumn, exception.Message);
             Assert.Contains(tableName, exception.Message);
@@ -75,11 +77,12 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         public void MapColumnName_WithUnknownTable_ThrowsArgumentException(string tableName, string originalColumn)
         {
             // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => _columnMapper.MapColumnName(tableName, originalColumn));
+            var exception =
+                Assert.Throws<ArgumentException>(() => _columnMapper.MapColumnName(tableName, originalColumn));
             Assert.Contains("Unknown table", exception.Message);
             Assert.Contains(tableName, exception.Message);
         }
-        
+
         [Theory]
         [InlineData("")]
         [InlineData("   ")]
@@ -87,9 +90,9 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         public void MapColumnName_WithEmptyOrNullColumnName_ThrowsArgumentException(string? columnName)
         {
             // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => 
-                _columnMapper.MapColumnName("custom_table", columnName!));
-            Assert.Contains("Invalid column name", exception.Message);
+            var exception = Assert.Throws<ArgumentException>(() =>
+                _columnMapper.MapColumnName("CustomSheet", columnName!));
+            Assert.Contains("Column name cannot be null or empty", exception.Message);
         }
 
         [Theory]
@@ -99,7 +102,7 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         public void MapColumnName_WithEmptyOrNullTableName_ThrowsArgumentException(string? tableName)
         {
             // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => 
+            var exception = Assert.Throws<ArgumentException>(() =>
                 _columnMapper.MapColumnName(tableName!, "AnyColumn"));
             Assert.Contains("Table name cannot be null or empty", exception.Message);
         }
@@ -131,7 +134,7 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
             var mapper = new EntityBasedColumnMapper(emptyMappings);
 
             // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => 
+            var exception = Assert.Throws<ArgumentException>(() =>
                 mapper.MapColumnName("AnyTable", "AnyColumn"));
             Assert.Contains("Unknown table", exception.Message);
         }
@@ -147,7 +150,7 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
             var mapper = new EntityBasedColumnMapper(mappingsWithEmptyTable);
 
             // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => 
+            var exception = Assert.Throws<ArgumentException>(() =>
                 mapper.MapColumnName("empty_table", "AnyColumn"));
             Assert.Contains("Invalid column name", exception.Message);
             Assert.Contains("AnyColumn", exception.Message);
@@ -172,34 +175,41 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
             // Act & Assert
             Assert.Equal("test_column", mapper.MapColumnName("case_table", "TestColumn"));
             Assert.Equal("different_column", mapper.MapColumnName("case_table", "testcolumn"));
-            
+
             // Different case should throw exception
-            var exception = Assert.Throws<ArgumentException>(() => 
+            var exception = Assert.Throws<ArgumentException>(() =>
                 mapper.MapColumnName("case_table", "TESTCOLUMN"));
             Assert.Contains("Invalid column name", exception.Message);
         }
 
         [Fact]
-        public void MapColumnName_WithSpecialCharacters_HandlesCorrectly()
+        public void MapColumnName_WithValidPostgreSqlSpecialCharacters_HandlesCorrectly()
         {
-            // Arrange
-            var specialCharMappings = new Dictionary<string, Dictionary<string, string>>
+            // Arrange - Test column mappings that include PostgreSQL-valid special characters
+            var columnMappings = new Dictionary<string, Dictionary<string, string>>
             {
                 {
-                    "special_table", new Dictionary<string, string>
+                    "TestTable", new Dictionary<string, string>
                     {
-                        { "Column-With-Dashes", "column_with_dashes" },
-                        { "Column With Spaces", "column_with_spaces" },
-                        { "Column@Special#Chars", "column_special_chars" }
+                        { "礼金(家)", "key_money_home" },           // Parentheses + Japanese (from your real DDL)
+                        { "ｱﾊﾟ-ﾄ保険代", "apartment_insurance" },    // Hyphens + Japanese (from your real DDL)
+                        { "column with spaces", "column_with_spaces" }, // Spaces
+                        { "user@domain", "user_at_domain" },           // At symbol
+                        { "temp#table", "temp_hash_table" },           // Hash symbol
+                        { "进捗管理ステータス", "progress_status" }        // Unicode characters
                     }
                 }
             };
-            var mapper = new EntityBasedColumnMapper(specialCharMappings);
 
-            // Act & Assert
-            Assert.Equal("column_with_dashes", mapper.MapColumnName("special_table", "Column-With-Dashes"));
-            Assert.Equal("column_with_spaces", mapper.MapColumnName("special_table", "Column With Spaces"));
-            Assert.Equal("column_special_chars", mapper.MapColumnName("special_table", "Column@Special#Chars"));
+            var mapper = new EntityBasedColumnMapper(columnMappings);
+
+            // Act & Assert - All these should pass validation and return mapped names
+            Assert.Equal("key_money_home", mapper.MapColumnName("TestTable", "礼金(家)"));
+            Assert.Equal("apartment_insurance", mapper.MapColumnName("TestTable", "ｱﾊﾟ-ﾄ保険代"));
+            Assert.Equal("column_with_spaces", mapper.MapColumnName("TestTable", "column with spaces"));
+            Assert.Equal("user_at_domain", mapper.MapColumnName("TestTable", "user@domain"));
+            Assert.Equal("temp_hash_table", mapper.MapColumnName("TestTable", "temp#table"));
+            Assert.Equal("progress_status", mapper.MapColumnName("TestTable", "进捗管理ステータス"));
         }
 
         [Fact]
@@ -241,7 +251,7 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
             var mapper = new EntityBasedColumnMapper(unicodeMappings);
 
             // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => 
+            var exception = Assert.Throws<ArgumentException>(() =>
                 mapper.MapColumnName("unicode_table", "未知の列"));
             Assert.Contains("Invalid column", exception.Message);
             Assert.Contains("未知の列", exception.Message);
@@ -251,25 +261,61 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
 
         #region ValidateColumnName Tests
 
-        [Theory]
-        [InlineData("ValidColumnName")]
-        [InlineData("Valid_Column_Name")]
-        [InlineData("ValidColumnName123")]
-        [InlineData("_ValidColumnName")]
-        [InlineData("契約ID")] // Unicode characters
-        [InlineData("物件名")] // Japanese characters
-        [InlineData("valid_column_name")]
-        [InlineData("VALID_COLUMN_NAME")]
-        [InlineData("column1")]
-        [InlineData("a")]
-        [InlineData("a_very_long_column_name_that_is_still_within_postgresql_limits")]
-        public void ValidateColumnName_WithValidPostgreSQLNames_ReturnsOriginalName(string columnName)
-        {
-            // Act
-            var result = _columnMapper.ValidateColumnName(columnName);
 
-            // Assert
-            Assert.Equal(columnName, result);
+        [Theory]
+        [InlineData("礼金(家)")]        // Parentheses + Japanese (from your PostgreSQL DDL)
+        [InlineData("ｱﾊﾟ-ﾄ保険代")]     // Hyphens + Japanese (from your PostgreSQL DDL)  
+        [InlineData("column with spaces")]  // Spaces (valid in quoted identifiers)
+        [InlineData("user@domain.com")]     // At symbol and dots
+        [InlineData("temp#123")]            // Hash with numbers
+        [InlineData("進捗管理ステータス")]     // Full-width Japanese characters
+        [InlineData("contract_id")]         // Standard identifier (still valid)
+        [InlineData("Property_No")]         // Standard with underscore
+        public void ValidateColumnName_WithValidPostgreSqlCharacters_ReturnsOriginalName(string columnName)
+        {
+            // Arrange
+            var mapper = new EntityBasedColumnMapper(new Dictionary<string, Dictionary<string, string>>());
+
+            // Act
+            var result = mapper.ValidateColumnName(columnName);
+
+            // Assert - Should pass validation and return trimmed original name
+            Assert.Equal(columnName.Trim(), result);
+        }
+
+
+        [Theory]
+        [InlineData("column\x00name")]     // Null character - truly invalid
+        [InlineData("column\x01name")]     // Control character - invalid  
+        [InlineData("column\x02name")]     // Another control character - invalid
+        [InlineData("column\rname")]       // Carriage return - control character
+        [InlineData("column\nname")]       // Newline - control character
+        public void ValidateColumnName_WithProblematicCharacters_ThrowsInvalidOperationException(string columnName)
+        {
+            // Arrange
+            var mapper = new EntityBasedColumnMapper(new Dictionary<string, Dictionary<string, string>>());
+
+            // Act & Assert - Only truly problematic characters should be rejected
+            var exception = Assert.Throws<InvalidOperationException>(() => 
+                mapper.ValidateColumnName(columnName));
+    
+            Assert.Contains("Invalid character in column name", exception.Message);
+            Assert.Contains("Control character", exception.Message);
+        }
+
+        
+        [Fact]
+        public void ValidateColumnName_WithTabCharacter_IsAllowed()
+        {
+            // Arrange - Tab is specifically allowed in the relaxed validation
+            var mapper = new EntityBasedColumnMapper(new Dictionary<string, Dictionary<string, string>>());
+            var columnWithTab = "column\tname";
+
+            // Act
+            var result = mapper.ValidateColumnName(columnWithTab);
+
+            // Assert - Tab should be allowed
+            Assert.Equal(columnWithTab.Trim(), result);
         }
 
         [Theory]
@@ -291,50 +337,12 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         public void ValidateColumnName_WithNameStartingWithDigit_ThrowsInvalidOperationException(string columnName)
         {
             // Act & Assert
-            var exception = Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(columnName));
+            var exception =
+                Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(columnName));
             Assert.Contains("cannot start with a digit", exception.Message);
             Assert.Contains(columnName, exception.Message);
         }
-
-        [Theory]
-        [InlineData("Invalid-Column")]
-        [InlineData("Invalid Column")]
-        [InlineData("Invalid@Column")]
-        [InlineData("Invalid#Column")]
-        [InlineData("Invalid%Column")]
-        [InlineData("Invalid&Column")]
-        [InlineData("Invalid*Column")]
-        [InlineData("Invalid+Column")]
-        [InlineData("Invalid=Column")]
-        [InlineData("Invalid?Column")]
-        [InlineData("Invalid!Column")]
-        [InlineData("Invalid.Column")]
-        [InlineData("Invalid,Column")]
-        [InlineData("Invalid;Column")]
-        [InlineData("Invalid:Column")]
-        [InlineData("Invalid'Column")]
-        [InlineData("Invalid\"Column")]
-        [InlineData("Invalid[Column")]
-        [InlineData("Invalid]Column")]
-        [InlineData("Invalid{Column")]
-        [InlineData("Invalid}Column")]
-        [InlineData("Invalid(Column")]
-        [InlineData("Invalid)Column")]
-        [InlineData("Invalid<Column")]
-        [InlineData("Invalid>Column")]
-        [InlineData("Invalid|Column")]
-        [InlineData("Invalid\\Column")]
-        [InlineData("Invalid/Column")]
-        [InlineData("Invalid`Column")]
-        [InlineData("Invalid~Column")]
-        public void ValidateColumnName_WithInvalidCharacters_ThrowsInvalidOperationException(string columnName)
-        {
-            // Act & Assert
-            var exception = Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(columnName));
-            Assert.Contains("contains invalid character", exception.Message.ToLower());
-            Assert.Contains(columnName, exception.Message);
-        }
-
+        
         [Fact]
         public void ValidateColumnName_WithTooLongName_ThrowsInvalidOperationException()
         {
@@ -342,7 +350,8 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
             var longColumnName = new string('a', 64);
 
             // Act & Assert
-            var exception = Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(longColumnName));
+            var exception =
+                Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(longColumnName));
             Assert.Contains("is too long", exception.Message);
             Assert.Contains("PostgreSQL identifiers are limited to 63 characters", exception.Message);
             Assert.Contains(longColumnName, exception.Message);
@@ -421,10 +430,12 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         [InlineData("then")]
         [InlineData("else")]
         [InlineData("end")]
-        public void ValidateColumnName_WithPostgreSQLReservedKeywords_ThrowsInvalidOperationException(string reservedKeyword)
+        public void ValidateColumnName_WithPostgreSQLReservedKeywords_ThrowsInvalidOperationException(
+            string reservedKeyword)
         {
             // Act & Assert
-            var exception = Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(reservedKeyword));
+            var exception =
+                Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(reservedKeyword));
             Assert.Contains("is a PostgreSQL reserved keyword", exception.Message);
             Assert.Contains(reservedKeyword, exception.Message);
         }
@@ -436,10 +447,12 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         [InlineData("Insert")]
         [InlineData("UPDATE")]
         [InlineData("Delete")]
-        public void ValidateColumnName_WithPostgreSQLReservedKeywordsDifferentCase_ThrowsInvalidOperationException(string reservedKeyword)
+        public void ValidateColumnName_WithPostgreSQLReservedKeywordsDifferentCase_ThrowsInvalidOperationException(
+            string reservedKeyword)
         {
             // Act & Assert
-            var exception = Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(reservedKeyword));
+            var exception =
+                Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(reservedKeyword));
             Assert.Contains("is a PostgreSQL reserved keyword", exception.Message);
             Assert.Contains(reservedKeyword.ToLower(), exception.Message);
         }
@@ -461,46 +474,6 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
             Assert.Equal(columnName, result);
         }
 
-        [Theory]
-        [InlineData("Contract-ID", "Invalid character detected in original column name 'Contract-ID': Character '-' at position 8 is not allowed in PostgreSQL identifiers")]
-        [InlineData("Property Name", "Invalid character detected in original column name 'Property Name': Character ' ' at position 8 is not allowed in PostgreSQL identifiers")]
-        [InlineData("Customer@Email", "Invalid character detected in original column name 'Customer@Email': Character '@' at position 8 is not allowed in PostgreSQL identifiers")]
-        [InlineData("Price$Amount", "Invalid character detected in original column name 'Price$Amount': Character '$' at position 5 is not allowed in PostgreSQL identifiers")]
-        [InlineData("1StartingWithDigit", "Invalid column name '1StartingWithDigit': PostgreSQL identifiers cannot start with a digit")]
-        public void ValidateColumnName_WithSpecificInvalidCharacters_ContainsDetailedErrorMessage(string columnName, string expectedErrorPattern)
-        {
-            // Act & Assert
-            var exception = Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(columnName));
-            
-            // Check that the error message contains helpful information about the specific issue
-            Assert.Contains(columnName, exception.Message);
-            
-            if (expectedErrorPattern.Contains("Character"))
-            {
-                Assert.Contains("contains invalid character", exception.Message.ToLower());
-                Assert.Contains("is not allowed in PostgreSQL identifiers", exception.Message);
-            }
-            else if (expectedErrorPattern.Contains("start with a digit"))
-            {
-                Assert.Contains("cannot start with a digit", exception.Message);
-            }
-        }
-
-        [Fact]
-        public void ValidateColumnName_WithMultipleInvalidCharacters_ReportsFirstInvalidCharacter()
-        {
-            // Arrange
-            var columnName = "Invalid-Name@Test"; // Multiple invalid characters
-
-            // Act & Assert
-            var exception = Assert.Throws<InvalidOperationException>(() => _columnMapper.ValidateColumnName(columnName));
-            
-            // Should report the first invalid character encountered
-            Assert.Contains("contains invalid character", exception.Message.ToLower());
-            Assert.Contains("Invalid-Name@Test", exception.Message);
-            Assert.Contains("Character '-'", exception.Message); // First invalid character
-            Assert.Contains("position 7", exception.Message);
-        }
 
         [Theory]
         [InlineData("_column_with_underscore")]

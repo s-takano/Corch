@@ -45,7 +45,13 @@ public class ExcelToDatabaseConverter : IDataSetConverter
         var columnMapper = new EntityBasedColumnMapper(columnMap);
         _dataNormalizer = new EntityDataNormalizer(metadataProvider, columnMapper);
     }
-    
+
+    public ExcelToDatabaseConverter(ITableNameMapper tableMapper, IDataNormalizer dataNormalizer)
+    {
+        _tableMapper = tableMapper;
+        _dataNormalizer = dataNormalizer;
+    }
+
 
     public DataSet ConvertForDatabase(DataSet sourceDataSet)
     {

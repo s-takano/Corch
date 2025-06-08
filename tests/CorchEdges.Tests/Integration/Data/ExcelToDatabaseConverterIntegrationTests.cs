@@ -146,7 +146,7 @@ namespace CorchEdges.Tests.Integration.Data
             table.Columns.Add("Id", typeof(string));
             table.Columns.Add("Level", typeof(string));
             table.Columns.Add("Message", typeof(string));
-            table.Columns.Add("Timestamp", typeof(string));
+            table.Columns.Add("CreatedAt", typeof(string));
             table.Columns.Add("SharePointItemId", typeof(string));
     
             // Add sample data
@@ -154,7 +154,7 @@ namespace CorchEdges.Tests.Integration.Data
             row["Id"] = "1";
             row["Level"] = "Info";
             row["Message"] = "Test processing message";
-            row["Timestamp"] = "2024-01-01T10:00:00";
+            row["CreatedAt"] = "2024-01-01T10:00:00";
             row["SharePointItemId"] = "SP123";
             table.Rows.Add(row);
     
@@ -170,7 +170,7 @@ namespace CorchEdges.Tests.Integration.Data
             Assert.Equal(typeof(long), resultTable.Columns["Id"]!.DataType);
             Assert.Equal(typeof(string), resultTable.Columns["Level"]!.DataType);
             Assert.Equal(typeof(string), resultTable.Columns["Message"]!.DataType);
-            Assert.Equal(typeof(DateTime), resultTable.Columns["Timestamp"]!.DataType);
+            Assert.Equal(typeof(DateTime), resultTable.Columns["CreatedAt"]!.DataType);
             Assert.Equal(typeof(string), resultTable.Columns["SharePointItemId"]!.DataType);
         }
 

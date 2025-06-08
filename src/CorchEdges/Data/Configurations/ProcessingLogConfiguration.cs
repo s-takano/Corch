@@ -19,7 +19,7 @@ public class ProcessingLogConfiguration : BaseEntityConfiguration<ProcessingLog>
             new ColumnMetaInfo(nameof(ProcessingLog.Id), "Id", "bigint", true, true, true),
             new ColumnMetaInfo(nameof(ProcessingLog.Level), "Level", "varchar(20)", false, false, false),
             new ColumnMetaInfo(nameof(ProcessingLog.Message), "Message", "text", false, false, false),
-            new ColumnMetaInfo(nameof(ProcessingLog.Timestamp), "Timestamp", "timestamp", false, false, false),
+            new ColumnMetaInfo(nameof(ProcessingLog.CreatedAt), "CreatedAt", "timestamp", false, false, false),
             new ColumnMetaInfo(nameof(ProcessingLog.SharePointItemId), "SharePointItemId", "varchar(100)", false),
             new ColumnMetaInfo(nameof(ProcessingLog.ExceptionDetails), "ExceptionDetails", "text", false)
         };

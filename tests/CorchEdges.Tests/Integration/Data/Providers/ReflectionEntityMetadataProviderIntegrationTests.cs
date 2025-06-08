@@ -53,7 +53,7 @@ namespace CorchEdges.Tests.Integration.Data.Providers
             Assert.Equal(typeof(long), _metadataProvider.GetColumnType("processing_log", "Id"));
             Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "Level"));
             Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "Message"));
-            Assert.Equal(typeof(DateTime), _metadataProvider.GetColumnType("processing_log", "Timestamp"));
+            Assert.Equal(typeof(DateTime), _metadataProvider.GetColumnType("processing_log", "CreatedAt"));
             Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "SharePointItemId"));
         }
 
@@ -94,7 +94,7 @@ namespace CorchEdges.Tests.Integration.Data.Providers
         [InlineData("processing_log", "Id")]
         [InlineData("processing_log", "Level")]
         [InlineData("processing_log", "Message")]
-        [InlineData("processing_log", "Timestamp")]
+        [InlineData("processing_log", "CreatedAt")]
         [InlineData("processing_log", "SharePointItemId")]
         [InlineData("processed_file", "FileName")]
         [InlineData("processed_file", "ProcessedAt")]
@@ -168,7 +168,7 @@ namespace CorchEdges.Tests.Integration.Data.Providers
             
             // Act & Assert
             var idType = _metadataProvider.GetColumnType("processing_log", "Id");
-            var timestampType = _metadataProvider.GetColumnType("processing_log", "Timestamp");
+            var timestampType = _metadataProvider.GetColumnType("processing_log", "CreatedAt");
 
             // Verify these are non-nullable types
             Assert.Equal(typeof(long), idType);
@@ -195,7 +195,7 @@ namespace CorchEdges.Tests.Integration.Data.Providers
             
             // Non-nullable properties should return non-nullable types
             Assert.Equal(typeof(long), _metadataProvider.GetColumnType("processing_log", "Id"));
-            Assert.Equal(typeof(DateTime), _metadataProvider.GetColumnType("processing_log", "Timestamp"));
+            Assert.Equal(typeof(DateTime), _metadataProvider.GetColumnType("processing_log", "CreatedAt"));
             
             // String properties (reference types) should return string, not nullable
             Assert.Equal(typeof(string), _metadataProvider.GetColumnType("contract_creation", "ContractId"));
@@ -221,7 +221,7 @@ namespace CorchEdges.Tests.Integration.Data.Providers
                 ("processing_log", "Id", typeof(long)),
                 ("processing_log", "Level", typeof(string)),
                 ("processing_log", "Message", typeof(string)),
-                ("processing_log", "Timestamp", typeof(DateTime)),
+                ("processing_log", "CreatedAt", typeof(DateTime)),
                 ("processing_log", "SharePointItemId", typeof(string))
             };
 
