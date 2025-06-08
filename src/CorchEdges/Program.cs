@@ -1,48 +1,50 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
-using CorchEdges.Data;
-using Azure.Storage.Blobs;
+using Azure.Identity;
 using CorchEdges;
+using CorchEdges.Data;
+using CorchEdges.Data.Abstractions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph;
+// ... your other using statements
 
-var builder = Host.CreateDefaultBuilder(args)
+var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
-    .ConfigureServices((context, services) =>
+    .ConfigureServices(services =>
     {
-        // Database
-        services.AddDbContext<EdgesDbContext>(options =>
-            options.UseNpgsql(context.Configuration.GetConnectionString("DefaultConnection")));
-
-        // Core services
-        services.AddScoped<IDatabaseWriter, ExcelDatasetWriter>();
-        services.AddScoped<IPostgresTableWriter, PostgresTableWriter>(); 
-        services.AddScoped<IExcelParser, ExcelDataParser>();
-        services.AddScoped<IWebhookProcessor, DefaultWebhookProcessor>();
-        
-        // Graph and Storage services
-        services.AddScoped<IGraphFacade, GraphFacade>(); // You need to implement this
-        services.AddSingleton(sp => new BlobServiceClient(context.Configuration.GetConnectionString("AzureWebJobsStorage")));
-        
-        // ChangeHandler with configuration
-        services.AddScoped<ChangeHandler>(sp =>
+        // Register GraphServiceClient with DefaultAzureCredential
+        services.AddScoped<GraphServiceClient>(provider =>
         {
-            var logger = sp.GetRequiredService<ILogger<ChangeHandler>>();
-            var graph = sp.GetRequiredService<IGraphFacade>();
-            var parser = sp.GetRequiredService<IExcelParser>();
-            var db = sp.GetRequiredService<IDatabaseWriter>();
-            var dbContext = sp.GetRequiredService<EdgesDbContext>(); // Renamed for clarity
-            
-            // Get configuration from the service provider
-            var configuration = sp.GetRequiredService<IConfiguration>();
-            var siteId = configuration["SharePoint:SiteId"]!;
-            var listId = configuration["SharePoint:ListId"]!;
-            
-            return new ChangeHandler(logger, graph, parser, db, dbContext, siteId, listId);
+            var credential = new DefaultAzureCredential();
+            return new GraphServiceClient(credential);
         });
-    });
 
-var host = builder.Build();
+        // Register your GraphFacade
+        services.AddScoped<IGraphFacade, GraphFacade>();
+
+        // Register other dependencies
+        services.AddScoped<ChangeHandler>(provider =>
+        {
+            var logger = provider.GetRequiredService<ILogger<ChangeHandler>>();
+            var graph = provider.GetRequiredService<IGraphFacade>();
+            var parser = provider.GetRequiredService<IExcelParser>(); // You'll need to register this
+            var dbWriter = provider.GetRequiredService<IDatabaseWriter>(); // You'll need to register this
+            var context = provider.GetRequiredService<EdgesDbContext>(); // You'll need to register this
+            
+            // Get site and list IDs from configuration
+            var config = provider.GetRequiredService<IConfiguration>();
+            var siteId = config["SharePoint:SiteId"]!;
+            var listId = config["SharePoint:ListId"]!;
+            
+            return new ChangeHandler(logger, graph, parser, dbWriter, context, siteId, listId);
+        });
+
+        // Add other services as needed
+        // services.AddScoped<IExcelParser, YourExcelParserImplementation>();
+        // services.AddScoped<IDatabaseWriter, YourDatabaseWriterImplementation>();
+        // services.AddDbContext<EdgesDbContext>(...);
+    })
+    .Build();
+
 host.Run();

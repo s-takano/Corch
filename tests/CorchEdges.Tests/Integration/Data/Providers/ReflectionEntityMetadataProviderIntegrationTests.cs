@@ -28,12 +28,12 @@ namespace CorchEdges.Tests.Integration.Data.Providers
             _metadataProvider = new ReflectionEntityMetadataProvider(realEntityMappings);
         }
 
-        #region Real Entity Integration Tests - Mirroring ExcelToDatabaseAdapterIntegrationTests
+        #region Real Entity Integration Tests - Mirroring ExcelToDatabaseConverterIntegrationTests
 
         [Fact]
         public void GetColumnType_WithRealContractCreationEntity_ReturnsCorrectTypes()
         {
-            // This mirrors ExcelToDatabaseAdapterIntegrationTests.GetColumnTypeFromEntity_WithRealEntities_ReturnsCorrectTypes
+            // This mirrors ExcelToDatabaseConverterIntegrationTests.GetColumnTypeFromEntity_WithRealEntities_ReturnsCorrectTypes
             // Test real ContractCreation entity properties using _metadataProvider directly
             
             // Act & Assert - Test various property types from real entity
@@ -46,7 +46,7 @@ namespace CorchEdges.Tests.Integration.Data.Providers
         [Fact]
         public void GetColumnType_WithRealProcessingLogEntity_ReturnsCorrectTypes()
         {
-            // This mirrors ExcelToDatabaseAdapterIntegrationTests.PrepareDataSetForDatabase_NormalizesColumnTypes
+            // This mirrors ExcelToDatabaseConverterIntegrationTests.PrepareDataSetForDatabase_NormalizesColumnTypes
             // Test real ProcessingLog entity properties using _metadataProvider directly
             
             // Act & Assert
@@ -109,12 +109,12 @@ namespace CorchEdges.Tests.Integration.Data.Providers
 
         #endregion
 
-        #region Missing Tests from ExcelToDatabaseAdapterIntegrationTests
+        #region Missing Tests from ExcelToDatabaseConverterIntegrationTests
 
         [Fact]
         public void GetColumnType_WithUnknownRealTable_ThrowsArgumentException()
         {
-            // This mirrors ExcelToDatabaseAdapterIntegrationTests.PrepareDataSetForDatabase_WithUnknownTable_ThrowsException
+            // This mirrors ExcelToDatabaseConverterIntegrationTests.PrepareDataSetForDatabase_WithUnknownTable_ThrowsException
             // but tests the metadata provider directly
             
             // Act & Assert
@@ -140,12 +140,12 @@ namespace CorchEdges.Tests.Integration.Data.Providers
 
         #endregion
 
-        #region Nullable Type Integration Tests - From ExcelToDatabaseAdapterIntegrationTests
+        #region Nullable Type Integration Tests - From ExcelToDatabaseConverterIntegrationTests
 
         [Fact]
         public void GetColumnType_WithNullablePropertiesFromRealEntities_ReturnsNullableTypes()
         {
-            // This mirrors the nullable type testing from ExcelToDatabaseAdapterIntegrationTests.NormalizeTableTypes_WithNullableTypes_HandlesNullsCorrectly
+            // This mirrors the nullable type testing from ExcelToDatabaseConverterIntegrationTests.NormalizeTableTypes_WithNullableTypes_HandlesNullsCorrectly
             // Test that nullable properties in real entities return nullable types correctly
             
             // Act & Assert - Test nullable properties specifically
@@ -210,7 +210,7 @@ namespace CorchEdges.Tests.Integration.Data.Providers
         public void GetColumnType_WithRealEntityTypes_ReturnsDataTableCompatibleTypes()
         {
             // Test that all types returned by the metadata provider are compatible with DataTable column creation
-            // This mirrors the logic tested in ExcelToDatabaseAdapterIntegrationTests.PrepareDataSetForDatabase_WithRealContractData_ProcessesSuccessfully
+            // This mirrors the logic tested in ExcelToDatabaseConverterIntegrationTests.PrepareDataSetForDatabase_WithRealContractData_ProcessesSuccessfully
             
             var testCases = new[]
             {

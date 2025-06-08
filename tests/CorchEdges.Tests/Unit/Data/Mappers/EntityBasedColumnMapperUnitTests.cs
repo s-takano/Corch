@@ -84,11 +84,11 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         [InlineData("")]
         [InlineData("   ")]
         [InlineData(null)]
-        public void MapColumnName_WithEmptyOrNullColumnName_ThrowsArgumentException(string columnName)
+        public void MapColumnName_WithEmptyOrNullColumnName_ThrowsArgumentException(string? columnName)
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() => 
-                _columnMapper.MapColumnName("custom_table", columnName));
+                _columnMapper.MapColumnName("custom_table", columnName!));
             Assert.Contains("Invalid column name", exception.Message);
         }
 
@@ -96,11 +96,11 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         [InlineData("")]
         [InlineData("   ")]
         [InlineData(null)]
-        public void MapColumnName_WithEmptyOrNullTableName_ThrowsArgumentException(string tableName)
+        public void MapColumnName_WithEmptyOrNullTableName_ThrowsArgumentException(string? tableName)
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() => 
-                _columnMapper.MapColumnName(tableName, "AnyColumn"));
+                _columnMapper.MapColumnName(tableName!, "AnyColumn"));
             Assert.Contains("Table name cannot be null or empty", exception.Message);
         }
 
@@ -276,10 +276,10 @@ namespace CorchEdges.Tests.Unit.Data.Mappers
         [InlineData("")]
         [InlineData("   ")]
         [InlineData(null)]
-        public void ValidateColumnName_WithEmptyOrNullName_ThrowsArgumentException(string columnName)
+        public void ValidateColumnName_WithEmptyOrNullName_ThrowsArgumentException(string? columnName)
         {
             // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => _columnMapper.ValidateColumnName(columnName));
+            var exception = Assert.Throws<ArgumentException>(() => _columnMapper.ValidateColumnName(columnName!));
             Assert.Contains("Column name cannot be null or empty", exception.Message);
         }
 

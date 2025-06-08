@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using CorchEdges.Data;
+using CorchEdges.Data.Abstractions;
 using CorchEdges.Tests.Helpers;
 using Xunit;
 
@@ -9,7 +10,8 @@ namespace CorchEdges.Tests.Integration.Database
     {
         private readonly IPostgresTableWriter _writer = new PostgresTableWriter();
         private readonly ExcelDataParser _excelParser = new ExcelDataParser();
-        private readonly IExcelToDatabaseAdapter _adapter = new ExcelToDatabaseAdapter();
+        private readonly IDataSetConverter _dataSetConverter = new ExcelToDatabaseConverter();
+        
 
         [Fact]
         [Trait("Category", "Integration")]
@@ -27,7 +29,7 @@ namespace CorchEdges.Tests.Integration.Database
             Assert.True(sourceDataSet.Tables.Count > 0, "Excel file should contain at least one table");
 
             // Prepare data for database
-            var preparedDataSet = _adapter.ConvertDataSetForDatabase(sourceDataSet);
+            var preparedDataSet = _dataSetConverter.ConvertForDatabase(sourceDataSet);
             var createdTables = await CreateDatabaseTablesFromDataSet(preparedDataSet);
 
             await using var transaction = await Connection.BeginTransactionAsync();
@@ -57,7 +59,7 @@ namespace CorchEdges.Tests.Integration.Database
             byte[] excelBytes = await File.ReadAllBytesAsync(excelFilePath);
             var (sourceDataSet, _) = _excelParser.Parse(excelBytes);
 
-            var preparedDataSet = _adapter.ConvertDataSetForDatabase(sourceDataSet!);
+            var preparedDataSet = _dataSetConverter.ConvertForDatabase(sourceDataSet!);
             var sourceTable = preparedDataSet.Tables.Cast<DataTable>().First(t => t.Rows.Count > 0);
 
             // Store original data for comparison
@@ -93,7 +95,7 @@ namespace CorchEdges.Tests.Integration.Database
         {
             // Arrange
             var testDataSet = CreateTestDataSetWithAllContractTypes();
-            var preparedDataSet = _adapter.ConvertDataSetForDatabase(testDataSet);
+            var preparedDataSet = _dataSetConverter.ConvertForDatabase(testDataSet);
             var createdTables = await CreateDatabaseTablesFromDataSet(preparedDataSet);
 
             await using var transaction = await Connection.BeginTransactionAsync();

@@ -10,47 +10,28 @@ using System.Linq.Expressions;
 
 namespace CorchEdges.Data;
 
-// OLD interface - will be deprecated
-public interface IExcelToDatabaseAdapter
-{
-    DataSet ConvertDataSetForDatabase(DataSet sourceDataSet);
-    Type GetColumnTypeFromEntity(string tableName, string columnName);
-    DataTable NormalizeTableTypes(string mappedTableName, DataTable sourceTable);
-}
 
-// Updated implementation supporting BOTH old and new interfaces
-public class ExcelToDatabaseAdapter : IExcelToDatabaseAdapter, IDataSetConverter
+public class ExcelToDatabaseConverter : IDataSetConverter
 {
     private readonly ITableNameMapper _tableMapper;
-    private readonly IEntityMetadataProvider _metadataProvider;
     private readonly IDataNormalizer _dataNormalizer;
 
-    // Constructor for new ISP-compliant approach (with dependencies)
-    public ExcelToDatabaseAdapter(
-        ITableNameMapper tableMapper,
-        IEntityMetadataProvider metadataProvider,
-        IDataNormalizer dataNormalizer)
-    {
-        _tableMapper = tableMapper ?? throw new ArgumentNullException(nameof(tableMapper));
-        _metadataProvider = metadataProvider ?? throw new ArgumentNullException(nameof(metadataProvider));
-        _dataNormalizer = dataNormalizer ?? throw new ArgumentNullException(nameof(dataNormalizer));
-    }
-
+   
     // Constructor for backward compatibility (creates default implementations)
-    public ExcelToDatabaseAdapter()
+    public ExcelToDatabaseConverter()
     {
         var tableMappings = GetDefaultTableMappings();
         var entityMappings = GetDefaultEntityMappings();
         var columnMappings = GetDefaultColumnMappings();
 
         _tableMapper = new EntityBasedTableMapper(tableMappings);
-        _metadataProvider = new ReflectionEntityMetadataProvider(entityMappings);
+        IEntityMetadataProvider metadataProvider = new ReflectionEntityMetadataProvider(entityMappings);
         var columnMapper = new EntityBasedColumnMapper(columnMappings);
-        _dataNormalizer = new EntityDataNormalizer(_metadataProvider, columnMapper);
+        _dataNormalizer = new EntityDataNormalizer(metadataProvider, columnMapper);
     }
 
     // Constructor for custom mappings (backward compatibility)
-    public ExcelToDatabaseAdapter(
+    public ExcelToDatabaseConverter(
         Dictionary<string, Type> entityTypeMappings,
         Dictionary<string, string>? tableMappings = null,
         Dictionary<string, Dictionary<string, string>>? columnMappings = null)
@@ -60,33 +41,11 @@ public class ExcelToDatabaseAdapter : IExcelToDatabaseAdapter, IDataSetConverter
         var columnMap = columnMappings ?? new Dictionary<string, Dictionary<string, string>>();
 
         _tableMapper = new EntityBasedTableMapper(tableMap);
-        _metadataProvider = new ReflectionEntityMetadataProvider(entityTypeMappings);
+        IEntityMetadataProvider metadataProvider = new ReflectionEntityMetadataProvider(entityTypeMappings);
         var columnMapper = new EntityBasedColumnMapper(columnMap);
-        _dataNormalizer = new EntityDataNormalizer(_metadataProvider, columnMapper);
+        _dataNormalizer = new EntityDataNormalizer(metadataProvider, columnMapper);
     }
-
-    // =============================================
-    // OLD INTERFACE IMPLEMENTATION (Delegates to new)
-    // =============================================
-
-    public DataSet ConvertDataSetForDatabase(DataSet sourceDataSet)
-    {
-        return ConvertForDatabase(sourceDataSet);
-    }
-
-    public Type GetColumnTypeFromEntity(string tableName, string columnName)
-    {
-        return _metadataProvider.GetColumnType(tableName, columnName);
-    }
-
-    public DataTable NormalizeTableTypes(string mappedTableName, DataTable sourceTable)
-    {
-        return _dataNormalizer.NormalizeTypes(mappedTableName, sourceTable);
-    }
-
-    // =============================================
-    // NEW INTERFACE IMPLEMENTATION (Core logic)
-    // =============================================
+    
 
     public DataSet ConvertForDatabase(DataSet sourceDataSet)
     {

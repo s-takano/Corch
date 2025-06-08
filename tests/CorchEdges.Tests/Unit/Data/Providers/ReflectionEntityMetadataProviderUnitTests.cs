@@ -64,7 +64,7 @@ namespace CorchEdges.Tests.Unit.Data.Providers
 
         #endregion
 
-        #region GetColumnType Tests - Covering ExcelToDatabaseAdapterUnitTests scenarios
+        #region GetColumnType Tests - Covering ExcelToDatabaseConverterUnitTests scenarios
 
         [Theory]
         [InlineData("custom_table", "Id", typeof(int))]
@@ -73,7 +73,7 @@ namespace CorchEdges.Tests.Unit.Data.Providers
         [InlineData("custom_table", "IsDeleted", typeof(bool?))]
         public void GetColumnType_WithMockEntity_ReturnsCorrectTypes(string tableName, string columnName, Type expectedType)
         {
-            // This directly mirrors ExcelToDatabaseAdapterUnitTests.GetColumnTypeFromEntity_WithMockEntity_ReturnsCorrectTypes
+            // This directly mirrors ExcelToDatabaseConverterUnitTests.GetColumnTypeFromEntity_WithMockEntity_ReturnsCorrectTypes
             
             // Act
             var result = _metadataProvider.GetColumnType(tableName, columnName);
@@ -85,7 +85,7 @@ namespace CorchEdges.Tests.Unit.Data.Providers
         [Fact]
         public void GetColumnType_WithInvalidColumn_ThrowsInvalidOperationException()
         {
-            // This directly mirrors ExcelToDatabaseAdapterUnitTests.GetColumnTypeFromEntity_WithInvalidColumn_ThrowsInvalidOperationException
+            // This directly mirrors ExcelToDatabaseConverterUnitTests.GetColumnTypeFromEntity_WithInvalidColumn_ThrowsInvalidOperationException
             
             // Act & Assert
             var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -98,7 +98,7 @@ namespace CorchEdges.Tests.Unit.Data.Providers
         [Fact]
         public void GetColumnType_WithInvalidTable_ThrowsArgumentException()
         {
-            // This directly mirrors ExcelToDatabaseAdapterUnitTests.GetColumnTypeFromEntity_WithInvalidTable_ThrowsArgumentException
+            // This directly mirrors ExcelToDatabaseConverterUnitTests.GetColumnTypeFromEntity_WithInvalidTable_ThrowsArgumentException
             
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() =>
@@ -115,7 +115,7 @@ namespace CorchEdges.Tests.Unit.Data.Providers
         [InlineData("another_table", "DueDate", typeof(DateOnly?))]
         public void GetColumnType_WithComplexEntity_ReturnsCorrectTypes(string tableName, string columnName, Type expectedType)
         {
-            // Covers the complex entity types used in ExcelToDatabaseAdapterUnitTests
+            // Covers the complex entity types used in ExcelToDatabaseConverterUnitTests
             
             // Act
             var result = _metadataProvider.GetColumnType(tableName, columnName);
@@ -129,7 +129,7 @@ namespace CorchEdges.Tests.Unit.Data.Providers
         [InlineData("test_data_table", "Description", typeof(string))]
         public void GetColumnType_WithSimpleEntity_ReturnsCorrectTypes(string tableName, string columnName, Type expectedType)
         {
-            // Covers the simple entity types used in ExcelToDatabaseAdapterUnitTests
+            // Covers the simple entity types used in ExcelToDatabaseConverterUnitTests
             
             // Act
             var result = _metadataProvider.GetColumnType(tableName, columnName);
@@ -156,11 +156,11 @@ namespace CorchEdges.Tests.Unit.Data.Providers
         [InlineData("")]
         [InlineData("   ")]
         [InlineData(null)]
-        public void GetColumnType_WithInvalidColumnName_ThrowsInvalidOperationException(string columnName)
+        public void GetColumnType_WithInvalidColumnName_ThrowsInvalidOperationException(string? columnName)
         {
             // Act & Assert
             var exception = Assert.Throws<InvalidOperationException>(() => 
-                _metadataProvider.GetColumnType("custom_table", columnName));
+                _metadataProvider.GetColumnType("custom_table", columnName!));
             
             Assert.Contains("not found in entity", exception.Message);
         }
@@ -302,7 +302,7 @@ namespace CorchEdges.Tests.Unit.Data.Providers
 
         #endregion
 
-        #region Mock Entities for Testing - Same as ExcelToDatabaseAdapterUnitTests
+        #region Mock Entities for Testing - Same as ExcelToDatabaseConverterUnitTests
 
         private class MockEntity
         {

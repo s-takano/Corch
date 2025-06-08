@@ -1,34 +1,18 @@
-﻿// tests/CorchEdges.Tests/Integration/Data/ExcelToDatabaseAdapterIntegrationTests.cs
+﻿// tests/CorchEdges.Tests/Integration/Data/ExcelToDatabaseConverterIntegrationTests.cs
 
 using System.Data;
 using CorchEdges.Data;
+using CorchEdges.Data.Abstractions;
 using CorchEdges.Data.Entities;
 using Xunit;
 
 namespace CorchEdges.Tests.Integration.Data
 {
     [Trait("Category", "Integration")]
-    [Trait("Component", "ExcelToDatabaseAdapter")]
-    public class ExcelToDatabaseAdapterIntegrationTests : DatabaseTestBase
+    [Trait("Component", "ExcelToDatabaseConverter")]
+    public class ExcelToDatabaseConverterIntegrationTests : DatabaseTestBase
     {
-        private readonly IExcelToDatabaseAdapter _adapter;
-
-        public ExcelToDatabaseAdapterIntegrationTests()
-        {
-            // Use a real adapter with real entity mappings
-            _adapter = new ExcelToDatabaseAdapter();
-        }
-        
-
-        [Fact]
-        public void GetColumnTypeFromEntity_WithRealEntities_ReturnsCorrectTypes()
-        {
-            // Act & Assert - Using real ContractCreation entity
-            Assert.Equal(typeof(string), _adapter.GetColumnTypeFromEntity("contract_creation", "ContractId"));
-            Assert.Equal(typeof(int?), _adapter.GetColumnTypeFromEntity("contract_creation", "PropertyNo"));
-            Assert.Equal(typeof(string), _adapter.GetColumnTypeFromEntity("contract_creation", "PropertyName"));
-            Assert.Equal(typeof(DateTime?), _adapter.GetColumnTypeFromEntity("contract_creation", "OutputDateTime"));
-        }
+        private readonly IDataSetConverter _dataSetConverter = new ExcelToDatabaseConverter();
 
         [Fact]
         public void PrepareDataSetForDatabase_WithRealContractData_ProcessesSuccessfully()
@@ -37,7 +21,7 @@ namespace CorchEdges.Tests.Integration.Data
             var sourceDataSet = CreateRealContractDataSet();
 
             // Act
-            var result = _adapter.ConvertDataSetForDatabase(sourceDataSet);
+            var result = _dataSetConverter.ConvertForDatabase(sourceDataSet);
 
             // Assert
             Assert.NotNull(result);
@@ -82,28 +66,31 @@ namespace CorchEdges.Tests.Integration.Data
             row2["出力日時"] = "2024-01-01T10:00:00";
             sourceTable.Rows.Add(row2);
 
+            var dataSet = new DataSet();
+            dataSet.Tables.Add(sourceTable);
+            
             // Act
-            var result = _adapter.NormalizeTableTypes("contract_creation", sourceTable);
+            var result = _dataSetConverter.ConvertForDatabase(dataSet);
 
             // Assert
-            Assert.Equal(2, result.Rows.Count);
+            Assert.Equal(2, result.Tables[0].Rows.Count);
             
             // First row - with nulls
-            var resultRow1 = result.Rows[0];
+            var resultRow1 = result.Tables[0].Rows[0];
             Assert.Equal("CONTRACT_001", resultRow1["ContractId"]);
             Assert.Equal(DBNull.Value, resultRow1["PropertyNo"]);
             Assert.Equal(DBNull.Value, resultRow1["OutputDateTime"]);
             
             // Second row - with values
-            var resultRow2 = result.Rows[1];
+            var resultRow2 = result.Tables[0].Rows[1];
             Assert.Equal("CONTRACT_002", resultRow2["ContractId"]);
             Assert.Equal(456, resultRow2["PropertyNo"]);
             Assert.Equal(DateTime.Parse("2024-01-01T10:00:00"), resultRow2["OutputDateTime"]);
             
             // Verify column settings for nullable behavior
-            Assert.True(result.Columns["PropertyNo"]!.AllowDBNull, "int? property allows nulls");
-            Assert.True(result.Columns["OutputDateTime"]!.AllowDBNull, "DateTime? property allows nulls");
-            Assert.True(result.Columns["ContractId"]!.AllowDBNull, "string? property allows nulls (reference type)");
+            Assert.True(result.Tables[0].Columns["PropertyNo"]!.AllowDBNull, "int? property allows nulls");
+            Assert.True(result.Tables[0].Columns["OutputDateTime"]!.AllowDBNull, "DateTime? property allows nulls");
+            Assert.True(result.Tables[0].Columns["ContractId"]!.AllowDBNull, "string? property allows nulls (reference type)");
         }
 
         private DataSet CreateRealContractDataSet()
@@ -143,7 +130,7 @@ namespace CorchEdges.Tests.Integration.Data
 
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() => 
-                _adapter.ConvertDataSetForDatabase(dataSet));
+                _dataSetConverter.ConvertForDatabase(dataSet));
     
             Assert.Contains("Invalid table name", exception.Message);
         }
@@ -174,7 +161,7 @@ namespace CorchEdges.Tests.Integration.Data
             dataSet.Tables.Add(table);
 
             // Act
-            var result = _adapter.ConvertDataSetForDatabase(dataSet);
+            var result = _dataSetConverter.ConvertForDatabase(dataSet);
 
             // Assert
             var resultTable = result.Tables[0];
