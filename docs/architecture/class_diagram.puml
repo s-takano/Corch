@@ -1,0 +1,100 @@
+@startuml component     ' tell PlantUML “start in component-mode”
+allow_mixing           
+
+!define AZURE_COLOR      #0078D4
+!define FUNCTION_COLOR   #FF6600
+!define SERVICE_COLOR    #00AA44
+!define INTERFACE_COLOR  #9933CC
+
+title CorchEdges – Azure Functions Architecture
+
+cloud "Azure ServiceBus"        as ServiceBus    AZURE_COLOR
+cloud "Azure Function Runtime"  as AzureFunction AZURE_COLOR
+cloud "Microsoft Graph API"     as GraphAPI      AZURE_COLOR
+cloud "Azure Blob Storage"      as BlobStorage   AZURE_COLOR
+
+package "CorchEdges.Functions" FUNCTION_COLOR {
+    class SharePointWebhookCallback {
+        - IWebhookProcessor svc
+        + Run(HttpRequestData req): Task<(HttpResponseData,string?)>
+    }
+
+    class ProcessSharePointChange {
+        - ILogger<ProcessSharePointChange> _log
+        - SharePointChangeHandler _handler
+        - BlobContainerClient _failed
+        + RunAsync(string msg): Task
+    }
+}
+
+package "CorchEdges.Services" SERVICE_COLOR {
+    class DefaultWebhookProcessor {
+        + TryHandshake(HttpRequestData req): HttpResponseData?
+        + BuildEnqueueAsync(HttpRequestData req): Task<(HttpResponseData,string?)>
+    }
+
+    class SharePointChangeHandler {
+        - ILogger _log
+        - IGraphFacade _graph
+        - IExcelParser _parser
+        - IDatabaseWriter _db
+        - EdgesDbContext _context
+        - string _siteId
+        - string _listId
+        + EnsureGraphConnectionAsync(): Task<bool>
+        + HandleAsync(ChangeNotification change): Task
+    }
+}
+
+package "CorchEdges.Abstractions" INTERFACE_COLOR {
+    interface IWebhookProcessor {
+        + TryHandshake(HttpRequestData req): HttpResponseData?
+        + BuildEnqueueAsync(HttpRequestData req): Task<(HttpResponseData,string?)>
+    }
+
+    interface IExcelParser {
+        + Parse(byte[] bytes): (DataSet?,string?)
+    }
+
+    interface IGraphFacade {
+        + TestConnectionAsync(): Task<GraphResult>
+        + GetListItemAsync(string siteId,string listId,string itemId): Task<ListItem?>
+        + GetDriveItemAsync(string siteId,string listId,string itemId): Task<DriveItem?>
+        + DownloadAsync(string driveId,string itemId): Task<Stream>
+    }
+
+    interface IDatabaseWriter {
+        + WriteAsync(DataSet ds,EdgesDbContext ctx,IDbConnection cn,IDbTransaction tx): Task
+    }
+}
+
+package "CorchEdges.Models" {
+    class NotificationEnvelope {
+        + ChangeNotification[] Value
+    }
+
+    class ChangeNotification {
+        + string? Resource
+        + string? ChangeType
+        + string? ClientState
+    }
+}
+
+SharePointWebhookCallback --> IWebhookProcessor
+DefaultWebhookProcessor  ..|> IWebhookProcessor
+ProcessSharePointChange  --> SharePointChangeHandler
+ProcessSharePointChange  --> NotificationEnvelope
+SharePointChangeHandler  --> IGraphFacade
+SharePointChangeHandler  --> IExcelParser
+SharePointChangeHandler  --> IDatabaseWriter
+SharePointChangeHandler  --> ChangeNotification
+NotificationEnvelope     --> ChangeNotification
+
+AzureFunction            --> SharePointWebhookCallback : HTTP Trigger
+AzureFunction            --> ProcessSharePointChange   : ServiceBus Trigger
+ServiceBus               --> ProcessSharePointChange
+SharePointWebhookCallback --> ServiceBus               : enqueues
+SharePointChangeHandler  --> GraphAPI                  : calls
+ProcessSharePointChange  --> BlobStorage               : logs failed
+
+@enduml
