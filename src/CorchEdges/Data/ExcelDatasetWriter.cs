@@ -8,11 +8,24 @@ using Npgsql;
 
 namespace CorchEdges.Data;
 
+/// <summary>
+/// Provides functionality for writing an Excel dataset to a PostgreSQL database using a transaction.
+/// This class ensures data integrity by utilizing a single transaction for the metadata creation,
+/// data writing, and metadata updates.
+/// </summary>
 public class ExcelDatasetWriter(
     IPostgresTableWriter tableWriter,
     ILogger<ExcelDatasetWriter> logger)
     : IDatabaseWriter
 {
+    /// <summary>
+    /// Writes the provided dataset to the database within the given transaction, leveraging a PostgreSQL COPY operation.
+    /// </summary>
+    /// <param name="tables">A <see cref="DataSet"/> containing the tables to be written to the database.</param>
+    /// <param name="context">The <see cref="EdgesDbContext"/> used for database context operations.</param>
+    /// <param name="connection">The database connection to be used for the operation.</param>
+    /// <param name="transaction">The database transaction that ensures atomicity of the operation.</param>
+    /// <returns>A <see cref="Task"/> that represents the asynchronous write operation.</returns>
     public async Task WriteAsync(DataSet tables, EdgesDbContext context, DbConnection connection, DbTransaction transaction)
     {
         var startTime = DateTime.Now;

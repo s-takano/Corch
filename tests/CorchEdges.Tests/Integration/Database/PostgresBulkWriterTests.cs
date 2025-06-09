@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using CorchEdges.Data;
+using CorchEdges.Data.Abstractions;
 using Npgsql;
 using Xunit;
 

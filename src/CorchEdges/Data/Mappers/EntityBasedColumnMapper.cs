@@ -4,12 +4,40 @@ using System.Text;
 
 namespace CorchEdges.Data.Mappers;
 
+/// <summary>
+/// Utility class that maps column names from an original representation
+/// to a mapped (transformed) representation based on pre-defined mappings,
+/// scoped by the table name it belongs to.
+/// </summary>
+/// <remarks>
+/// This class implements the <c>IColumnNameMapper</c> interface, ensuring
+/// functionality to map column names for different sets of data, defined
+/// by source-specific table mappings.
+/// </remarks>
+/// <example>
+/// Can be used as part of normalization or transformation pipelines where
+/// column names must comply with entity definitions.
+/// </example>
 public class EntityBasedColumnMapper(Dictionary<string, Dictionary<string, string>>? columnMappings)
     : IColumnNameMapper
 {
+    /// <summary>
+    /// Represents the maximum length allowed for PostgreSQL identifiers,
+    /// including table names, column names, and other database object identifiers.
+    /// </summary>
+    /// <remarks>
+    /// PostgreSQL restricts the length of identifiers to a maximum of 63 characters.
+    /// Identifiers exceeding this limit will cause errors when interacting with the database.
+    /// This constant ensures that any identifier used adheres to this constraint.
+    /// </remarks>
     private const int PostgreSqlIdentifierMaxLength = 63;
 
     // PostgreSQL reserved keywords (case-insensitive)
+    /// <summary>
+    /// A collection of PostgreSQL reserved keywords represented as a case-insensitive HashSet.
+    /// This set is used for validating column names to ensure they do not conflict
+    /// with reserved keywords in PostgreSQL, which may result in errors during query execution.
+    /// </summary>
     private static readonly HashSet<string> PostgreSqlReservedKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
         "select", "from", "where", "insert", "update", "delete", "create", "drop", "alter",
@@ -27,6 +55,15 @@ public class EntityBasedColumnMapper(Dictionary<string, Dictionary<string, strin
         "decimal", "numeric", "real", "double", "precision", "varchar", "char", "text", "bytea"
     };
 
+    /// <summary>
+    /// Maps the given column name from the specified table to its corresponding mapped column name
+    /// using pre-configured mappings.
+    /// </summary>
+    /// <param name="tableName">The name of the table to look up column mappings for.</param>
+    /// <param name="originalColumnName">The original column name to be mapped.</param>
+    /// <returns>The mapped column name corresponding to the given table and original column name.</returns>
+    /// <exception cref="ArgumentException">Thrown when the table name is unknown, the column name is unmapped,
+    /// or either the table name or column name is invalid.</exception>
     public string MapColumnName(string tableName, string originalColumnName)
     {
         var tableColumnMappings = GetColumnMappings(tableName);
@@ -40,6 +77,14 @@ public class EntityBasedColumnMapper(Dictionary<string, Dictionary<string, strin
         return mappedColumnName;
     }
 
+    /// <summary>
+    /// Retrieves the column mappings for a specified table name from the predefined mappings.
+    /// </summary>
+    /// <param name="tableName">The name of the table whose column mappings are to be retrieved.</param>
+    /// <returns>A dictionary where keys represent original column names and values represent their mapped names.</returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown if the table name is null, empty, or not present in the column mappings, or if no column mappings are defined.
+    /// </exception>
     private Dictionary<string, string> GetColumnMappings(string tableName)
     {
         // Check if we have any mappings at all
@@ -56,6 +101,14 @@ public class EntityBasedColumnMapper(Dictionary<string, Dictionary<string, strin
         return tableColumnMappings;
     }
 
+    /// <summary>
+    /// A dictionary containing column validation rules as key-value pairs,
+    /// where each key is the name of a validation rule, and each value is a delegate
+    /// that defines the logic for the corresponding validation.
+    /// These validation rules are applied to ensure that column names conform to the
+    /// expected criteria before mapping or further processing. For instance, validations
+    /// may include checking for empty names, ensuring a specific length, or avoiding reserved keywords.
+    /// </summary>
     private Dictionary<string, Action<string>> ColumnValidations { get; } = new Dictionary<string, Action<string>>
     {
         ["NotEmpty"] = (name) =>
@@ -84,6 +137,11 @@ public class EntityBasedColumnMapper(Dictionary<string, Dictionary<string, strin
         ["Characters"] = ValidateCharacters
     };
 
+    /// <summary>
+    /// Validates and processes the given column name to ensure it meets all required conditions.
+    /// </summary>
+    /// <param name="columnName">The column name to be validated. Can be null or empty.</param>
+    /// <returns>The trimmed and validated column name as a string. Throws an exception if the name is invalid.</returns>
     public string ValidateColumnName(string? columnName)
     {
         var trimmedName = columnName?.Trim() ?? string.Empty;
@@ -93,6 +151,16 @@ public class EntityBasedColumnMapper(Dictionary<string, Dictionary<string, strin
         return trimmedName;
     }
 
+    /// <summary>
+    /// Validates the characters in a column name to ensure they conform to the rules
+    /// for PostgreSQL quoted identifiers. Rejects null characters and control characters
+    /// (other than tab) as they are not allowed in PostgreSQL identifiers.
+    /// </summary>
+    /// <param name="columnName">The column name to validate. Must not contain invalid characters.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the column name contains control characters (other than tab) or null characters,
+    /// which are not permitted in PostgreSQL identifiers.
+    /// </exception>
     private static void ValidateCharacters(string columnName)
     {
         // PostgreSQL quoted identifiers can contain almost any character
@@ -118,15 +186,5 @@ public class EntityBasedColumnMapper(Dictionary<string, Dictionary<string, strin
         // Note: We're being permissive here because PostgreSQL quoted identifiers
         // support Unicode, parentheses, hyphens, and most special characters
         // The database will ultimately enforce its own rules during table creation
-    }
-
-    private static bool IsValidPostgreSqlIdentifierChar(char ch)
-    {
-        var isLetter = char.IsLetter(ch);
-        var isDigit = char.IsDigit(ch);
-        var isUnderscore = ch == '_';
-        var isDollarSign = ch == '$';
-
-        return (isLetter || isDigit || isUnderscore) && !isDollarSign;
     }
 }

@@ -2,6 +2,7 @@
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
 using CorchEdges.Tests.Helpers;
+using CorchEdges.Utilities;
 using Xunit;
 
 namespace CorchEdges.Tests.Integration.Database

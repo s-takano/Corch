@@ -1,4 +1,6 @@
 using System.Net;
+using CorchEdges.Abstractions;
+using CorchEdges.Functions;
 using Microsoft.Azure.Functions.Worker;
 using Moq;
 using Xunit;

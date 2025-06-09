@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using CorchEdges.Abstractions;
+using CorchEdges.Services;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 

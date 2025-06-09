@@ -1,23 +1,64 @@
-﻿using Azure.Identity;
+﻿using CorchEdges.Abstractions;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ODataErrors;
 
-namespace CorchEdges;
+namespace CorchEdges.Utilities;
 
-
+/// <summary>
+/// Provides a facade for interacting with Microsoft Graph API services.
+/// </summary>
+/// <remarks>
+/// This class encapsulates common operations on Microsoft Graph services,
+/// such as working with SharePoint lists, OneDrive items, downloading files,
+/// and testing connectivity. It provides a simplified interface for making
+/// requests and handling responses from the Microsoft Graph API.
+/// </remarks>
 public sealed class GraphFacade(GraphServiceClient graphServiceClient) : IGraphFacade
 {
+    /// <summary>
+    /// Retrieves a list item from a specific SharePoint list within a specified site.
+    /// </summary>
+    /// <param name="site">
+    /// The unique identifier of the SharePoint site.
+    /// </param>
+    /// <param name="list">
+    /// The unique identifier of the SharePoint list within the site.
+    /// </param>
+    /// <param name="itm">
+    /// The unique identifier of the list item to be retrieved.
+    /// </param>
+    /// <returns>
+    /// A <see cref="Task"/> representing the asynchronous operation. The task result contains the retrieved list item,
+    /// or <c>null</c> if the item is not found.
+    /// </returns>
     public Task<ListItem?> GetListItemAsync(string site, string list, string itm) =>
         graphServiceClient.Sites[site].Lists[list].Items[itm].GetAsync(o => o.QueryParameters.Expand = ["fields"]);
-        
+
+    /// Asynchronously retrieves a drive item from a specific site, list, and item in Microsoft Graph API.
+    /// <param name="site">The identifier of the site containing the drive item.</param>
+    /// <param name="list">The identifier of the list containing the drive item.</param>
+    /// <param name="itm">The identifier of the item within the list that contains the drive item.</param>
+    /// <returns>A task representing the asynchronous operation, containing the retrieved <see cref="DriveItem"/>.
+    /// Returns null if the drive item does not exist.</returns>
     public Task<DriveItem?> GetDriveItemAsync(string site, string list, string itm) =>
         graphServiceClient.Sites[site].Lists[list].Items[itm].DriveItem.GetAsync();
-        
+
+    /// <summary>
+    /// Downloads the content of a drive item as a stream from Microsoft Graph.
+    /// </summary>
+    /// <param name="driveId">The identifier of the drive containing the item to download.</param>
+    /// <param name="itemId">The identifier of the item to download from the drive.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the content of the drive item as a <see cref="Stream"/>.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the returned content stream is null.</exception>
     public async Task<Stream> DownloadAsync(string driveId, string itemId) =>
         await graphServiceClient.Drives[driveId].Items[itemId].Content.GetAsync() ?? 
         throw new InvalidOperationException("null stream");
 
+    /// Tests the connection to the Graph API using the GraphServiceClient instance.
+    /// Returns a result indicating whether the connection test was successful or failed,
+    /// including any error details in case of failure.
+    /// <returns>A ConnectionTestResult indicating the success status of the test and any relevant error details.</returns>
     public async Task<ConnectionTestResult> TestConnectionAsync()
     {
         try

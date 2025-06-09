@@ -3,17 +3,56 @@ using CorchEdges.Data.Abstractions;
 
 namespace CorchEdges.Data.Normalizers;
 
+/// <summary>
+/// Represents a data normalizer for transforming and validating data according
+/// to metadata and column mappings appropriate for a target entity or table.
+/// </summary>
+/// <remarks>
+/// This class facilitates the normalization of data by leveraging metadata and column mappings
+/// to transform the structure and data types of a source DataTable to match the target DataTable.
+/// It is particularly useful for scenarios where data consistency and alignment with
+/// predefined schemas or metadata are required.
+/// </remarks>
+/// <example>
+/// This data normalizer is designed for use within the context of systems that require
+/// consistent data transformation and type mapping, such as during data migrations or
+/// format standardization workflows.
+/// </example>
+/// <seealso cref="IDataNormalizer" />
 public class EntityDataNormalizer : IDataNormalizer
 {
+    /// <summary>
+    /// Provides access to an implementation of <see cref="IEntityMetadataProvider"/> used to retrieve
+    /// metadata about database entities, such as column types and existence of tables or columns.
+    /// This is utilized to ensure data consistency and compatibility during normalization operations.
+    /// </summary>
     private readonly IEntityMetadataProvider _metadataProvider;
+
+    /// <summary>
+    /// Represents the dependency responsible for mapping original column names
+    /// to their desired format, as defined by the <see cref="IColumnNameMapper"/> contract.
+    /// This field is used within the normalization process to transform column names
+    /// according to specific mapping logic required for database or entity data handling.
+    /// </summary>
     private readonly IColumnNameMapper _columnMapper;
 
+    /// <summary>
+    /// Provides functionality to normalize entity data for a target table based on
+    /// metadata and configurable column mappings. This class facilitates
+    /// transformations of data types and column names to conform to a specified schema.
+    /// </summary>
     public EntityDataNormalizer(IEntityMetadataProvider metadataProvider, IColumnNameMapper columnMapper)
     {
         _metadataProvider = metadataProvider ?? throw new ArgumentNullException(nameof(metadataProvider));
         _columnMapper = columnMapper ?? throw new ArgumentNullException(nameof(columnMapper));
     }
 
+    /// <summary>
+    /// Normalizes the column data types of a source DataTable to match the schema of the specified target table.
+    /// </summary>
+    /// <param name="targetTableName">The name of the target table whose schema will be used to normalize column types.</param>
+    /// <param name="sourceTable">The source DataTable containing the data to be normalized.</param>
+    /// <returns>A new DataTable with columns converted to match the data types of the target table schema.</returns>
     public DataTable NormalizeTypes(string targetTableName, DataTable sourceTable)
     {
         var result = new DataTable(targetTableName);
@@ -96,6 +135,16 @@ public class EntityDataNormalizer : IDataNormalizer
         return result;
     }
 
+    /// <summary>
+    /// Converts a given value to a specified target type, taking into account whether null values are allowed for the conversion.
+    /// </summary>
+    /// <param name="value">The value to be converted. Can be any object type.</param>
+    /// <param name="targetType">The target type to convert the value to.</param>
+    /// <param name="allowNull">A boolean indicating whether the target type allows null values.</param>
+    /// <returns>The value converted to the specified target type, or a default/null equivalent as appropriate.</returns>
+    /// <exception cref="FormatException">Thrown if the value cannot be converted to the target type due to format issues.</exception>
+    /// <exception cref="InvalidCastException">Thrown if the value cannot be cast to the target type.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if a null or invalid parameter is provided when null values are not allowed.</exception>
     private static object ConvertValueToType(object value, Type targetType, bool allowNull)
     {
         // Handle nullable types
@@ -132,6 +181,12 @@ public class EntityDataNormalizer : IDataNormalizer
     }
 
     // Add this helper method
+    /// <summary>
+    /// Parses a string representation of a time and converts it into a <see cref="TimeOnly"/> object.
+    /// </summary>
+    /// <param name="stringValue">The string containing the time to be parsed.</param>
+    /// <returns>A <see cref="TimeOnly"/> object representing the parsed time.</returns>
+    /// <exception cref="FormatException">Thrown when the input string cannot be parsed as a valid time.</exception>
     private static TimeOnly ParseTimeOnly(string stringValue)
     {
         // First try: Parse as DateTime and extract time part (handles full datetime strings)
@@ -165,6 +220,10 @@ public class EntityDataNormalizer : IDataNormalizer
         }
     }
 
+    /// Parses the input string into a DateOnly instance, handling various string formats.
+    /// <param name="stringValue">The string value to be parsed into a DateOnly instance.</param>
+    /// <returns>A DateOnly instance parsed from the input string.</returns>
+    /// <exception cref="FormatException">Thrown when the input string cannot be parsed as a DateOnly instance.</exception>
     private static DateOnly ParseDateOnly(string stringValue)
     {
         // First try: Parse as DateTime and extract date part (handles strings with time)
@@ -192,6 +251,11 @@ public class EntityDataNormalizer : IDataNormalizer
         }
     }
 
+    /// <summary>
+    /// Parses the given string value into a boolean.
+    /// </summary>
+    /// <param name="value">The string value to parse as a boolean. Supported values for true include "true", "1", "yes", "y", and "on". Supported values for false include "false", "0", "no", "n", and "off".</param>
+    /// <returns>Returns true or false based on the parsed value. Throws a <see cref="FormatException"/> if the string cannot be converted.</returns>
     private static bool ParseBoolean(string value)
     {
         return value.ToLowerInvariant() switch
@@ -202,6 +266,9 @@ public class EntityDataNormalizer : IDataNormalizer
         };
     }
 
+    /// Returns the default value for the specified type. If the provided type is nullable, it resolves to its underlying type and provides the appropriate default value.
+    /// <param name="type">The type for which the default value is required. This can be a nullable or non-nullable type.</param>
+    /// <return>An instance representing the default value of the specified type. For nullable types, a default value is provided based on the underlying type. For reference types, this is null unless otherwise specified (e.g., empty string for String).</return>
     private static object GetDefaultValueForType(Type type)
     {
         // Handle nullable types
