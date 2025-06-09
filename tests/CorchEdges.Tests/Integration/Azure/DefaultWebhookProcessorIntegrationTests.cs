@@ -10,13 +10,12 @@ namespace CorchEdges.Tests.Integration.Azure;
 [Trait("Component", "WebhookProcessor")]
 public class DefaultWebhookProcessorIntegrationTests
 {
-    private readonly Mock<ILogger<DefaultWebhookProcessor>> _mockLogger;
     private readonly DefaultWebhookProcessor _processor;
 
     public DefaultWebhookProcessorIntegrationTests()
     {
-        _mockLogger = new Mock<ILogger<DefaultWebhookProcessor>>();
-        _processor = new DefaultWebhookProcessor(_mockLogger.Object);
+        var mockLogger = new Mock<ILogger<DefaultWebhookProcessor>>();
+        _processor = new DefaultWebhookProcessor(mockLogger.Object);
     }
 
     [Fact]

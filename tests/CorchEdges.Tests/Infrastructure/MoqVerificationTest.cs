@@ -1,7 +1,6 @@
 using Moq;
-using Xunit;
 
-namespace CorchEdges.Tests;
+namespace CorchEdges.Tests.Infrastructure;
 
 public class MoqVerificationTest
 {

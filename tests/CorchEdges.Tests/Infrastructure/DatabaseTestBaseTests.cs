@@ -1,8 +1,6 @@
-﻿
-using Npgsql;
-using Xunit;
+﻿using Npgsql;
 
-namespace CorchEdges.Tests
+namespace CorchEdges.Tests.Infrastructure
 {
     /// <summary>
     /// Tests the DatabaseTestBase infrastructure itself
