@@ -40,8 +40,8 @@ public class SharePointWebhookCallbackIntegrationTests
         var result = await _function.Run(mockRequest.Object);
 
         // Assert
-        Assert.Equal(expectedResponse.Object, result.http);
-        Assert.Null(result.bus);
+        Assert.Equal(expectedResponse.Object, result.HttpResponse);
+        Assert.Null(result.BusMessage);
         
         // Verify processor was called correctly
         _mockProcessor.Verify(x => x.TryHandshake(mockRequest.Object), Times.Once);
@@ -69,8 +69,8 @@ public class SharePointWebhookCallbackIntegrationTests
         var result = await _function.Run(mockRequest.Object);
 
         // Assert
-        Assert.Equal(expectedResponse.Object, result.http);
-        Assert.Equal(expectedQueueBody, result.bus);
+        Assert.Equal(expectedResponse.Object, result.HttpResponse);
+        Assert.Equal(expectedQueueBody, result.BusMessage);
         
         // Verify both processor methods were called
         _mockProcessor.Verify(x => x.TryHandshake(mockRequest.Object), Times.Once);
@@ -97,8 +97,8 @@ public class SharePointWebhookCallbackIntegrationTests
         var result = await _function.Run(mockRequest.Object);
 
         // Assert
-        Assert.Equal(errorResponse.Object, result.http);
-        Assert.Null(result.bus);
+        Assert.Equal(errorResponse.Object, result.HttpResponse);
+        Assert.Null(result.BusMessage);
     }
 
     [Fact]

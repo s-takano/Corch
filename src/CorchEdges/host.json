@@ -10,12 +10,18 @@
       "Function": "Information",
       "Host.Results": "Information",
       "Host.Aggregator": "Information",
+      "Microsoft.Azure.Functions.Worker": "Information",
       "default": "Information"
     }
   },
   "extensions": {
     "http": {
       "routePrefix": ""
+    },
+    "serviceBus": {
+      "prefetchCount": 100,
+      "maxConcurrentCalls": 16,
+      "autoCompleteMessages": true
     }
   }
 }

@@ -1,7 +1,7 @@
 # Configuration - REPLACE THESE VALUES
 $ResourceGroup = "corch-edges-group"
 $FunctionAppName = "corch-edges"
-$ProjectDir = (Get-Location).Path  # Current directory, change if needed
+$ProjectDir = Join-Path $PSScriptRoot ".." "src" "CorchEdges"
 
 # Function to write colored output
 function Write-ColorOutput($ForegroundColor) {
@@ -48,7 +48,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Create a deployment package
 Write-ColorOutput Yellow "Creating deployment package..."
-$PublishDir = Join-Path $ProjectDir "bin\Release\net9.0"  # Adjust if your .NET version is different
+$PublishDir = Join-Path $ProjectDir "bin\Release\net8.0"  # Adjust if your .NET version is different
 
 # Check if 'publish' directory exists, if not, create it
 if (-not (Test-Path (Join-Path $PublishDir "publish"))) {

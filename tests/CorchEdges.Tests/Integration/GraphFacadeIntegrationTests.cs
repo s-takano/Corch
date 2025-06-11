@@ -1,11 +1,6 @@
-﻿using Azure.Identity;
-using CorchEdges.Abstractions;
+﻿using CorchEdges.Abstractions;
 using CorchEdges.Utilities;
-using DotNetEnv;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ODataErrors;
 using Xunit;
@@ -14,28 +9,26 @@ using Xunit.Abstractions;
 namespace CorchEdges.Tests.Integration;
 
 [Collection("Integration")]
-public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
+public class GraphFacadeIntegrationTests : IntegrationTestBase
 {
     private readonly IGraphFacade _graphFacade;
     private readonly ITestOutputHelper _output;
-    private readonly string? _siteId;
-    private readonly string? _listId;
-    private readonly string? _itemId;
+    private const string TestItemId = "5"; // Pre-created test item with specific permissions setup
 
-    public GraphFacadeIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output)
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        services.AddScoped<IGraphFacade, GraphFacade>();
+    }
+
+    public GraphFacadeIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
+        : base(fixture, output)
     {
         _graphFacade = fixture.Services.GetRequiredService<IGraphFacade>();
         _output = output;
         
-        // Get test data from environment variables
-        _siteId = Environment.GetEnvironmentVariable("TEST_SHAREPOINT_SITE_ID");
-        _listId = Environment.GetEnvironmentVariable("TEST_SHAREPOINT_LIST_ID");
-        _itemId = Environment.GetEnvironmentVariable("TEST_SHAREPOINT_ITEM_ID");
         
         _output.WriteLine($"Test Environment Variables:");
-        _output.WriteLine($"Site ID: {_siteId ?? "NOT SET"}");
-        _output.WriteLine($"List ID: {_listId ?? "NOT SET"}");
-        _output.WriteLine($"Item ID: {_itemId ?? "NOT SET"}");
+        _output.WriteLine($"Item ID: {TestItemId}");
     }
 
     [Fact]
@@ -89,19 +82,19 @@ public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
         if (ShouldSkipTest()) return;
 
         // Act
-        var result = await _graphFacade.GetListItemAsync(_siteId!, _listId!, _itemId!);
+        var result = await _graphFacade.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(_itemId, result.Id);
+        Assert.Equal(TestItemId, result.Id);
         Assert.NotNull(result.Fields);
         
         _output.WriteLine($"✅ Retrieved list item: {result.Id}");
         _output.WriteLine($"   Created: {result.CreatedDateTime}");
         _output.WriteLine($"   Modified: {result.LastModifiedDateTime}");
         
-        // Check if ProcessFlag field exists (based on your business logic)
-        if (result.Fields?.AdditionalData?.ContainsKey("ProcessFlag") == true)
+        // Check if the ProcessFlag field exists (based on your business logic)
+        if (result.Fields?.AdditionalData.ContainsKey("ProcessFlag") == true)
         {
             var processFlag = result.Fields.AdditionalData["ProcessFlag"];
             _output.WriteLine($"   ProcessFlag: {processFlag}");
@@ -117,7 +110,7 @@ public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
         const string invalidItemId = "999999";
 
         // Act & Assert
-        await Assert.ThrowsAsync<ODataError>(async ()=> await _graphFacade.GetListItemAsync(_siteId!, _listId!, invalidItemId));
+        await Assert.ThrowsAsync<ODataError>(async ()=> await _graphFacade.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
 
         _output.WriteLine("✅ Invalid item ID correctly returned null");
     }
@@ -130,7 +123,7 @@ public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
         if (ShouldSkipTest()) return;
 
         // Act
-        var result = await _graphFacade.GetDriveItemAsync(_siteId!, _listId!, _itemId!);
+        var result = await _graphFacade.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
 
         // Assert
         Assert.NotNull(result);
@@ -155,7 +148,7 @@ public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
         const string invalidItemId = "999999";
 
         // Act & Assert
-        await Assert.ThrowsAsync<ODataError>(()=> _graphFacade.GetDriveItemAsync(_siteId!, _listId!, invalidItemId));
+        await Assert.ThrowsAsync<ODataError>(()=> _graphFacade.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
         _output.WriteLine("✅ Invalid drive item ID correctly returned null");
     }
 
@@ -167,7 +160,7 @@ public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
         if (ShouldSkipTest()) return;
         
         // First get the drive item to get the drive ID
-        var driveItem = await _graphFacade.GetDriveItemAsync(_siteId!, _listId!, _itemId!);
+        var driveItem = await _graphFacade.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
         Assert.NotNull(driveItem);
         Assert.NotNull(driveItem.ParentReference?.DriveId);
         Assert.NotNull(driveItem.Id);
@@ -236,12 +229,12 @@ public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
         _output.WriteLine("   ✅ Step 1: Connection verified");
 
         // Step 2: Get list item
-        var listItem = await _graphFacade.GetListItemAsync(_siteId!, _listId!, _itemId!);
+        var listItem = await _graphFacade.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
         Assert.NotNull(listItem);
         _output.WriteLine($"   ✅ Step 2: List item retrieved (ID: {listItem.Id})");
 
         // Step 3: Get drive item
-        var driveItem = await _graphFacade.GetDriveItemAsync(_siteId!, _listId!, _itemId!);
+        var driveItem = await _graphFacade.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
         Assert.NotNull(driveItem);
         Assert.NotNull(driveItem.ParentReference?.DriveId);
         _output.WriteLine($"   ✅ Step 3: Drive item retrieved (Name: {driveItem.Name})");
@@ -274,9 +267,9 @@ public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
         // Act
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         
-        for (int i = 0; i < concurrentRequests; i++)
+        for (var i = 0; i < concurrentRequests; i++)
         {
-            tasks.Add(_graphFacade.GetListItemAsync(_siteId!, _listId!, _itemId!));
+            tasks.Add(_graphFacade.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId));
         }
 
         var results = await Task.WhenAll(tasks);
@@ -284,7 +277,7 @@ public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
 
         // Assert
         Assert.All(results, result => Assert.NotNull(result));
-        Assert.All(results, result => Assert.Equal(_itemId, result!.Id));
+        Assert.All(results, result => Assert.Equal(TestItemId, result!.Id));
         
         _output.WriteLine($"✅ {concurrentRequests} concurrent requests completed in {stopwatch.ElapsedMilliseconds}ms");
         _output.WriteLine($"   Average: {stopwatch.ElapsedMilliseconds / concurrentRequests}ms per request");
@@ -296,70 +289,12 @@ public class GraphFacadeIntegrationTests : IClassFixture<IntegrationTestFixture>
 
     private bool ShouldSkipTest([System.Runtime.CompilerServices.CallerMemberName] string? testName = null)
     {
-        if (string.IsNullOrEmpty(_siteId) || string.IsNullOrEmpty(_listId) || string.IsNullOrEmpty(_itemId))
+        if (string.IsNullOrEmpty(Fixture.GetTestSiteId()) || string.IsNullOrEmpty(Fixture.GetTestListId()) || string.IsNullOrEmpty(TestItemId))
         {
             _output.WriteLine($"⚠️  Skipping {testName} - Environment variables not set");
             _output.WriteLine("   Required: TEST_SHAREPOINT_SITE_ID, TEST_SHAREPOINT_LIST_ID, TEST_SHAREPOINT_ITEM_ID");
             return true;
         }
         return false;
-    }
-}
-
-public class IntegrationTestFixture : IDisposable
-{
-    public IServiceProvider Services { get; }
-
-    public IntegrationTestFixture()
-    {
-        // Load .env file - automatically finds it in current directory or parent directories
-        Env.Load();
-
-        var host = new HostBuilder()
-            .ConfigureAppConfiguration(config =>
-            {
-                config.AddJsonFile("appsettings.json", optional: false);        // 1. Base config
-                config.AddJsonFile("appsettings.test.json", optional: true);    // 2. Environment-specific
-                config.AddEnvironmentVariables();                               // 3. Secrets/overrides (HIGHEST priority)
-            })
-            .ConfigureServices(services =>
-            {
-                // Register GraphServiceClient with DefaultAzureCredential
-                services.AddScoped<GraphServiceClient>(provider =>
-                {
-                    var credential = new DefaultAzureCredential();
-                    return new GraphServiceClient(credential);
-                });
-
-                services.AddScoped<IGraphFacade, GraphFacade>();
-            })
-            .Build();
-
-        Services = host.Services;
-    }
-
-    [Fact]
-    public void CanReadTestConfiguration()
-    {
-        var config = Services.GetRequiredService<IConfiguration>();
-
-        // From appsettings.test.json
-        var logLevel = config["Logging:LogLevel:Default"];
-        var timeout = config.GetValue<int>("SharePoint:DefaultTimeoutMs");
-
-        // From .env (environment variables) 
-        var siteId = config["TEST_SHAREPOINT_SITE_ID"];
-
-        Assert.Equal("Information", logLevel);
-        Assert.Equal(30000, timeout);
-        Assert.NotNull(siteId);
-    }
-    
-    public void Dispose()
-    {
-        if (Services is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
     }
 }

@@ -186,8 +186,15 @@ public sealed class SharePointChangeHandler
             }
 
             var di = await _graph.GetDriveItemAsync(_siteId, _listId, itemId) ?? 
-                     throw new InvalidOperationException("drive item null");
-            
+                 throw new InvalidOperationException("drive item null");
+        
+            // Filter by file extension before downloading
+            if (!IsExcelFile(di.Name))
+            {
+                _log.LogInformation("Skipping non-Excel file: {fileName}", di.Name);
+                return;
+            }
+        
             await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
             await using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
@@ -199,9 +206,9 @@ public sealed class SharePointChangeHandler
                 _log.LogError(err); 
                 return; 
             }
-            
+        
             await _db.WriteAsync(ds!, _context, connection, transaction.GetDbTransaction());
-            
+        
             await transaction.CommitAsync();
         }
         catch
@@ -209,5 +216,18 @@ public sealed class SharePointChangeHandler
             await transaction.RollbackAsync();
             throw;
         }
+    }
+
+    /// <summary>
+    /// Determines whether the specified file name represents an Excel file based on its extension.
+    /// </summary>
+    /// <param name="fileName">The name of the file to check.</param>
+    /// <returns>True if the file is an Excel file; otherwise, false.</returns>
+    private static bool IsExcelFile(string? fileName)
+    {
+        if (string.IsNullOrEmpty(fileName)) return false;
+    
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        return extension is ".xlsx" or ".xls" or ".xlsm" or ".xlsb";
     }
 }
