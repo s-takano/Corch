@@ -46,9 +46,9 @@ var host = Host.CreateDefaultBuilder(args)
         log.AddConsole();
 
         // Narrow noise with filters instead of ClearProviders
-        log.SetMinimumLevel(LogLevel.Warning);              // default for everything
-        log.AddFilter("Startup",     LogLevel.Information); // your Program.cs
-        log.AddFilter("CorchEdges",  LogLevel.Debug);       // your functions
+        log.SetMinimumLevel(LogLevel.Warning); // default for everything
+        log.AddFilter("Startup", LogLevel.Information); // your Program.cs
+        log.AddFilter("CorchEdges", LogLevel.Debug); // your functions
     })
 
 // ───────────────────────────────────────── DI registrations
@@ -106,17 +106,18 @@ static void AddKeyVault(IConfigurationBuilder cfg, string envName)
 static void RegisterDatabaseServices(IServiceCollection services, IConfiguration config)
 {
     Console.WriteLine("Starting database services registration...");
-    
+
     var (dbContextFactory, postgresTableWriterFactory, databaseWriterFactory) = CreateDatabaseFactories(config);
-    
+
     services.AddDbContext<EdgesDbContext>(dbContextFactory);
     services.AddScoped(postgresTableWriterFactory);
     services.AddScoped(databaseWriterFactory);
-    
+
     Console.WriteLine("Database services registration completed.");
 }
 
-static (Action<DbContextOptionsBuilder>, Func<IServiceProvider, IPostgresTableWriter>, Func<IServiceProvider, IDatabaseWriter>) CreateDatabaseFactories(IConfiguration config)
+static (Action<DbContextOptionsBuilder>, Func<IServiceProvider, IPostgresTableWriter>,
+    Func<IServiceProvider, IDatabaseWriter>) CreateDatabaseFactories(IConfiguration config)
 {
     Action<DbContextOptionsBuilder> dbContextFactory;
     Func<IServiceProvider, IPostgresTableWriter> postgresTableWriterFactory;
@@ -157,10 +158,11 @@ static (Action<DbContextOptionsBuilder>, Func<IServiceProvider, IPostgresTableWr
     return (dbContextFactory, postgresTableWriterFactory, databaseWriterFactory);
 }
 
-static (Action<DbContextOptionsBuilder>, Func<IServiceProvider, IPostgresTableWriter>, Func<IServiceProvider, IDatabaseWriter>) CreateStubImplementations(string errorMessage)
+static (Action<DbContextOptionsBuilder>, Func<IServiceProvider, IPostgresTableWriter>,
+    Func<IServiceProvider, IDatabaseWriter>) CreateStubImplementations(string errorMessage)
 {
     Console.WriteLine($"Creating stub implementations: {errorMessage}");
-    
+
     return (
         _ => throw new InvalidOperationException(errorMessage),
         _ => throw new InvalidOperationException(errorMessage),
@@ -171,10 +173,10 @@ static (Action<DbContextOptionsBuilder>, Func<IServiceProvider, IPostgresTableWr
 static void RegisterGraph(IServiceCollection svcs)
 {
     Console.WriteLine("Starting Graph services registration...");
-    
+
     svcs.AddScoped<GraphServiceClient>(_ => new GraphServiceClient(new DefaultAzureCredential()));
     svcs.AddScoped<IGraphFacade, GraphFacade>();
-    
+
     Console.WriteLine("✓ Graph services registration completed.");
 }
 
@@ -182,7 +184,7 @@ static void RegisterGraph(IServiceCollection svcs)
 static void RegisterServiceBus(IServiceCollection svcs, IConfiguration cfg)
 {
     Console.WriteLine("Starting Service Bus registration...");
-    
+
     svcs.AddSingleton<ServiceBusClient>(_ =>
     {
         var cs = cfg.GetConnectionString("ServiceBusConnection");
@@ -197,7 +199,7 @@ static void RegisterServiceBus(IServiceCollection svcs, IConfiguration cfg)
         Console.WriteLine($"✓ Service Bus registered with FQNS: {fqns}");
         return new ServiceBusClient(fqns, new DefaultAzureCredential());
     });
-    
+
     Console.WriteLine("Service Bus registration completed.");
 }
 
@@ -205,10 +207,10 @@ static void RegisterServiceBus(IServiceCollection svcs, IConfiguration cfg)
 static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
 {
     Console.WriteLine("Starting Business services registration...");
-    
+
     svcs.AddScoped<IExcelParser, ExcelDataParser>();
     svcs.AddScoped<IDatabaseWriter, ExcelDatasetWriter>();
-    
+
     // Add WebhookRegistrationService service
     svcs.AddScoped<WebhookRegistration>();
 
@@ -219,8 +221,9 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
         p.GetRequiredService<IDatabaseWriter>(),
         p.GetRequiredService<EdgesDbContext>(),
         cfg["SharePoint:SiteId"] ?? "MISSING",
-        cfg["SharePoint:ListId"] ?? "MISSING"));
-    
+        cfg["SharePoint:ListId"] ?? "MISSING",
+        cfg["SharePoint:WatchedPath"] ?? "MISSING"));
+
     var siteId = cfg["SharePoint:SiteId"] ?? "MISSING";
     var listId = cfg["SharePoint:ListId"] ?? "MISSING";
     Console.WriteLine($"✓ Business services registration completed. SharePoint SiteId: {siteId}, ListId: {listId}");

@@ -427,6 +427,14 @@ public class SharePointSetupWebhook(
                              _configuration["WebhookFunctionKey"] ?? 
                              Environment.GetEnvironmentVariable("WebhookFunctionKey");
 
+            // Make function key required
+            if (string.IsNullOrEmpty(functionKey))
+            {
+                throw new InvalidOperationException(
+                    "Function key is required for webhook security. " +
+                    "Configure WebhookFunctionKey in settings or provide functionKey in request body.");
+            }
+
             var callbackUrl = requestData.GetConfigValue("callbackUrl");
             
             if (string.IsNullOrEmpty(callbackUrl))
@@ -436,11 +444,7 @@ public class SharePointSetupWebhook(
                     throw new InvalidOperationException("Cannot generate callback URL: WEBSITE_SITE_NAME is not available and no explicit callbackUrl provided");
                 }
                 
-                callbackUrl = $"https://{functionAppName}.azurewebsites.net/sharepoint/webhook";
-                if (!string.IsNullOrEmpty(functionKey))
-                {
-                    callbackUrl += $"?code={functionKey}";
-                }
+                callbackUrl = $"https://{functionAppName}.azurewebsites.net/sharepoint/webhook?code={functionKey}";
             }
 
             if (string.IsNullOrEmpty(siteId))
@@ -512,7 +516,23 @@ public class SharePointSetupWebhook(
             return false;
         }
 
+        // Validate that the URL includes authentication
+        if (!HasAuthenticationParameter(config.CallbackUrl))
+        {
+            error = "Callback URL must include authentication (function key). Use ?code=<function-key> parameter.";
+            return false;
+        }
+
         return true;
+    }
+
+    private static bool HasAuthenticationParameter(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return false;
+
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        return !string.IsNullOrEmpty(query["code"]);
     }
 
     private class WebhookConfiguration(string siteId, string listId, string callbackUrl, string? functionAppName)

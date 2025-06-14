@@ -9,18 +9,18 @@ using Microsoft.Graph.Models;
 
 namespace CorchEdges;
 
-
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  Orchestrator that can be unit‑tested in isolation
 // ─────────────────────────────────────────────────────────────────────────────
 /// <summary>
-/// Represents a service responsible for managing and handling changes related to SharePoint
-/// notifications. This class acts as an orchestrator coordinating various dependencies
-/// such as graph connectivity, Excel parsing, database operations, and transaction management.
+/// Represents an orchestrator for handling SharePoint-related changes and notifications.
+/// This service coordinates multiple dependencies, such as logging, Microsoft Graph
+/// operations, Excel file parsing, database updates, and transactional workflows.
 /// </summary>
 public sealed class SharePointChangeHandler
 {
+    private readonly string _watchedPath;
+
     /// <summary>
     /// Represents the logging service used for recording essential information,
     /// such as errors, warnings, and informational messages, during the execution
@@ -81,7 +81,7 @@ public sealed class SharePointChangeHandler
     /// designed to be used in scenarios where extracting item IDs from change notifications is required, as seen in
     /// processes like handling Graph API change notifications.
     /// </remarks>
-    private static readonly Regex Rx = new(@"Items\((\d+)\)", RegexOptions.Compiled);
+    private static readonly Regex Rx = new(@"items/(\d+)$", RegexOptions.Compiled);
 
     /// <summary>
     /// Represents the unique identifier for a SharePoint site used to interact with the Microsoft Graph API.
@@ -95,27 +95,80 @@ public sealed class SharePointChangeHandler
     /// </summary>
     private readonly string _listId;
 
-    /// <summary>
-    /// The SharePointChangeHandler class orchestrates the coordination of SharePoint Graph operations,
-    /// Excel file parsing, and database writing. It is designed for handling changes in a
-    /// SharePoint list and can be easily unit-tested in isolation.
-    /// </summary>
+
+    /// Handles and orchestrates changes specific to a SharePoint list or document library,
+    /// allowing for modular and testable integration of various dependencies such as logging,
+    /// data parsing, database operations, and API interactions.
+    /// The class is designed to enable isolated unit testing by relying on dependency
+    /// injection for its core functionalities.
+    /// Constructor of the class initializes the required services, database context,
+    /// and identifiers pertinent to the SharePoint site, list, and watched folder.
     public SharePointChangeHandler(
-        ILogger log, 
-        IGraphFacade graph, 
-        IExcelParser parser, 
-        IDatabaseWriter db, 
-        EdgesDbContext context, 
-        string siteId, 
-        string listId)
+        ILogger log,
+        IGraphFacade graph,
+        IExcelParser parser,
+        IDatabaseWriter db,
+        EdgesDbContext context,
+        string siteId,
+        string listId,
+        string watchedPath)
     {
-        _log = log; 
-        _graph = graph; 
-        _parser = parser; 
-        _db = db;
-        _context = context; 
-        _siteId = siteId; 
+        // Validate interface dependencies
+        _log = log ?? throw new ArgumentNullException(nameof(log));
+        _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+        _parser = parser ?? throw new ArgumentNullException(nameof(parser));
+        _db = db ?? throw new ArgumentNullException(nameof(db));
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+        
+        // Validate string parameters
+        if (string.IsNullOrWhiteSpace(siteId))
+            throw new ArgumentException("Site ID cannot be null or whitespace.", nameof(siteId));
+        
+        if (string.IsNullOrWhiteSpace(listId))
+            throw new ArgumentException("List ID cannot be null or whitespace.", nameof(listId));
+        
+        if (string.IsNullOrWhiteSpace(watchedPath))
+            throw new ArgumentException("Watched folder drive ID cannot be null or whitespace.", nameof(watchedPath));
+        
+        // Additional validation for ID formats (optional but recommended)
+        if (!IsValidGuid(siteId) && !IsValidSharePointId(siteId))
+            throw new ArgumentException("Site ID must be a valid GUID or SharePoint ID format.", nameof(siteId));
+        
+        if (!IsValidGuid(listId))
+            throw new ArgumentException("List ID must be a valid GUID.", nameof(listId));
+        
+        if (string.IsNullOrEmpty(watchedPath))
+            throw new ArgumentException("Watched folder drive path must be a valid GUID.", nameof(watchedPath));
+        
+        // Assign validated parameters
+        _siteId = siteId;
         _listId = listId;
+        _watchedPath = watchedPath;
+    }
+
+    // Helper methods for validation
+    private static bool IsValidGuid(string value)
+    {
+        return Guid.TryParse(value, out _);
+    }
+
+    private static bool IsValidSharePointId(string value)
+    {
+        // SharePoint site IDs often follow the pattern: hostname,guid,guid
+        // Example: contoso.sharepoint.com,12345678-1234-1234-1234-123456789012,87654321-4321-4321-4321-210987654321
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+        
+        var parts = value.Split(',');
+        if (parts.Length == 3)
+        {
+            // First part should be hostname, second and third should be GUIDs
+            return !string.IsNullOrWhiteSpace(parts[0]) && 
+                   IsValidGuid(parts[1]) && 
+                   IsValidGuid(parts[2]);
+        }
+        
+        return false;
     }
 
     /// Ensures a valid connection to the Microsoft Graph API by testing the connectivity
@@ -130,12 +183,12 @@ public sealed class SharePointChangeHandler
     public async Task<bool> EnsureGraphConnectionAsync()
     {
         var result = await _graph.TestConnectionAsync();
-        
+
         if (!result.IsSuccess)
         {
-            _log.LogError("Graph connection failed: {reason} (Code: {code})", 
+            _log.LogError("Graph connection failed: {reason} (Code: {code})",
                 result.ErrorReason, result.ErrorCode);
-                
+
             // Take specific action based on error type
             switch (result.ErrorCode)
             {
@@ -149,10 +202,10 @@ public sealed class SharePointChangeHandler
                     _log.LogWarning("Graph API is slow, consider retry");
                     break;
             }
-            
+
             return false;
         }
-        
+
         _log.LogInformation("Graph connection successful");
         return true;
     }
@@ -164,58 +217,91 @@ public sealed class SharePointChangeHandler
     /// <returns>A <see cref="Task"/> that resolves to a boolean indicating the success or failure of the operation.</returns>
     public async Task HandleAsync(ChangeNotification change)
     {
-        // Start transaction
+        string itemId = Rx.Match(change.Resource ?? "").Groups[1].Value;
+        if (string.IsNullOrEmpty(itemId))
+        {
+            _log.LogWarning("Bad resource {r}", change.Resource);
+            return;
+        }
+
+        var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
+        if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
+            !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            _log.LogInformation("Skipping {id}", itemId);
+            return;
+        }
+
+        var di = await _graph.GetDriveItemAsync(_siteId, _listId, itemId) ??
+                 throw new InvalidOperationException("drive item null");
+
+        // Filter by watched folder
+        var parentPathRaw = di.ParentReference?.Path;
+        if (parentPathRaw is null)
+        {
+            _log.LogWarning("DriveItem has no parent path. Id={id}", di.Id);
+            return;
+        }
+
+        var parentCanon = Canon(parentPathRaw);
+        var watchedCanon = Canon(_watchedPath);
+
+        if (parentCanon != watchedCanon)
+        {
+            _log.LogInformation("Skipping item outside watched folder: {p}", parentPathRaw);
+            return;             // everything else stays the same
+        }
+
+        // Filter by file extension before downloading
+        if (!IsExcelFile(di.Name))
+        {
+            _log.LogInformation("Skipping non-Excel file: {fileName}", di.Name);
+            return;
+        }
+
+        await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
+        await using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var bytes = ms.ToArray();
+
+        var (ds, err) = _parser.Parse(bytes);
+        if (err != null)
+        {
+            _log.LogError(err);
+            return;
+        }
+
         await using var transaction = await _context.Database.BeginTransactionAsync();
-        var connection = _context.Database.GetDbConnection();
-        
         try
         {
-            string itemId = Rx.Match(change.Resource ?? "").Groups[1].Value;
-            if (string.IsNullOrEmpty(itemId)) 
-            { 
-                _log.LogWarning("Bad resource {r}", change.Resource); 
-                return; 
-            }
+            // Start transaction
+            var connection = _context.Database.GetDbConnection();
 
-            var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
-            if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true && 
-                !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
-            { 
-                _log.LogInformation("Skipping {id}", itemId); 
-                return; 
-            }
-
-            var di = await _graph.GetDriveItemAsync(_siteId, _listId, itemId) ?? 
-                 throw new InvalidOperationException("drive item null");
-        
-            // Filter by file extension before downloading
-            if (!IsExcelFile(di.Name))
-            {
-                _log.LogInformation("Skipping non-Excel file: {fileName}", di.Name);
-                return;
-            }
-        
-            await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
-            await using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms);
-            var bytes = ms.ToArray();
-
-            var (ds, err) = _parser.Parse(bytes);
-            if (err != null) 
-            { 
-                _log.LogError(err); 
-                return; 
-            }
-        
             await _db.WriteAsync(ds!, _context, connection, transaction.GetDbTransaction());
-        
+
             await transaction.CommitAsync();
         }
-        catch
+        catch (Exception e)
         {
+            _log.LogWarning("Database Writer failed: {EMessage}", e.Message);
             await transaction.RollbackAsync();
             throw;
         }
+    }
+
+    
+    private static string Canon(string raw)
+    {
+        // Graph gives something like "/sites/Fin/drive/root:/Shared%20Documents/Accounting"
+        // 1) cut off everything up to the first ':'   ("/Shared%20Documents/Accounting")
+        // 2) URL-decode (%20 → space)
+        // 3) force forward-slashes and lower-case
+        int idx = raw.IndexOf(':');
+        if (idx >= 0 && idx + 1 < raw.Length) raw = raw[(idx + 1)..];
+        return Uri.UnescapeDataString(raw)
+            .Replace('\\', '/')
+            .TrimEnd('/')                    // no trailing slash
+            .ToLowerInvariant();
     }
 
     /// <summary>
@@ -226,7 +312,7 @@ public sealed class SharePointChangeHandler
     private static bool IsExcelFile(string? fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;
-    
+
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
         return extension is ".xlsx" or ".xls" or ".xlsm" or ".xlsb";
     }
