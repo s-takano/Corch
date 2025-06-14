@@ -4,45 +4,27 @@ using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
 using CorchEdges.Models;
-using Xunit;
 using Xunit.Abstractions;
-using DotNetEnv;
 
 namespace CorchEdges.Tests.Integration.ServiceBus;
 
 [Collection("ServiceBus Integration Tests")]
-public class SharePointChangeProcessingServiceBusTests : IAsyncLifetime
+public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
 {
     private readonly ITestOutputHelper _output;
     private readonly ServiceBusClient _serviceBusClient;
     private readonly ServiceBusSender _sender;
     private readonly ServiceBusReceiver _receiver;
     private readonly string _queueName = "sp-changes-integration-test";
-    private readonly IConfiguration _configuration;
 
-    public SharePointChangeProcessingServiceBusTests(ITestOutputHelper output)
+    public SharePointChangeProcessingServiceBusTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
+        : base(fixture, output)
     {
         _output = output;
 
-        Env.Load();
-        
-        // Load configuration from appsettings or environment variables
-        _configuration = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json", optional: true)
-            .AddJsonFile("appsettings.Integration.json", optional: true)
-            .AddEnvironmentVariables()
-            .AddAzureKeyVault(
-                new Uri("https://corch-edges-test-kv.vault.azure.net/"),
-                new DefaultAzureCredential() // This will use your Azure CLI login
-            )
-            .Build();
-
-        var connectionString = _configuration.GetConnectionString("ServiceBusConnection") 
+        var connectionString = Configuration.GetConnectionString("ServiceBusConnection") 
             ?? throw new InvalidOperationException("ServiceBusConnection not configured");
 
         _serviceBusClient = new ServiceBusClient(connectionString);
@@ -50,11 +32,19 @@ public class SharePointChangeProcessingServiceBusTests : IAsyncLifetime
         _receiver = _serviceBusClient.CreateReceiver(_queueName);
     }
 
+    protected override void ConfigureBuilder(IConfigurationBuilder builder)
+    {
+        builder.AddAzureKeyVault(
+            new Uri("https://corch-edges-test-kv.vault.azure.net/"),
+            new DefaultAzureCredential() // This will use your Azure CLI login
+        );
+    }
+
     [Fact]
     public async Task ServiceBus_Connection_ShouldBeValid()
     {
         // Arrange
-        var connectionString = _configuration.GetConnectionString("ServiceBusConnection");
+        var connectionString = Configuration.GetConnectionString("ServiceBusConnection");
         Assert.NotNull(connectionString);
         Assert.Contains("servicebus.windows.net", connectionString);
 
@@ -427,12 +417,14 @@ public class SharePointChangeProcessingServiceBusTests : IAsyncLifetime
         return new NotificationEnvelope { Value = notifications };
     }
 
-    public async Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
+        await base.InitializeAsync();
+        
         // Create queue if it doesn't exist (requires admin permissions)
         try
         {
-            var adminClient = new ServiceBusAdministrationClient(_configuration.GetConnectionString("ServiceBusConnection"));
+            var adminClient = new ServiceBusAdministrationClient(Configuration.GetConnectionString("ServiceBusConnection"));
             if (!await adminClient.QueueExistsAsync(_queueName))
             {
                 await adminClient.CreateQueueAsync(_queueName);
@@ -448,8 +440,9 @@ public class SharePointChangeProcessingServiceBusTests : IAsyncLifetime
         await PurgeQueueAsync();
     }
 
-    public async Task DisposeAsync()
+    public override async Task DisposeAsync()
     {
+        await base.DisposeAsync();
         await _receiver.DisposeAsync();
         await _sender.DisposeAsync();
         await _serviceBusClient.DisposeAsync();

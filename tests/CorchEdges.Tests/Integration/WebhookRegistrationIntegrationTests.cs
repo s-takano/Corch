@@ -1,8 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Azure.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
 using CorchEdges.Services;
 using FluentAssertions;
+using Microsoft.Graph;
 using Xunit.Abstractions;
 
 namespace CorchEdges.Tests.Integration;
@@ -23,6 +25,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
 
     protected override void ConfigureServices(IServiceCollection services)
     {
+        services.AddScoped<GraphServiceClient>(_ => new GraphServiceClient(new DefaultAzureCredential()));
         services.AddScoped<WebhookRegistration>();
     }
 

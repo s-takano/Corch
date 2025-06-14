@@ -17,9 +17,14 @@ public abstract class IntegrationTestBase : IClassFixture<IntegrationTestFixture
         Output = output;
         
         // Apply the specific test configuration
-        fixture.ConfigureServices(ConfigureServices);
+        fixture.ConfigureServices(ConfigureServices, ConfigureBuilder);
         
         Configuration = Services.GetRequiredService<IConfiguration>();
+    }
+
+    protected virtual void ConfigureBuilder(IConfigurationBuilder builder)
+    {
+        
     }
 
     /// <summary>
@@ -30,12 +35,12 @@ public abstract class IntegrationTestBase : IClassFixture<IntegrationTestFixture
         // Default implementation - can be empty or provide common services
     }
 
-    public Task InitializeAsync()
+    public virtual Task InitializeAsync()
     {
         return Task.CompletedTask;
     }
 
-    public async Task DisposeAsync()
+    public virtual async Task DisposeAsync()
     {
         await Fixture.DisposeAsync();
     }

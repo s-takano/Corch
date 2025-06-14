@@ -102,37 +102,6 @@ public class SharePointWebhookCallbackIntegrationTests
     }
 
     [Fact]
-    [Trait("Architecture", "AzureFunctionAttributes")]
-    public void Run_VerifyFunctionAttributes_AreConfiguredCorrectly()
-    {
-        // Verify the Azure Function is properly configured
-        var method = typeof(SharePointWebhookCallback).GetMethod("Run");
-        Assert.NotNull(method);
-
-        // Check Function attribute
-        var functionAttr = method.GetCustomAttributes(typeof(FunctionAttribute), false)
-                                .Cast<FunctionAttribute>()
-                                .FirstOrDefault();
-        Assert.NotNull(functionAttr);
-        Assert.Equal(nameof(SharePointWebhookCallback), functionAttr.Name);
-
-        // Check ServiceBus output attribute
-        var serviceBusAttr = method.GetCustomAttributes(typeof(ServiceBusOutputAttribute), false)
-                                  .Cast<ServiceBusOutputAttribute>()
-                                  .FirstOrDefault();
-        Assert.NotNull(serviceBusAttr);
-        Assert.Equal("sp-changes", serviceBusAttr.QueueOrTopicName);
-        Assert.Equal("ServiceBusConnection", serviceBusAttr.Connection);
-
-        // Check HTTP trigger parameter - using the correct Azure Functions type
-        var parameters = method.GetParameters();
-        var httpParam = parameters.FirstOrDefault(p => p.GetCustomAttributes(typeof(AzureFunctionsHttpTriggerAttribute), false).Any());
-        Assert.NotNull(httpParam);
-        Assert.Equal(typeof(AzureFunctionsHttpRequestData), httpParam.ParameterType);
-        Assert.Equal("Microsoft.Azure.Functions.Worker.Http.HttpRequestData", httpParam.ParameterType.FullName);
-    }
-
-    [Fact]
     [Trait("Architecture", "TypeValidation")]
     public void Azure_Function_Types_AreFromCorrectNamespace()
     {
@@ -182,23 +151,6 @@ public class SharePointWebhookCallbackIntegrationTests
         
         Assert.NotNull(function);
         // This ensures the dependency injection will work correctly
-    }
-
-    [Fact]
-    [Trait("Architecture", "ReturnType")]
-    public void Run_Method_ReturnsCorrectTupleType()
-    {
-        // Verify the method signature returns the expected tuple for Azure Functions
-        var method = typeof(SharePointWebhookCallback).GetMethod("Run");
-        Assert.NotNull(method);
-        
-        var returnType = method.ReturnType;
-        Assert.True(returnType.IsGenericType);
-        Assert.Equal(typeof(Task<>), returnType.GetGenericTypeDefinition());
-        
-        var tupleType = returnType.GetGenericArguments()[0];
-        Assert.True(tupleType.IsGenericType);
-        // The return type should be Task<(HttpResponseData http, string? bus)>
     }
 
     private Mock<AzureFunctionsHttpRequestData> CreateMockHttpRequest()

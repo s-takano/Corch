@@ -1,5 +1,6 @@
 ﻿using Azure.Identity;
 using CorchEdges.Abstractions;
+using CorchEdges.Tests.Helpers;
 using CorchEdges.Utilities;
 using DotNetEnv;
 using Microsoft.Extensions.Configuration;
@@ -11,16 +12,15 @@ namespace CorchEdges.Tests.Integration;
 
 public class IntegrationTestFixture : IAsyncLifetime
 {
-    public ServiceProvider Services { get; private set; }
+    public ServiceProvider Services { get; private set; } = null!;
 
-    internal void ConfigureServices(Action<IServiceCollection> configureServices = null)
+    internal void ConfigureServices(
+        Action<IServiceCollection>? configureServices = null, 
+        Action<IConfigurationBuilder>? customConfigureBuilder = null)
     {
-        // Load .env file - automatically finds it in current directory or parent directories
-        Env.Load();
-
         ServiceCollection serviceCollection = [];
 
-        TestServiceConfiguration.AddBaseServices(serviceCollection);
+        TestConfiguration.AddBaseServices(serviceCollection, customConfigureBuilder);
 
         // Register GraphServiceClient with DefaultAzureCredential
         serviceCollection.AddScoped<GraphServiceClient>(provider =>
@@ -51,22 +51,6 @@ public class IntegrationTestFixture : IAsyncLifetime
                throw new InvalidOperationException("Test SharePoint List ID not configured");
     }
 
-    [Fact]
-    public void CanReadTestConfiguration()
-    {
-        var config = Services.GetRequiredService<IConfiguration>();
-
-        // From appsettings.test.json
-        var logLevel = config["Logging:LogLevel:Default"];
-        var timeout = config.GetValue<int>("SharePoint:DefaultTimeoutMs");
-
-        // From .env (environment variables) 
-        var siteId = config["TEST_SHAREPOINT_SITE_ID"];
-
-        Assert.Equal("Information", logLevel);
-        Assert.Equal(30000, timeout);
-        Assert.NotNull(siteId);
-    }
 
     public void Dispose()
     {

@@ -1,6 +1,8 @@
-﻿using CorchEdges.Abstractions;
+﻿using Azure.Identity;
+using CorchEdges.Abstractions;
 using CorchEdges.Utilities;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ODataErrors;
 using Xunit;
@@ -18,6 +20,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     protected override void ConfigureServices(IServiceCollection services)
     {
         services.AddScoped<IGraphFacade, GraphFacade>();
+        services.AddScoped<GraphServiceClient>(_ => new GraphServiceClient(new DefaultAzureCredential()));
     }
 
     public GraphFacadeIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
