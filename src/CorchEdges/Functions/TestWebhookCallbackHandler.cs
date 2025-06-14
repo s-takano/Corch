@@ -7,15 +7,43 @@ using System.Text.Json;
 
 namespace CorchEdges.Functions;
 
+/// <summary>
+/// A class that handles webhook callbacks for test purposes.
+/// </summary>
+/// <remarks>
+/// The TestWebhookCallback class is designed to process HTTP requests sent to a specified webhook endpoint.
+/// It supports GET and POST methods and includes functionality for handling Microsoft Graph webhook validation
+/// handshakes and test notifications. The primary entry point for handling requests is the Run method.
+/// </remarks>
 public class TestWebhookCallback
 {
+    /// <summary>
+    /// Instance of <see cref="ILogger{TCategoryName}"/> for logging messages in the <see cref="TestWebhookCallback"/> class.
+    /// </summary>
+    /// <remarks>
+    /// Used to log informational messages, warnings, and errors during the execution of the TestWebhookCallback function,
+    /// including request handling and error handling processes.
+    /// </remarks>
     private readonly ILogger<TestWebhookCallback> _logger;
 
+    /// Represents an Azure Function endpoint that handles webhook callbacks from external systems such as Microsoft Graph.
+    /// This class is designed to process webhooks for testing purposes, including handling validation handshakes and
+    /// processing notification payloads. The webhook can be triggered using both GET and POST methods, depending on the use case.
     public TestWebhookCallback(ILogger<TestWebhookCallback> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    /// Handles the execution of the Azure Function for processing Microsoft Graph webhook callbacks.
+    /// <param name="req">
+    /// The incoming HTTP request data, triggered by the webhook. It includes information
+    /// such as the HTTP method and the request body or query parameters.
+    /// </param>
+    /// <returns>
+    /// An <see cref="HttpResponseData"/> object representing the HTTP response to be sent back to the caller.
+    /// This response may include status codes such as OK, MethodNotAllowed, or InternalServerError,
+    /// along with relevant response content.
+    /// </returns>
     [Function("TestWebhookCallback")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "test/webhook")]
@@ -49,12 +77,20 @@ public class TestWebhookCallback
             return errorResponse;
         }
     }
+
+    /// Checks if the HTTP request contains a "validationToken" query parameter.
+    /// <param name="req">The HTTP request to inspect for a validation token.</param>
+    /// <return>True if the "validationToken" query parameter is present; otherwise, false.</return>
     private static bool HasValidationToken(HttpRequestData req)
     {
         var qs = HttpUtility.ParseQueryString(req.Url.Query);
         return !string.IsNullOrEmpty(qs["validationToken"]);
     }
 
+    /// Handles the validation handshake required by Microsoft Graph webhook subscriptions.
+    /// <param name="req">The HTTP request data containing the validation token in the query string.</param>
+    /// <param name="requestId">A unique identifier for the ongoing request, used for logging.</param>
+    /// <returns>Returns an HTTP response containing the validation token in plain text, or an error response in case of invalid input or exceptions.</returns>
     private async Task<HttpResponseData> HandleValidationHandshake(HttpRequestData req, string requestId)
     {
         try
@@ -91,6 +127,14 @@ public class TestWebhookCallback
         }
     }
 
+    /// <summary>
+    /// Handles the test notification received from the webhook. Processes the payload
+    /// of the request and logs relevant information. Constructs and returns an appropriate
+    /// HTTP response to acknowledge the notification.
+    /// </summary>
+    /// <param name="req">The HTTP request data containing the notification payload and headers.</param>
+    /// <param name="requestId">The unique identifier for the current request, used for logging and tracking.</param>
+    /// <returns>An <see cref="HttpResponseData"/> with a 200 OK status code and information acknowledging receipt of the notification.</returns>
     private async Task<HttpResponseData> HandleTestNotification(HttpRequestData req, string requestId)
     {
         try

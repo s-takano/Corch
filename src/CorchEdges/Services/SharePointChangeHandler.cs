@@ -13,18 +13,21 @@ namespace CorchEdges;
 //  Orchestrator that can be unit‑tested in isolation
 // ─────────────────────────────────────────────────────────────────────────────
 /// <summary>
-/// Represents an orchestrator for handling SharePoint-related changes and notifications.
-/// This service coordinates multiple dependencies, such as logging, Microsoft Graph
-/// operations, Excel file parsing, database updates, and transactional workflows.
+/// Handles and processes changes from SharePoint by coordinating multiple services
+/// such as logging, Microsoft Graph interactions, database updates, and file parsing.
+/// This class ensures the seamless handling of SharePoint-related notifications.
 /// </summary>
 public sealed class SharePointChangeHandler
 {
+    /// <summary>
+    /// Represents the path of the watched folder in a SharePoint drive. This is used
+    /// to filter and process changes to items located within the specified folder path.
+    /// </summary>
     private readonly string _watchedPath;
 
     /// <summary>
-    /// Represents the logging service used for recording essential information,
-    /// such as errors, warnings, and informational messages, during the execution
-    /// of processes within the application.
+    /// Provides a logging service instance for capturing and recording events, errors,
+    /// warnings, and general information throughout the lifecycle of the class.
     /// </summary>
     private readonly ILogger _log;
 
@@ -39,70 +42,68 @@ public sealed class SharePointChangeHandler
     private readonly IGraphFacade _graph;
 
     /// <summary>
-    /// An instance of the <see cref="IExcelParser"/> interface, used to parse
-    /// Excel file byte data into a structured <see cref="System.Data.DataSet"/>
-    /// for further processing.
+    /// Represents the parser used for converting Excel file byte data into
+    /// a structured dataset, enabling downstream processing of the data
+    /// within the business logic.
     /// </summary>
     /// <remarks>
-    /// This parser is utilized within the <see cref="SharePointChangeHandler"/> class
-    /// to process binary data representing Excel files downloaded via the
-    /// Microsoft Graph API. Parsing results include the structured data
-    /// and any potential parsing errors.
+    /// This component is critical for handling Excel file data retrieved from
+    /// external systems, ensuring accurate and reliable data parsing for further
+    /// operations.
     /// </remarks>
     private readonly IExcelParser _parser;
 
     /// <summary>
-    /// Represents a database writer for persisting data to the database.
-    /// Used to perform write operations asynchronously with support for database
-    /// context, connections, and transactions.
+    /// Provides access to a database writer for handling data persistence operations.
+    /// This variable is used to asynchronously write data to the database, integrating with the
+    /// application's database context, managing connections and transactions.
     /// </summary>
     private readonly IDatabaseWriter _db;
 
     /// <summary>
-    /// Represents an instance of the <see cref="EdgesDbContext"/> that is utilized for database operations
-    /// within the <see cref="SharePointChangeHandler"/> class during the processing of changes and notifications.
+    /// Represents the database context used for interacting with the data layer,
+    /// enabling the execution of data operations such as querying, saving, and updating entities.
     /// </summary>
     /// <remarks>
-    /// This variable is used to interact with the database, manage transactions, and persist data.
-    /// It provides access to various DbSet properties defined in the <see cref="EdgesDbContext"/> class
-    /// for handling domain entities such as processed files, logs, contracts, and related operations.
-    /// The context is passed to the <see cref="SharePointChangeHandler"/> through dependency injection
-    /// and is used to ensure proper database interactions, including starting transactions,
-    /// committing changes, or rolling back modifications in case of failures during handling of changes.
+    /// This field is critical for managing the application's connection to the underlying database
+    /// and for performing operations on domain models. It is instantiated through dependency injection
+    /// to ensure lifecycle management and testability.
     /// </remarks>
     private readonly EdgesDbContext _context;
 
     /// <summary>
-    /// Represents a compiled regular expression used to match and extract numeric item identifiers from a string
-    /// with the pattern "Items(d+)".
+    /// Represents a compiled regular expression utilized to identify and extract numeric identifiers
+    /// from strings following a specific pattern, such as "items/123".
     /// </summary>
     /// <remarks>
-    /// The regular expression is optimized for performance using the RegexOptions.Compiled flag. It is primarily
-    /// designed to be used in scenarios where extracting item IDs from change notifications is required, as seen in
-    /// processes like handling Graph API change notifications.
+    /// The regular expression is optimized using the RegexOptions.Compiled flag to improve performance.
+    /// It is specifically tailored for use cases like parsing resource paths from SharePoint or Graph API
+    /// notifications where the numeric identifier is critical for further processing.
     /// </remarks>
     private static readonly Regex Rx = new(@"items/(\d+)$", RegexOptions.Compiled);
 
     /// <summary>
-    /// Represents the unique identifier for a SharePoint site used to interact with the Microsoft Graph API.
-    /// This identifier is utilized for operations, such as retrieving list items, accessing drive items, and performing
-    /// other site-specific actions within the given site context.
+    /// Represents the unique identifier of a SharePoint site, used for identifying
+    /// the specific site within operations leveraging the Microsoft Graph API or
+    /// other related integrations. The value is crucial for performing actions such
+    /// as accessing site-specific resources, lists, or folder paths.
     /// </summary>
     private readonly string _siteId;
 
     /// <summary>
-    /// Identifier for the target list within the specified site in Microsoft Graph.
+    /// Stores the unique identifier of the target SharePoint list to be monitored,
+    /// typically used for tracking changes or accessing the list within a specified site.
     /// </summary>
     private readonly string _listId;
 
 
     /// Handles and orchestrates changes specific to a SharePoint list or document library,
-    /// allowing for modular and testable integration of various dependencies such as logging,
-    /// data parsing, database operations, and API interactions.
-    /// The class is designed to enable isolated unit testing by relying on dependency
-    /// injection for its core functionalities.
-    /// Constructor of the class initializes the required services, database context,
-    /// and identifiers pertinent to the SharePoint site, list, and watched folder.
+    /// enabling modular and maintainable integration with services such as logging,
+    /// data parsing, database interactions, and API communication. The class uses dependency
+    /// injection to ensure testability and maintain an isolated scope for unit testing.
+    /// The constructor validates and initializes the required dependencies, database context,
+    /// and identifiers for the SharePoint site, list, and monitored folder while ensuring
+    /// proper format and integrity of the provided input parameters.
     public SharePointChangeHandler(
         ILogger log,
         IGraphFacade graph,
@@ -147,11 +148,26 @@ public sealed class SharePointChangeHandler
     }
 
     // Helper methods for validation
+    /// Validates whether the specified string is a valid GUID by attempting to parse it.
+    /// This helper method can be used for verification purposes when dealing with
+    /// identifiers that must adhere to the GUID format.
+    /// <param name="value">The string to validate as a GUID.</param>
+    /// <returns>True if the input string is a valid GUID; otherwise, false.</returns>
     private static bool IsValidGuid(string value)
     {
         return Guid.TryParse(value, out _);
     }
 
+    /// Validates whether the given string conforms to the expected SharePoint ID format,
+    /// which typically consists of a hostname followed by two GUIDs separated by commas.
+    /// Example format: "hostname,guid,guid".
+    /// This method checks for both the structure of the string and the validity of the
+    /// GUIDs in the second and third segments.
+    /// <param name="value">The string to validate as a potential SharePoint ID.</param>
+    /// <returns>
+    /// True if the string is non-empty and follows the expected SharePoint ID format;
+    /// false otherwise.
+    /// </returns>
     private static bool IsValidSharePointId(string value)
     {
         // SharePoint site IDs often follow the pattern: hostname,guid,guid
@@ -171,14 +187,14 @@ public sealed class SharePointChangeHandler
         return false;
     }
 
-    /// Ensures a valid connection to the Microsoft Graph API by testing the connectivity
-    /// and handling any errors that might occur. Logs the connection status and specific
-    /// error details if the connection fails.
-    /// The method attempts to perform error-specific logging to guide resolution steps.
-    /// Returns true if the connection is successful, otherwise false.
+    /// Ensures a valid connection to the Microsoft Graph API by verifying connectivity
+    /// and handling any connection issues. Logs the status and provides detailed error
+    /// information to assist with troubleshooting if the connection attempt fails.
+    /// Intended to validate Graph API availability before proceeding with subsequent
+    /// operations.
     /// <returns>
-    /// A task representing the asynchronous operation. Returns true if the Graph API
-    /// connection is valid, otherwise false.
+    /// A task representing the asynchronous operation. Returns true if the connection
+    /// to the Microsoft Graph API is successful, otherwise false.
     /// </returns>
     public async Task<bool> EnsureGraphConnectionAsync()
     {
@@ -211,10 +227,10 @@ public sealed class SharePointChangeHandler
     }
 
     /// <summary>
-    /// Handles a change notification by processing the corresponding resource and applying updates through the database.
+    /// Asynchronously processes a SharePoint change notification to manage updates to relevant resources.
     /// </summary>
-    /// <param name="change">The <see cref="ChangeNotification"/> instance containing the resource and metadata related to the change.</param>
-    /// <returns>A <see cref="Task"/> that resolves to a boolean indicating the success or failure of the operation.</returns>
+    /// <param name="change">The <see cref="ChangeNotification"/> object containing details about the resource and change metadata.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation, which resolves to a boolean indicating whether the operation succeeded.</returns>
     public async Task HandleAsync(ChangeNotification change)
     {
         string itemId = Rx.Match(change.Resource ?? "").Groups[1].Value;
@@ -289,7 +305,14 @@ public sealed class SharePointChangeHandler
         }
     }
 
-    
+
+    /// <summary>
+    /// Normalizes a raw file path by applying specific transformations, such as stripping out
+    /// prefixes, URL-decoding, replacing backward slashes with forward slashes, and converting
+    /// the path to lowercase. The method ensures consistent formatting of paths for comparison purposes.
+    /// </summary>
+    /// <param name="raw">The raw path string to normalize, typically in the format returned by Microsoft Graph.</param>
+    /// <returns>A normalized path string with consistent formatting, suitable for further processing or comparison.</returns>
     private static string Canon(string raw)
     {
         // Graph gives something like "/sites/Fin/drive/root:/Shared%20Documents/Accounting"
@@ -307,8 +330,8 @@ public sealed class SharePointChangeHandler
     /// <summary>
     /// Determines whether the specified file name represents an Excel file based on its extension.
     /// </summary>
-    /// <param name="fileName">The name of the file to check.</param>
-    /// <returns>True if the file is an Excel file; otherwise, false.</returns>
+    /// <param name="fileName">The name of the file to evaluate. Can be null or empty.</param>
+    /// <returns>True if the file name ends with a supported Excel file extension, otherwise false.</returns>
     private static bool IsExcelFile(string? fileName)
     {
         if (string.IsNullOrEmpty(fileName)) return false;

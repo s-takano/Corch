@@ -11,15 +11,61 @@ using Microsoft.Graph.Models;
 
 namespace CorchEdges.Functions;
 
+/// <summary>
+/// Provides functionality for setting up and managing SharePoint webhooks.
+/// </summary>
+/// <remarks>
+/// This class includes Azure Functions to handle webhook setup,
+/// retrieve webhook status, renew subscriptions, delete specific webhooks,
+/// and clean up test webhooks.
+/// </remarks>
 public class SharePointSetupWebhook(
     WebhookRegistration webhookRegistration,
     ILogger<SharePointSetupWebhook> logger,
     IConfiguration configuration)
 {
+    /// <summary>
+    /// Represents an instance of <see cref="WebhookRegistration"/> used to interact with and manage
+    /// webhook subscriptions in a SharePoint integration context. This variable is utilized
+    /// for operations such as checking the existence of webhooks, registering new webhooks,
+    /// and managing active or expiring webhook subscriptions.
+    /// </summary>
     private readonly WebhookRegistration _webhookRegistration = webhookRegistration ?? throw new ArgumentNullException(nameof(webhookRegistration));
+
+    /// <summary>
+    /// Represents the logger instance used for logging information, warnings, errors, and debug messages
+    /// within the SharePointSetupWebhook class. It provides structured logging functionality
+    /// to aid in diagnosing issues, tracking application workflows, or providing runtime diagnostics.
+    /// </summary>
     private readonly ILogger<SharePointSetupWebhook> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+    /// <summary>
+    /// Represents the configuration settings for the application, allowing access to configuration values.
+    /// </summary>
+    /// <remarks>
+    /// This variable provides access to application-level configuration settings.
+    /// Typical usage includes retrieving settings from a configuration source, such as JSON files,
+    /// environment variables, or other configuration providers. The values can be used to configure
+    /// application functionality, such as SharePoint webhook setup, callback URLs, or other operational settings.
+    /// </remarks>
     private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 
+    /// <summary>
+    /// Handles the HTTP request to set up a SharePoint webhook, registering a webhook for a specified list
+    /// in a SharePoint site and returning the details of the newly created subscription.
+    /// The method processes the request body to retrieve configuration parameters for the webhook setup,
+    /// validates the configuration, checks if a webhook is already registered, and registers a new webhook
+    /// if necessary. It returns an HTTP response indicating the operation status.
+    /// </summary>
+    /// <param name="req">
+    /// The HTTP request containing the setup details, expected to be a POST request with a JSON body
+    /// specifying the webhook configuration.
+    /// </param>
+    /// <returns>
+    /// An asynchronous task that resolves to an HTTP response. This response contains success or error details
+    /// based on the outcome of the webhook setup operation. On success, it includes the subscription details;
+    /// on failure, it includes the error details.
+    /// </returns>
     [Function("SharePointSetupWebhook")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "setup")] HttpRequestData req)
@@ -108,6 +154,11 @@ public class SharePointSetupWebhook(
         }
     }
 
+    /// Retrieves the current status of SharePoint webhooks, including active subscriptions
+    /// and those nearing expiration.
+    /// <param name="req">The HTTP request data triggering this function.</param>
+    /// <returns>A response containing the status of active webhooks, including
+    /// total active subscriptions, those expiring soon, and metadata for each subscription.</returns>
     [Function("GetWebhookStatus")]
     public async Task<HttpResponseData> GetStatus(
         [HttpTrigger(AuthorizationLevel.Admin, "get", Route = "setup/status")] HttpRequestData req)
@@ -158,6 +209,11 @@ public class SharePointSetupWebhook(
         }
     }
 
+    /// Handles the renewal of expiring webhooks by identifying expiring subscriptions
+    /// and attempting to renew them individually.
+    /// <param name="req">The HTTP request data that triggers the function.</param>
+    /// <returns>A <see cref="HttpResponseData"/> object containing the results of the renewal process. The response includes
+    /// details of the processed subscriptions, the number of successful and failed renewals, and the processing timestamp.</returns>
     [Function("RenewWebhooks")]
     public async Task<HttpResponseData> RenewWebhooks(
         [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "setup/renew")] HttpRequestData req)
@@ -240,6 +296,13 @@ public class SharePointSetupWebhook(
         }
     }
 
+    /// <summary>
+    /// Deletes an existing webhook subscription using the provided subscription ID.
+    /// </summary>
+    /// <param name="req">The HTTP request data triggering the function, which includes necessary request headers and context.</param>
+    /// <param name="subscriptionId">The ID of the webhook subscription to be deleted.</param>
+    /// <returns>An <see cref="HttpResponseData"/> indicating the result of the delete operation,
+    /// including success or the error encountered during the process.</returns>
     [Function("DeleteWebhook")]
     public async Task<HttpResponseData> DeleteWebhook(
         [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "setup/{subscriptionId}")] HttpRequestData req,
@@ -291,6 +354,11 @@ public class SharePointSetupWebhook(
         }
     }
 
+    /// Cleans up test webhooks by identifying and deleting subscriptions that match a specific pattern or filter.
+    /// Subscriptions with a "ClientState" that starts with "test-" will be targeted for cleanup.
+    /// An optional filter can be applied to further refine the selection of test subscriptions.
+    /// <param name="req">The HTTP request data, which may include query parameters for filtering subscriptions, such as "testId".</param>
+    /// <returns>An HTTP response containing the cleanup results, which includes the number of processed, successfully deleted, and failed test subscriptions.</returns>
     [Function("CleanupTestWebhooks")]
     public async Task<HttpResponseData> CleanupTestWebhooks(
         [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "setup/cleanup/test")]
@@ -360,6 +428,14 @@ public class SharePointSetupWebhook(
             return await CreateErrorResponseAsync(req, HttpStatusCode.InternalServerError, "Internal server error");
         }
     }
+
+    /// Creates an HTTP success response with the given data serialized as JSON.
+    /// <param name="req">The incoming HTTP request, used to create the response.</param>
+    /// <param name="data">The object data to be serialized into the response body.</param>
+    /// <return>
+    /// An HTTP success response with a JSON representation of the provided data.
+    /// If an error occurs during response creation or serialization, returns an HTTP error response.
+    /// </return>
     private async Task<HttpResponseData> CreateSuccessResponseAsync(HttpRequestData req, object data)
     {
         try
@@ -385,6 +461,20 @@ public class SharePointSetupWebhook(
         }
     }
 
+    /// Creates an error response with the specified status code and error message.
+    /// <param name="req">
+    /// The HTTP request data from which the response is created.
+    /// </param>
+    /// <param name="statusCode">
+    /// The HTTP status code to set for the response.
+    /// </param>
+    /// <param name="message">
+    /// The error message to include in the response body.
+    /// </param>
+    /// <return>
+    /// A Task representing the asynchronous operation that returns an HttpResponseData
+    /// containing the error response.
+    /// </return>
     private async Task<HttpResponseData> CreateErrorResponseAsync(HttpRequestData req, HttpStatusCode statusCode, string message)
     {
         try
@@ -407,6 +497,23 @@ public class SharePointSetupWebhook(
         }
     }
 
+    /// Retrieves the webhook configuration based on the given request data.
+    /// Combines values from the request data, application configuration, and environment variables
+    /// to construct the necessary configuration for the webhook setup.
+    /// <param name="requestData">
+    /// A dictionary containing key-value pairs with optional parameters such as siteId, listId, functionKey,
+    /// and callbackUrl that override the default configuration values.
+    /// </param>
+    /// <returns>
+    /// An instance of WebhookConfiguration containing the site ID, list ID, callback URL, and optional
+    /// function app name that are required for webhook registration.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when mandatory parameters such as siteId, listId, or callbackUrl are missing or empty.
+    /// </exception>
+    /// <exception cref="Exception">
+    /// Thrown when there is an unhandled error during the retrieval of the webhook configuration.
+    /// </exception>
     private WebhookConfiguration GetWebhookConfiguration(Dictionary<string, object> requestData)
     {
         try
@@ -463,6 +570,12 @@ public class SharePointSetupWebhook(
         }
     }
 
+    /// <summary>
+    /// Parses the request body into a dictionary of key-value pairs.
+    /// </summary>
+    /// <param name="requestBody">The JSON string representing the request body to be parsed.</param>
+    /// <returns>A dictionary containing the parsed key-value pairs from the request body.
+    /// Returns an empty dictionary if the request body is null, empty, or invalid.</returns>
     private Dictionary<string, object> ParseRequestBody(string requestBody)
     {
         if (string.IsNullOrWhiteSpace(requestBody))
@@ -487,6 +600,14 @@ public class SharePointSetupWebhook(
         }
     }
 
+    /// Validates the provided webhook configuration values to ensure they meet the required criteria.
+    /// <param name="config">The configuration object containing the webhook setup details.</param>
+    /// <param name="error">
+    /// An output parameter that will contain an error message if validation fails. Returns an empty string if validation is successful.
+    /// </param>
+    /// <returns>
+    /// A boolean value indicating whether the configuration is valid. Returns true if valid, and false otherwise.
+    /// </returns>
     private static bool ValidateConfiguration(WebhookConfiguration config, out string error)
     {
         error = string.Empty;
@@ -526,6 +647,11 @@ public class SharePointSetupWebhook(
         return true;
     }
 
+    /// <summary>
+    /// Determines if the given URL contains an authentication parameter, specifically a "code" parameter.
+    /// </summary>
+    /// <param name="url">The URL to check for the presence of an authentication parameter.</param>
+    /// <returns>True if the URL contains a "code" parameter; otherwise, false.</returns>
     private static bool HasAuthenticationParameter(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
@@ -535,12 +661,39 @@ public class SharePointSetupWebhook(
         return !string.IsNullOrEmpty(query["code"]);
     }
 
+    /// Represents the configuration details required to set up a SharePoint webhook.
+    /// This class is used to encapsulate the essential data needed for webhook registration and operation.
     private class WebhookConfiguration(string siteId, string listId, string callbackUrl, string? functionAppName)
     {
+        /// <summary>
+        /// Gets the unique identifier for the SharePoint site associated with
+        /// the webhook configuration. This property is essential to specify
+        /// the target SharePoint site where the webhook will be set up or managed.
+        /// </summary>
         public string SiteId { get; init; } = siteId;
+
+        /// Gets or sets the identifier of the SharePoint list for which the webhook is being set up.
+        /// This property is used to uniquely identify the list within a SharePoint site and is required
+        /// for registering or checking the existence of a webhook associated with the list.
         public string ListId { get; init; } = listId;
+
+        /// <summary>
+        /// Gets or sets the callback URL where the webhook notifications will be sent.
+        /// </summary>
+        /// <remarks>
+        /// The callback URL must be a valid HTTPS endpoint and must include any necessary authentication parameters.
+        /// It is used during webhook registration to specify the destination for notification events.
+        /// Proper validation of this URL is crucial to ensure secure and reliable communication.
+        /// </remarks>
         public string CallbackUrl { get; init; } = callbackUrl;
-        
+
+        /// <summary>
+        /// Gets the name of the Azure Function App associated with the webhook.
+        /// </summary>
+        /// <remarks>
+        /// This property is used to store or retrieve the name of the Azure Function App
+        /// that is responsible for handling webhook callback requests.
+        /// </remarks>
         public string? FunctionAppName { get; init; } = functionAppName;
     }
 }
