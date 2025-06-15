@@ -1,4 +1,5 @@
 ﻿using CorchEdges.Data;
+using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
@@ -15,6 +16,8 @@ public abstract class DatabaseTestBase : IDisposable
 
     protected DatabaseTestBase()
     {
+        Env.Load();
+        
         // Generate a unique schema name for this test run
         TestSchema = $"test_{Guid.NewGuid().ToString("N")}";
         ConnectionString = GetConnectionString();
@@ -59,6 +62,7 @@ public abstract class DatabaseTestBase : IDisposable
 
         // Option 2: User Secrets
         var configuration = new ConfigurationBuilder()
+            .AddEnvironmentVariables()
             .AddUserSecrets<DatabaseTestBase>()
             .Build();
             
@@ -67,7 +71,7 @@ public abstract class DatabaseTestBase : IDisposable
             return configConnection;
 
         throw new InvalidOperationException(
-            "No test database connection string found. Please set the connection string using: dotnet user-secrets set \"ConnectionStrings:TestDatabase\" \"your-connection-string\"");
+            "No test database connection string found. Please set the connection string using: '.env' set \"ConnectionStrings__TestDatabase\" \"your-connection-string\"");
     }
     
     private void SetupTestSchema()

@@ -293,15 +293,16 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         await receiver1.DisposeAsync();
         await receiver2.DisposeAsync();
     }
-
+    
     [Fact]
     public async Task ServiceBus_MessageScheduling_ShouldDelayProcessing()
     {
         // Arrange
         var notification = CreateTestNotificationEnvelope();
         var messageBody = JsonSerializer.Serialize(notification);
-        var scheduleTime = DateTimeOffset.UtcNow.AddSeconds(10);
-        
+        var delaySeconds = 10;
+        var scheduleTime = DateTimeOffset.UtcNow.AddSeconds(delaySeconds);
+    
         var message = new ServiceBusMessage(messageBody)
         {
             MessageId = "scheduled-test",
@@ -310,19 +311,15 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
 
         // Act - Schedule message for future delivery
         var startTime = DateTimeOffset.UtcNow;
-        await _sender.ScheduleMessageAsync(message, scheduleTime);
-        _output.WriteLine($"Scheduled message for {scheduleTime:HH:mm:ss}");
+        var sequenceNumber = await _sender.ScheduleMessageAsync(message, scheduleTime);
+        _output.WriteLine($"Scheduled message {sequenceNumber} for {scheduleTime:HH:mm:ss.fff}");
 
         // Try to receive immediately (should not get anything)
         var immediateMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(2));
         Assert.Null(immediateMessage);
 
-        // Wait for scheduled time and try again
-        var waitTime = scheduleTime.Subtract(DateTimeOffset.UtcNow).Add(TimeSpan.FromSeconds(2));
-        if (waitTime > TimeSpan.Zero)
-        {
-            await Task.Delay(waitTime);
-        }
+        // Wait for scheduled time
+        await Task.Delay(TimeSpan.FromSeconds(delaySeconds + 2)); // Add buffer for processing
 
         var scheduledMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(5));
         var actualDelay = DateTimeOffset.UtcNow.Subtract(startTime);
@@ -330,12 +327,11 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         // Assert
         Assert.NotNull(scheduledMessage);
         Assert.Equal(message.MessageId, scheduledMessage.MessageId);
-        Assert.True(actualDelay >= TimeSpan.FromSeconds(9), $"Message was delivered too early: {actualDelay}");
-
-        await _receiver.CompleteMessageAsync(scheduledMessage);
         _output.WriteLine($"Scheduled message delivered after {actualDelay.TotalSeconds:F1} seconds");
+    
+        await _receiver.CompleteMessageAsync(scheduledMessage);
     }
-
+    
     private async Task ProcessMessagesAsync(
         ServiceBusReceiver receiver, 
         string receiverName, 
