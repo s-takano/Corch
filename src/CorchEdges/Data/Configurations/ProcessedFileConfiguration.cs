@@ -16,7 +16,7 @@ public class ProcessedFileConfiguration : BaseEntityConfiguration<ProcessedFile>
     {
         return new[]
         {
-            new ColumnMetaInfo(nameof(ProcessedFile.Id), "Id", "bigint", true, true, true),
+            new ColumnMetaInfo(nameof(ProcessedFile.Id), "Id", "integer", true, true, true),
             new ColumnMetaInfo(nameof(ProcessedFile.FileName), "FileName", "varchar(500)", false, false, false),
             new ColumnMetaInfo(nameof(ProcessedFile.SharePointItemId), "SharePointItemId", "varchar(100)", false),
             new ColumnMetaInfo(nameof(ProcessedFile.ProcessedAt), "ProcessedAt", "timestamp", false, false, false),

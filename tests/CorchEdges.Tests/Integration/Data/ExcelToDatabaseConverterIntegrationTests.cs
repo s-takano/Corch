@@ -134,44 +134,21 @@ public class ExcelToDatabaseConverterIntegrationTests : DatabaseTestBase
     
         Assert.Contains("Invalid table name", exception.Message);
     }
-
     [Fact]
     public void PrepareDataSetForDatabase_NormalizesColumnTypes()
     {
         // Arrange
-        var dataSet = new DataSet();
-        var table = new DataTable("processing_log");
-    
-        // Add columns with string types (from Excel)
-        table.Columns.Add("Id", typeof(string));
-        table.Columns.Add("Level", typeof(string));
-        table.Columns.Add("Message", typeof(string));
-        table.Columns.Add("CreatedAt", typeof(string));
-        table.Columns.Add("SharePointItemId", typeof(string));
-    
-        // Add sample data
-        var row = table.NewRow();
-        row["Id"] = "1";
-        row["Level"] = "Info";
-        row["Message"] = "Test processing message";
-        row["CreatedAt"] = "2024-01-01T10:00:00";
-        row["SharePointItemId"] = "SP123";
-        table.Rows.Add(row);
-    
-        dataSet.Tables.Add(table);
+        var dataSet = CreateRealContractDataSet();
 
         // Act
         var result = _dataSetConverter.ConvertForDatabase(dataSet);
 
         // Assert
         var resultTable = result.Tables[0];
-    
-        // Verify column types are normalized to entity types
-        Assert.Equal(typeof(long), resultTable.Columns["Id"]!.DataType);
-        Assert.Equal(typeof(string), resultTable.Columns["Level"]!.DataType);
-        Assert.Equal(typeof(string), resultTable.Columns["Message"]!.DataType);
-        Assert.Equal(typeof(DateTime), resultTable.Columns["CreatedAt"]!.DataType);
-        Assert.Equal(typeof(string), resultTable.Columns["SharePointItemId"]!.DataType);
-    }
 
+        // Verify column types are normalized to entity types
+        Assert.Equal(typeof(string), resultTable.Columns["ContractId"]!.DataType);
+        Assert.Equal(typeof(int), resultTable.Columns["PropertyNo"]!.DataType);
+        Assert.Equal(typeof(DateTime), resultTable.Columns["OutputDatetime"]!.DataType);
+    }
 }

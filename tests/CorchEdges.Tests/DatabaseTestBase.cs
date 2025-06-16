@@ -84,15 +84,15 @@ public abstract class DatabaseTestBase : IDisposable
         cmd.ExecuteNonQuery();
         
         // Run EF migrations for this schema
-        using var context = CreateDbContextForMigration();
+        using var context = CreateDbContextForMigration(connection);
         context.Database.Migrate();
     }
 
     // Separate method for migration that creates its own connection
-    private EdgesDbContext CreateDbContextForMigration() 
+    private EdgesDbContext CreateDbContextForMigration(NpgsqlConnection connection) 
     {
         var options = new DbContextOptionsBuilder<EdgesDbContext>()
-            .UseNpgsql(ConnectionString, npgsqlOptions =>
+            .UseNpgsql(connection, npgsqlOptions =>
             {
                 // Set the migration history table to use our test schema
                 npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", TestSchema);

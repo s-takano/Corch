@@ -16,7 +16,7 @@ public class ContractCurrentConfiguration : BaseEntityConfiguration<ContractCurr
     {
         return new[]
         {
-            new ColumnMetaInfo(nameof(ContractCurrent.Id), "id", "bigint", true, true, true),
+            new ColumnMetaInfo(nameof(ContractCurrent.Id), "id", "integer", true, true, true),
             new ColumnMetaInfo(nameof(ContractCurrent.ContractId), "契約ID", "text", false),
             new ColumnMetaInfo(nameof(ContractCurrent.ResidentCode), "入居者コ－ド", "text", false),
             new ColumnMetaInfo(nameof(ContractCurrent.ContractTypeName), "契約分類名", "text", false),

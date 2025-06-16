@@ -19,7 +19,7 @@ public class ProcessingLogConfiguration : BaseEntityConfiguration<ProcessingLog>
             new ColumnMetaInfo(
                 PropertyName: nameof(ProcessingLog.Id),
                 ColumnName: "id",
-                PostgreSqlType: "bigint",
+                PostgreSqlType: "integer",
                 IsRequired: true,
                 IsKey: true,
                 UseIdentityColumn: true
@@ -95,13 +95,13 @@ public class ProcessingLogConfiguration : BaseEntityConfiguration<ProcessingLog>
                 HasIndex: true
             ),
             new ColumnMetaInfo(
-                PropertyName: nameof(ProcessingLog.SuccessfulRuns),
+                PropertyName: nameof(ProcessingLog.SuccessfulItems),
                 ColumnName: "successful_runs",
                 PostgreSqlType: "integer",
                 IsRequired: true
             ),
             new ColumnMetaInfo(
-                PropertyName: nameof(ProcessingLog.FailedRuns),
+                PropertyName: nameof(ProcessingLog.FailedItems),
                 ColumnName: "failed_runs",
                 PostgreSqlType: "integer",
                 IsRequired: true

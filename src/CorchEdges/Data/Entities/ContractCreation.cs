@@ -2,7 +2,7 @@
 
 public class ContractCreation
 {
-    public long Id { get; set; }
+    public int Id { get; set; }
     public string? ContractId { get; set; }
     public int? PropertyNo { get; set; }
     public int? RoomNo { get; set; }

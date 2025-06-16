@@ -1,20 +1,22 @@
-﻿using System.Data;
-using System.Data.Common;
+﻿using System.Data.Common;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Data;
 using Xunit;
 using FluentAssertions;
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Entities;
 using CorchEdges.Models;
 using CorchEdges.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Graph.Models;
 
 namespace CorchEdges.Tests.Unit.Services
 {
-    public class SharePointChangeHandlerUnitTests
+    public class SharePointChangeHandlerUnitTests : IDisposable
     {
         private readonly Mock<ILogger> _mockLogger;
         private readonly Mock<IGraphFacade> _mockGraph;
@@ -36,11 +38,16 @@ namespace CorchEdges.Tests.Unit.Services
         private EdgesDbContext CreateInMemoryDbContext()
         {
             var options = new DbContextOptionsBuilder<EdgesDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .UseSqlite("DataSource=:memory:")
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.AmbientTransactionWarning))
                 .Options;
-        
-            return new EdgesDbContext(options);
+
+            var context = new EdgesDbContext(options);
+            context.Database.OpenConnection();
+            context.Database.EnsureCreated();
+            return context;
         }
+
 
         private SharePointChangeHandler CreateHandler(string watchedPath = "/sites/test/Shared Documents/WatchedFolder")
         {
@@ -302,10 +309,10 @@ namespace CorchEdges.Tests.Unit.Services
                     It.IsAny<string>(),
                     It.IsAny<string>()))
                 .ReturnsAsync(mockDriveItem);
-            
+
             _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
                 .Returns((new DataSet(), string.Empty));
-            
+
             _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(new MemoryStream());
 
@@ -369,14 +376,14 @@ namespace CorchEdges.Tests.Unit.Services
         [InlineData("/sites/test/Shared Documents/WatchedFolder",
             "/sites/test/Shared Documents/WatchedFolder/subfolder/",
             false)]
-        [InlineData("/sites/test/Shared Documents/WatchedFolder", 
+        [InlineData("/sites/test/Shared Documents/WatchedFolder",
             "/sites/test/Shared Documents/OtherFolder/",
             false)]
-        [InlineData("/sites/test/Shared Documents/WatchedFolder", 
+        [InlineData("/sites/test/Shared Documents/WatchedFolder",
             "/sites/test/Shared Documents/",
             false)]
         [InlineData("/sites/test/Shared Documents/WatchedFolder",
-            "/sites/different/Shared Documents/WatchedFolder/", 
+            "/sites/different/Shared Documents/WatchedFolder/",
             false)]
         public async Task HandleAsync_WithPathFilter_ShouldProcessOrSkipBasedOnLocation(
             string watchedPath,
@@ -490,6 +497,114 @@ namespace CorchEdges.Tests.Unit.Services
             _mockGraph.Verify(g => g.TestConnectionAsync("root"), Times.Once);
         }
 
+        [Fact]
+        public async Task HandleAsync_WhenProcessingSucceeds_ShouldStoreProcessingLogRecord()
+        {
+            // Arrange
+            var handler = CreateHandler();
+            var testSiteId = _testSiteId;
+            var testListId = _testListId;
+
+            var changeNotification = new SharePointNotification
+            {
+                Resource = "sites/test-site/lists/test-list/items/123",
+                ChangeType = nameof(ChangeType.Updated)
+            };
+
+            var mockDriveItem = new DriveItem
+            {
+                Id = "test-item-id",
+                Name = "test-file.xlsx",
+                ParentReference = new ItemReference
+                {
+                    Path = "/sites/test/Shared Documents/WatchedFolder",
+                    DriveId = "test-drive-id"
+                }
+            };
+
+            _mockGraph.Setup(g => g.GetListItemAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new ListItem { Id = "123" });
+
+            _mockGraph.Setup(g => g.GetDriveItemAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(mockDriveItem);
+
+            _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
+                .Returns((new DataSet(), string.Empty));
+
+            _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new MemoryStream());
+
+            // Act
+            await handler.HandleAsync([changeNotification]);
+
+            // Assert
+            var processingLogs = await _mockContext.ProcessingLogs.ToListAsync();
+
+            processingLogs.Should().HaveCount(1);
+            var log = processingLogs.First();
+
+            log.SiteId.Should().Be(testSiteId);
+            log.ListId.Should().Be(testListId);
+            log.Status.Should().Be("Success");
+            log.LastProcessedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+            log.SuccessfulItems.Should().Be(1);
+            log.FailedItems.Should().Be(0);
+            log.LastProcessedCount.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task HandleAsync_WhenProcessingFails_ShouldStoreProcessingLogWithError()
+        {
+            // Arrange
+            var handler = CreateHandler();
+            var testException = new InvalidOperationException("Test parsing error");
+
+            var changeNotification = new SharePointNotification
+            {
+                Resource = "sites/test-site/lists/test-list/items/123",
+                ChangeType = nameof(ChangeType.Updated)
+            };
+
+            var mockDriveItem = new DriveItem
+            {
+                Id = "test-item-id",
+                Name = "test-file.xlsx",
+                ParentReference = new ItemReference
+                {
+                    Path = "/sites/test/Shared Documents/WatchedFolder",
+                    DriveId = "test-drive-id"
+                }
+            };
+
+            _mockGraph.Setup(g => g.GetListItemAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new ListItem { Id = "123" });
+
+            _mockGraph.Setup(g => g.GetDriveItemAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(mockDriveItem);
+
+            _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new MemoryStream());
+
+            _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
+                .Returns((null, "Test parsing error"));
+
+            // Act
+            await handler.HandleAsync([changeNotification]);
+
+            // Assert
+            var processingLogs = await _mockContext.ProcessingLogs.ToListAsync();
+
+            processingLogs.Should().HaveCount(1);
+            var log = processingLogs.First();
+
+            log.SiteId.Should().Be(_testSiteId);
+            log.ListId.Should().Be(_testListId);
+            log.Status.Should().Be("Failed");
+            log.LastError.Should().Be("Test parsing error");
+            log.FailedItems.Should().Be(1);
+            log.SuccessfulItems.Should().Be(0);
+        }
+
         private void VerifyLogMessage(string expectedMessage, Times times)
         {
             _mockLogger.Verify(
@@ -500,6 +615,11 @@ namespace CorchEdges.Tests.Unit.Services
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 times);
+        }
+
+        public void Dispose()
+        {
+            _mockContext.Dispose();
         }
     }
 }

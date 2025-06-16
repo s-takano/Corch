@@ -46,7 +46,7 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
     public void GetColumnType_WithRealProcessingLogEntity_ReturnsCorrectTypes()
     {
         // Test the actual ProcessingLog entity properties
-        Assert.Equal(typeof(long), _metadataProvider.GetColumnType("processing_log", "Id"));
+        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "Id"));
         Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "SiteId"));
         Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "ListId"));
         Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "DeltaLink"));
@@ -57,8 +57,8 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
         Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "Status"));
         Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "LastError"));
         Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "SubscriptionId"));
-        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "SuccessfulRuns"));
-        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "FailedRuns"));
+        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "SuccessfulItems"));
+        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "FailedItems"));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
         // Test real ProcessedFile entity properties using _metadataProvider directly
             
         // Act & Assert
-        Assert.Equal(typeof(long), _metadataProvider.GetColumnType("processed_file", "Id"));
+        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processed_file", "Id"));
         Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processed_file", "FileName"));
         Assert.Equal(typeof(DateTime), _metadataProvider.GetColumnType("processed_file", "ProcessedAt"));
         Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processed_file", "Status"));
@@ -170,7 +170,7 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
         var timestampType = _metadataProvider.GetColumnType("processing_log", "CreatedAt");
 
         // Verify these are non-nullable types
-        Assert.Equal(typeof(long), idType);
+        Assert.Equal(typeof(int), idType);
         Assert.Equal(typeof(DateTime), timestampType);
             
         // Verify they're NOT nullable
@@ -193,7 +193,7 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
         Assert.Equal(typeof(DateTime?), _metadataProvider.GetColumnType("contract_creation", "OutputDateTime"));
             
         // Non-nullable properties should return non-nullable types
-        Assert.Equal(typeof(long), _metadataProvider.GetColumnType("processing_log", "Id"));
+        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "Id"));
         Assert.Equal(typeof(DateTime), _metadataProvider.GetColumnType("processing_log", "CreatedAt"));
             
         // String properties (reference types) should return string, not nullable
@@ -217,7 +217,7 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
             ("contract_creation", "PropertyNo", typeof(int?)),
             ("contract_creation", "PropertyName", typeof(string)),
             ("contract_creation", "OutputDateTime", typeof(DateTime?)),
-            ("processing_log", "Id", typeof(long)),
+            ("processing_log", "Id", typeof(int)),
             ("processing_log", "SiteId", typeof(string)),
             ("processing_log", "ListId", typeof(string)),
             ("processing_log", "DeltaLink", typeof(string)),
@@ -228,8 +228,8 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
             ("processing_log", "Status", typeof(string)),
             ("processing_log", "LastError", typeof(string)),
             ("processing_log", "SubscriptionId", typeof(string)),
-            ("processing_log", "SuccessfulRuns", typeof(int)),
-            ("processing_log", "FailedRuns", typeof(int))
+            ("processing_log", "SuccessfulItems", typeof(int)),
+            ("processing_log", "FailedItems", typeof(int))
         };
 
         foreach (var (tableName, columnName, expectedType) in testCases)
@@ -310,7 +310,7 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
         {
             Assert.Equal(typeof(string), _metadataProvider.GetColumnType("contract_creation", "ContractId"));
             Assert.Equal(typeof(int?), _metadataProvider.GetColumnType("contract_creation", "PropertyNo"));
-            Assert.Equal(typeof(long), _metadataProvider.GetColumnType("processing_log", "Id"));
+            Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "Id"));
         }
     }
 
@@ -348,8 +348,8 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
         var processedFileId = _metadataProvider.GetColumnType("processed_file", "Id");
             
         // Both should be consistent types (both long in this case)
-        Assert.Equal(typeof(long), processingLogId);
-        Assert.Equal(typeof(long), processedFileId);
+        Assert.Equal(typeof(int), processingLogId);
+        Assert.Equal(typeof(int), processedFileId);
         Assert.Equal(processingLogId, processedFileId);
     }
 

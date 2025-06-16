@@ -12,7 +12,7 @@ public class ProcessingLog
     /// Gets or sets the unique identifier for this processing log entry.
     /// </summary>
     [Key]
-    public long Id { get; set; }
+    public int Id { get; set; }
 
     /// <summary>
     /// Gets or sets the SharePoint site ID associated with this processing log.
@@ -75,14 +75,14 @@ public class ProcessingLog
     public string? SubscriptionId { get; set; }
 
     /// <summary>
-    /// Gets or sets the total number of successful processing runs.
+    /// Gets or sets the total number of successful processing items.
     /// </summary>
-    public int SuccessfulRuns { get; set; }
+    public int SuccessfulItems { get; set; }
 
     /// <summary>
     /// Gets or sets the total number of failed processing runs.
     /// </summary>
-    public int FailedRuns { get; set; }
+    public int FailedItems { get; set; }
 }
 
 /// <summary>

@@ -3,7 +3,7 @@ namespace CorchEdges.Data.Entities;
 
 public class ContractCurrent
 {
-    public long Id { get; set; }
+    public int Id { get; set; }
     
     // Basic Contract Information
     public string? ContractId { get; set; }

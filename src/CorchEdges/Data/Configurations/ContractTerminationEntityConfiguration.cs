@@ -16,7 +16,7 @@ public class ContractTerminationConfiguration : BaseEntityConfiguration<Contract
     {
         return new[]
         {
-            new ColumnMetaInfo(nameof(ContractTermination.Id), "id", "bigint", true, true, true),
+            new ColumnMetaInfo(nameof(ContractTermination.Id), "id", "integer", true, true, true),
             new ColumnMetaInfo(nameof(ContractTermination.ContractId), "契約ID", "text", false),
             new ColumnMetaInfo(nameof(ContractTermination.PropertyNo), "物件No", "integer", false),
             new ColumnMetaInfo(nameof(ContractTermination.RoomNo), "部屋No", "integer", false),
