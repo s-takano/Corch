@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using CorchEdges.Models;
+using CorchEdges.Services;
 using Microsoft.Extensions.Logging;
 
 namespace CorchEdges.Functions;
@@ -59,6 +61,21 @@ public sealed class ProcessSharePointChange
         _log = log; 
         _handler = handler; 
         _failed = blobs.GetBlobContainerClient("failed-changes");
+        
+        // Ensure the container exists (async fire-and-forget is fine for this)
+        _ = Task.Run(async () => 
+        {
+            try 
+            {
+                await _failed.CreateIfNotExistsAsync(PublicAccessType.None);
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't fail startup
+                Console.WriteLine($"Failed to create container: {ex.Message}");
+            }
+        });
+
     }
 
     /// <summary>
@@ -97,11 +114,7 @@ public sealed class ProcessSharePointChange
             
             _log.LogInformation("Processing {count} change notifications", env.Value.Length);
             
-            foreach (var ch in env.Value) 
-            {
-                _log.LogDebug("Processing change notification for resource: {resource}", ch.Resource);
-                await _handler.HandleAsync(ch);
-            }
+            await _handler.HandleAsync(env.Value);
             
             _log.LogInformation("Successfully processed all change notifications");
         }

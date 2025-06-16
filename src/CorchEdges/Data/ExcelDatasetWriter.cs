@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Data.Common;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;

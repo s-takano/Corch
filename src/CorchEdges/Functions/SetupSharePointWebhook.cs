@@ -3,6 +3,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using System.Net;
 using System.Text.Json;
 using System.Web;
+using CorchEdges.Models.Requests;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using CorchEdges.Services;
@@ -30,14 +31,16 @@ public class SharePointSetupWebhook(
     /// for operations such as checking the existence of webhooks, registering new webhooks,
     /// and managing active or expiring webhook subscriptions.
     /// </summary>
-    private readonly WebhookRegistration _webhookRegistration = webhookRegistration ?? throw new ArgumentNullException(nameof(webhookRegistration));
+    private readonly WebhookRegistration _webhookRegistration =
+        webhookRegistration ?? throw new ArgumentNullException(nameof(webhookRegistration));
 
     /// <summary>
     /// Represents the logger instance used for logging information, warnings, errors, and debug messages
     /// within the SharePointSetupWebhook class. It provides structured logging functionality
     /// to aid in diagnosing issues, tracking application workflows, or providing runtime diagnostics.
     /// </summary>
-    private readonly ILogger<SharePointSetupWebhook> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly ILogger<SharePointSetupWebhook>
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>
     /// Represents the configuration settings for the application, allowing access to configuration values.
@@ -48,7 +51,8 @@ public class SharePointSetupWebhook(
     /// environment variables, or other configuration providers. The values can be used to configure
     /// application functionality, such as SharePoint webhook setup, callback URLs, or other operational settings.
     /// </remarks>
-    private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+    private readonly IConfiguration _configuration =
+        configuration ?? throw new ArgumentNullException(nameof(configuration));
 
     /// <summary>
     /// Handles the HTTP request to set up a SharePoint webhook, registering a webhook for a specified list
@@ -59,16 +63,67 @@ public class SharePointSetupWebhook(
     /// </summary>
     /// <param name="req">
     /// The HTTP request containing the setup details, expected to be a POST request with a JSON body
-    /// specifying the webhook configuration.
+    /// containing a <see cref="WebhookConfiguration"/> object with the following required properties:
+    /// <list type="bullet">
+    /// <item><description><c>siteId</c> - The Optional SharePoint site ID (GUID format)</description></item>
+    /// <item><description><c>listId</c> - The Optional SharePoint list ID (GUID format)</description></item>
+    /// <item><description><c>callbackUrl</c> - The webhook callback URL (absolute URL)</description></item>
+    /// <item><description><c>functionAppName</c> - Optional function app name for automatic URL generation</description></item>
+    /// </list>
+    /// Example request body:
+    /// <code>
+    /// {
+    ///   "siteId": "12345678-1234-1234-1234-123456789012",
+    ///   "listId": "87654321-4321-4321-4321-210987654321", 
+    ///   "callbackUrl": "https://your-app.azurewebsites.net/api/webhook/callback",
+    ///   "functionAppName": "my-function-app"
+    /// }
+    /// </code>
     /// </param>
     /// <returns>
     /// An asynchronous task that resolves to an HTTP response. This response contains success or error details
-    /// based on the outcome of the webhook setup operation. On success, it includes the subscription details;
-    /// on failure, it includes the error details.
+    /// based on the outcome of the webhook setup operation. On success, it includes a <see cref="WebhookResponse"/>
+    /// object with subscription details; on failure, it includes error details with appropriate HTTP status codes:
+    /// <list type="bullet">
+    /// <item><description>200 OK - Webhook registered successfully or already exists</description></item>
+    /// <item><description>400 Bad Request - Invalid request body, validation errors, or malformed parameters</description></item>
+    /// <item><description>408 Request Timeout - Operation was cancelled or timed out</description></item>
+    /// <item><description>500 Internal Server Error - Unexpected server errors</description></item>
+    /// <item><description>502 Bad Gateway - Microsoft Graph API or network connectivity issues</description></item>
+    /// </list>
     /// </returns>
+    /// <exception cref="ArgumentException">Thrown when invalid arguments are provided in the request</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the webhook registration operation fails</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled or times out</exception>
+    /// <exception cref="Microsoft.Graph.Models.ODataErrors.ODataError">Thrown when Microsoft Graph API returns an error</exception>
+    /// <exception cref="HttpRequestException">Thrown when network connectivity issues occur</exception>
+    /// <example>
+    /// Example successful response:
+    /// <code>
+    /// {
+    ///   "message": "Webhook registered successfully",
+    ///   "subscriptionId": "abcd1234-5678-9012-3456-789012345678",
+    ///   "expirationDateTime": "2024-01-15T12:00:00Z",
+    ///   "callbackUrl": "https://your-app.azurewebsites.net/api/webhook/callback",
+    ///   "resource": "sites/12345678-1234-1234-1234-123456789012/lists/87654321-4321-4321-4321-210987654321",
+    ///   "changeType": "updated",
+    ///   "clientState": "your-client-state"
+    /// }
+    /// </code>
+    /// 
+    /// Example error response:
+    /// <code>
+    /// {
+    ///   "error": "SiteId is required",
+    ///   "timestamp": "2024-01-01T12:00:00Z",
+    ///   "requestId": "req-123456"
+    /// }
+    /// </code>
+    /// </example>
     [Function("SharePointSetupWebhook")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "setup")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "setup")]
+        HttpRequestData req)
     {
         _logger.LogInformation("SharePointSetupWebhook function triggered");
 
@@ -77,10 +132,10 @@ public class SharePointSetupWebhook(
             // Parse request body for optional parameters
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var requestData = ParseRequestBody(requestBody);
-
+            
             // Get configuration values
             var config = GetWebhookConfiguration(requestData);
-            
+
             if (!ValidateConfiguration(config, out var validationError))
             {
                 _logger.LogError("Configuration validation failed: {Error}", validationError);
@@ -90,37 +145,37 @@ public class SharePointSetupWebhook(
             // Check if a webhook already exists
             if (await _webhookRegistration.IsListMonitoredByWebhookAsync(config.SiteId, config.ListId))
             {
-                _logger.LogInformation("Webhook already registered for site {SiteId}, list {ListId}", 
+                _logger.LogInformation("Webhook already registered for site {SiteId}, list {ListId}",
                     config.SiteId, config.ListId);
-                    
-                return await CreateSuccessResponseAsync(req, new 
-                { 
+
+                return await CreateSuccessResponseAsync(req, new
+                {
                     Message = "Webhook already registered and active",
                     config.SiteId,
                     config.ListId,
                     config.CallbackUrl
                 });
             }
-            
+
             // Register new webhook
             var subscription = await _webhookRegistration.RegisterWebhookAsync(
-                config.SiteId, 
-                config.ListId, 
+                config.SiteId,
+                config.ListId,
                 config.CallbackUrl);
-            
-            _logger.LogInformation("Webhook registered successfully. Subscription ID: {SubscriptionId}", 
+
+            _logger.LogInformation("Webhook registered successfully. Subscription ID: {SubscriptionId}",
                 subscription.Id);
-                
-            return await CreateSuccessResponseAsync(req, new 
-            { 
-                Message = "Webhook registered successfully",
-                SubscriptionId = subscription.Id,
+
+            var response = new WebhookResponse(
+                "Webhook registered successfully",
+                subscription.Id ?? string.Empty,
                 subscription.ExpirationDateTime,
                 config.CallbackUrl,
-                subscription.Resource,
-                subscription.ChangeType,
-                subscription.ClientState
-            });
+                subscription.Resource ?? string.Empty,
+                subscription.ChangeType ?? string.Empty,
+                subscription.ClientState ?? string.Empty);
+
+            return await CreateSuccessResponseAsync(req, response);
         }
         catch (ArgumentException ex)
         {
@@ -139,13 +194,16 @@ public class SharePointSetupWebhook(
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex)
         {
-            _logger.LogError(ex, "Microsoft Graph API error during webhook registration: {Error}", ex.Error?.Message ?? ex.Message);
-            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway, $"Microsoft Graph API error: {ex.Error?.Message ?? ex.Message}");
+            _logger.LogError(ex, "Microsoft Graph API error during webhook registration: {Error}",
+                ex.Error?.Message ?? ex.Message);
+            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway,
+                $"Microsoft Graph API error: {ex.Error?.Message ?? ex.Message}");
         }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error during webhook registration: {Message}", ex.Message);
-            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway, "Network connectivity issue occurred");
+            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway,
+                "Network connectivity issue occurred");
         }
         catch (Exception ex)
         {
@@ -161,7 +219,8 @@ public class SharePointSetupWebhook(
     /// total active subscriptions, those expiring soon, and metadata for each subscription.</returns>
     [Function("GetWebhookStatus")]
     public async Task<HttpResponseData> GetStatus(
-        [HttpTrigger(AuthorizationLevel.Admin, "get", Route = "setup/status")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Admin, "get", Route = "setup/status")]
+        HttpRequestData req)
     {
         _logger.LogInformation("GetWebhookStatus function triggered");
 
@@ -172,7 +231,7 @@ public class SharePointSetupWebhook(
 
             var subscriptions = activeSubscriptions as Subscription[] ?? activeSubscriptions.ToArray();
             var expiring = expiringSubscriptions as Subscription[] ?? expiringSubscriptions.ToArray();
-            
+
             var response = new
             {
                 ActiveSubscriptions = subscriptions.Select(s => new
@@ -194,13 +253,16 @@ public class SharePointSetupWebhook(
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex)
         {
-            _logger.LogError(ex, "Microsoft Graph API error retrieving webhook status: {Error}", ex.Error?.Message ?? ex.Message);
-            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway, $"Microsoft Graph API error: {ex.Error?.Message ?? ex.Message}");
+            _logger.LogError(ex, "Microsoft Graph API error retrieving webhook status: {Error}",
+                ex.Error?.Message ?? ex.Message);
+            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway,
+                $"Microsoft Graph API error: {ex.Error?.Message ?? ex.Message}");
         }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error retrieving webhook status: {Message}", ex.Message);
-            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway, "Network connectivity issue occurred");
+            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway,
+                "Network connectivity issue occurred");
         }
         catch (Exception ex)
         {
@@ -216,7 +278,8 @@ public class SharePointSetupWebhook(
     /// details of the processed subscriptions, the number of successful and failed renewals, and the processing timestamp.</returns>
     [Function("RenewWebhooks")]
     public async Task<HttpResponseData> RenewWebhooks(
-        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "setup/renew")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "setup/renew")]
+        HttpRequestData req)
     {
         _logger.LogInformation("RenewWebhooks function triggered");
 
@@ -232,7 +295,7 @@ public class SharePointSetupWebhook(
                     _logger.LogWarning("Skipping subscription with null/empty ID");
                     continue;
                 }
-                
+
                 try
                 {
                     var success = await _webhookRegistration.RenewSubscriptionAsync(subscription.Id);
@@ -245,15 +308,15 @@ public class SharePointSetupWebhook(
                         NewExpiration = success ? DateTimeOffset.UtcNow.AddDays(3) : (DateTimeOffset?)null,
                         Error = (string?)null
                     });
-                    
-                    _logger.LogInformation("Subscription {SubscriptionId} renewal {Status}", 
+
+                    _logger.LogInformation("Subscription {SubscriptionId} renewal {Status}",
                         subscription.Id, success ? "succeeded" : "failed");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to renew subscription {SubscriptionId}: {Error}", 
+                    _logger.LogError(ex, "Failed to renew subscription {SubscriptionId}: {Error}",
                         subscription.Id, ex.Message);
-                    
+
                     renewalResults.Add(new
                     {
                         SubscriptionId = subscription.Id,
@@ -267,7 +330,7 @@ public class SharePointSetupWebhook(
             }
 
             var successfulRenewals = renewalResults.Count(r => (bool)r.GetType().GetProperty("Success")!.GetValue(r)!);
-            
+
             var response = new
             {
                 Message = $"Processed {renewalResults.Count} subscriptions for renewal",
@@ -281,13 +344,16 @@ public class SharePointSetupWebhook(
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex)
         {
-            _logger.LogError(ex, "Microsoft Graph API error renewing webhooks: {Error}", ex.Error?.Message ?? ex.Message);
-            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway, $"Microsoft Graph API error: {ex.Error?.Message ?? ex.Message}");
+            _logger.LogError(ex, "Microsoft Graph API error renewing webhooks: {Error}",
+                ex.Error?.Message ?? ex.Message);
+            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway,
+                $"Microsoft Graph API error: {ex.Error?.Message ?? ex.Message}");
         }
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Network error renewing webhooks: {Message}", ex.Message);
-            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway, "Network connectivity issue occurred");
+            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway,
+                "Network connectivity issue occurred");
         }
         catch (Exception ex)
         {
@@ -305,7 +371,8 @@ public class SharePointSetupWebhook(
     /// including success or the error encountered during the process.</returns>
     [Function("DeleteWebhook")]
     public async Task<HttpResponseData> DeleteWebhook(
-        [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "setup/{subscriptionId}")] HttpRequestData req,
+        [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "setup/{subscriptionId}")]
+        HttpRequestData req,
         string subscriptionId)
     {
         _logger.LogInformation("DeleteWebhook function triggered for subscription {SubscriptionId}", subscriptionId);
@@ -319,12 +386,12 @@ public class SharePointSetupWebhook(
             }
 
             var success = await _webhookRegistration.DeleteSubscriptionAsync(subscriptionId);
-            
+
             if (success)
             {
                 _logger.LogInformation("Webhook {SubscriptionId} deleted successfully", subscriptionId);
-                return await CreateSuccessResponseAsync(req, new 
-                { 
+                return await CreateSuccessResponseAsync(req, new
+                {
                     Message = "Webhook deleted successfully",
                     SubscriptionId = subscriptionId,
                     DeletedAt = DateTimeOffset.UtcNow
@@ -333,19 +400,23 @@ public class SharePointSetupWebhook(
             else
             {
                 _logger.LogWarning("Failed to delete webhook {SubscriptionId} - webhook may not exist", subscriptionId);
-                return await CreateErrorResponseAsync(req, HttpStatusCode.NotFound, "Webhook not found or already deleted");
+                return await CreateErrorResponseAsync(req, HttpStatusCode.NotFound,
+                    "Webhook not found or already deleted");
             }
         }
         catch (Microsoft.Graph.Models.ODataErrors.ODataError ex)
         {
-            _logger.LogError(ex, "Microsoft Graph API error deleting webhook {SubscriptionId}: {Error}", 
+            _logger.LogError(ex, "Microsoft Graph API error deleting webhook {SubscriptionId}: {Error}",
                 subscriptionId, ex.Error?.Message ?? ex.Message);
-            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway, $"Microsoft Graph API error: {ex.Error?.Message ?? ex.Message}");
+            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway,
+                $"Microsoft Graph API error: {ex.Error?.Message ?? ex.Message}");
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Network error deleting webhook {SubscriptionId}: {Message}", subscriptionId, ex.Message);
-            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway, "Network connectivity issue occurred");
+            _logger.LogError(ex, "Network error deleting webhook {SubscriptionId}: {Message}", subscriptionId,
+                ex.Message);
+            return await CreateErrorResponseAsync(req, HttpStatusCode.BadGateway,
+                "Network connectivity issue occurred");
         }
         catch (Exception ex)
         {
@@ -442,9 +513,9 @@ public class SharePointSetupWebhook(
         {
             var response = req.CreateResponse(HttpStatusCode.OK);
             response.Headers.Add("Content-Type", "application/json");
-            await response.WriteStringAsync(JsonSerializer.Serialize(data, new JsonSerializerOptions 
-            { 
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
+            await response.WriteStringAsync(JsonSerializer.Serialize(data, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             }));
             return response;
         }
@@ -453,10 +524,11 @@ public class SharePointSetupWebhook(
             _logger.LogError(ex, "Failed to create success response");
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             errorResponse.Headers.Add("Content-Type", "application/json");
-            await errorResponse.WriteStringAsync(JsonSerializer.Serialize(new { Error = "Failed to serialize response" }, new JsonSerializerOptions 
-            { 
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-            }));
+            await errorResponse.WriteStringAsync(JsonSerializer.Serialize(
+                new { Error = "Failed to serialize response" }, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                }));
             return errorResponse;
         }
     }
@@ -475,15 +547,16 @@ public class SharePointSetupWebhook(
     /// A Task representing the asynchronous operation that returns an HttpResponseData
     /// containing the error response.
     /// </return>
-    private async Task<HttpResponseData> CreateErrorResponseAsync(HttpRequestData req, HttpStatusCode statusCode, string message)
+    private async Task<HttpResponseData> CreateErrorResponseAsync(HttpRequestData req, HttpStatusCode statusCode,
+        string message)
     {
         try
         {
             var response = req.CreateResponse(statusCode);
             response.Headers.Add("Content-Type", "application/json");
-            await response.WriteStringAsync(JsonSerializer.Serialize(new { Error = message }, new JsonSerializerOptions 
-            { 
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
+            await response.WriteStringAsync(JsonSerializer.Serialize(new { Error = message }, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             }));
             return response;
         }
@@ -519,20 +592,16 @@ public class SharePointSetupWebhook(
         try
         {
             // Priority: Request body > Configuration > Environment variables
-            var siteId = requestData.GetConfigValue("siteId") ?? 
-                        _configuration["SharePoint:SiteId"] ?? 
-                        Environment.GetEnvironmentVariable("SharePoint:SiteId");
+            var siteId = requestData.GetConfigValue("siteId") ??
+                         _configuration["SharePoint:SiteId"];
 
-            var listId = requestData.GetConfigValue("listId") ?? 
-                        _configuration["SharePoint:ListId"] ?? 
-                        Environment.GetEnvironmentVariable("SharePoint:ListId");
+            var listId = requestData.GetConfigValue("listId") ??
+                         _configuration["SharePoint:ListId"];
 
-            var functionAppName = _configuration["WEBSITE_SITE_NAME"] ?? 
-                                 Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
+            var functionAppName = _configuration["WEBSITE_SITE_NAME"];
 
-            var functionKey = requestData.GetConfigValue("functionKey") ?? 
-                             _configuration["WebhookFunctionKey"] ?? 
-                             Environment.GetEnvironmentVariable("WebhookFunctionKey");
+            var functionKey = requestData.GetConfigValue("functionKey") ??
+                              _configuration["WebhookFunctionKey"];
 
             // Make function key required
             if (string.IsNullOrEmpty(functionKey))
@@ -543,14 +612,15 @@ public class SharePointSetupWebhook(
             }
 
             var callbackUrl = requestData.GetConfigValue("callbackUrl");
-            
+
             if (string.IsNullOrEmpty(callbackUrl))
             {
                 if (string.IsNullOrEmpty(functionAppName))
                 {
-                    throw new InvalidOperationException("Cannot generate callback URL: WEBSITE_SITE_NAME is not available and no explicit callbackUrl provided");
+                    throw new InvalidOperationException(
+                        "Cannot generate callback URL: WEBSITE_SITE_NAME is not available and no explicit callbackUrl provided");
                 }
-                
+
                 callbackUrl = $"https://{functionAppName}.azurewebsites.net/sharepoint/webhook?code={functionKey}";
             }
 
@@ -560,7 +630,7 @@ public class SharePointSetupWebhook(
                 throw new ArgumentException("ListId cannot be null or empty", nameof(listId));
             if (string.IsNullOrEmpty(callbackUrl))
                 throw new ArgumentException("CallbackUrl cannot be null or empty", nameof(callbackUrl));
-            
+
             return new WebhookConfiguration(siteId, listId, callbackUrl, functionAppName);
         }
         catch (Exception ex)
@@ -626,11 +696,12 @@ public class SharePointSetupWebhook(
 
         if (string.IsNullOrWhiteSpace(config.CallbackUrl))
         {
-            error = "Callback URL could not be determined. Ensure WEBSITE_SITE_NAME is available or provide callbackUrl in request body.";
+            error =
+                "Callback URL could not be determined. Ensure WEBSITE_SITE_NAME is available or provide callbackUrl in request body.";
             return false;
         }
 
-        if (!Uri.TryCreate(config.CallbackUrl, UriKind.Absolute, out var uri) || 
+        if (!Uri.TryCreate(config.CallbackUrl, UriKind.Absolute, out var uri) ||
             !uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
         {
             error = "Callback URL must be a valid HTTPS URL.";
@@ -659,41 +730,5 @@ public class SharePointSetupWebhook(
 
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         return !string.IsNullOrEmpty(query["code"]);
-    }
-
-    /// Represents the configuration details required to set up a SharePoint webhook.
-    /// This class is used to encapsulate the essential data needed for webhook registration and operation.
-    private class WebhookConfiguration(string siteId, string listId, string callbackUrl, string? functionAppName)
-    {
-        /// <summary>
-        /// Gets the unique identifier for the SharePoint site associated with
-        /// the webhook configuration. This property is essential to specify
-        /// the target SharePoint site where the webhook will be set up or managed.
-        /// </summary>
-        public string SiteId { get; init; } = siteId;
-
-        /// Gets or sets the identifier of the SharePoint list for which the webhook is being set up.
-        /// This property is used to uniquely identify the list within a SharePoint site and is required
-        /// for registering or checking the existence of a webhook associated with the list.
-        public string ListId { get; init; } = listId;
-
-        /// <summary>
-        /// Gets or sets the callback URL where the webhook notifications will be sent.
-        /// </summary>
-        /// <remarks>
-        /// The callback URL must be a valid HTTPS endpoint and must include any necessary authentication parameters.
-        /// It is used during webhook registration to specify the destination for notification events.
-        /// Proper validation of this URL is crucial to ensure secure and reliable communication.
-        /// </remarks>
-        public string CallbackUrl { get; init; } = callbackUrl;
-
-        /// <summary>
-        /// Gets the name of the Azure Function App associated with the webhook.
-        /// </summary>
-        /// <remarks>
-        /// This property is used to store or retrieve the name of the Azure Function App
-        /// that is responsible for handling webhook callback requests.
-        /// </remarks>
-        public string? FunctionAppName { get; init; } = functionAppName;
     }
 }

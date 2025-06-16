@@ -2,6 +2,7 @@ using System.Net;
 using CorchEdges.Abstractions;
 using CorchEdges.Functions;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using AzureFunctionsHttpRequestData = Microsoft.Azure.Functions.Worker.Http.HttpRequestData;
@@ -17,11 +18,13 @@ public class SharePointWebhookCallbackIntegrationTests
 {
     private readonly Mock<IWebhookProcessor> _mockProcessor;
     private readonly SharePointWebhookCallback _function;
+    private readonly Mock<ILogger<SharePointWebhookCallback>> _mockLogger;
 
     public SharePointWebhookCallbackIntegrationTests()
     {
         _mockProcessor = new Mock<IWebhookProcessor>();
-        _function = new SharePointWebhookCallback(_mockProcessor.Object);
+        _mockLogger = new Mock<ILogger<SharePointWebhookCallback>>();
+        _function = new SharePointWebhookCallback(_mockProcessor.Object, _mockLogger.Object);
     }
 
     [Fact]
@@ -147,7 +150,7 @@ public class SharePointWebhookCallbackIntegrationTests
     {
         // Test that the Azure Function properly accepts the abstraction
         var mockProcessor = new Mock<IWebhookProcessor>();
-        var function = new SharePointWebhookCallback(mockProcessor.Object);
+        var function = new SharePointWebhookCallback(mockProcessor.Object, Mock.Of<ILogger<SharePointWebhookCallback>>());
         
         Assert.NotNull(function);
         // This ensures the dependency injection will work correctly

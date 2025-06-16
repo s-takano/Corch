@@ -62,5 +62,5 @@ public interface IGraphFacade
     /// A task that represents the asynchronous operation. The task result is a <see cref="ConnectionTestResult"/>
     /// containing the outcome of the connection test, including success status, error reason, and error code if applicable.
     /// </returns>
-    Task<ConnectionTestResult> TestConnectionAsync(); // Updated return type
+    Task<ConnectionTestResult> TestConnectionAsync(string siteId = "root"); 
 }

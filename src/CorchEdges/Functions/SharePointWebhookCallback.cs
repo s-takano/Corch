@@ -3,6 +3,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace CorchEdges.Functions;
 
@@ -12,7 +13,7 @@ namespace CorchEdges.Functions;
 /// into a Service Bus queue. It leverages a multiple-output object for returning both
 /// Service Bus messages and HTTP responses.
 /// </summary>
-public sealed class SharePointWebhookCallback(IWebhookProcessor svc)
+public sealed class SharePointWebhookCallback(IWebhookProcessor svc, ILogger<SharePointWebhookCallback> logger)
 {
     // immutable record whose properties carry output bindings
     /// <summary>
@@ -40,15 +41,60 @@ public sealed class SharePointWebhookCallback(IWebhookProcessor svc)
         HttpRequestData req)
     {
         // 1) handshake?
+        logger.LogInformation("Processing webhook request - checking for handshake...");
+
         if (svc.TryHandshake(req) is { } hs)
+        {
+            logger.LogInformation("Handshake successful - returning validation response");
+            logger.LogDebug("Handshake response status: {StatusCode}", hs.StatusCode);
             return new Out(null, hs);
+        }
+
+        logger.LogInformation("No handshake detected - processing as notification");
 
         // 2) build HTTP reply and queue payload
-        var (resp, msg) = await svc.BuildEnqueueAsync(req);
+        logger.LogInformation("Building response and enqueuing payload...");
 
-        // ensure we always return a valid HTTP response
-        resp ??= req.CreateResponse(HttpStatusCode.OK);
+        try
+        {
+            var (resp, msg) = await svc.BuildEnqueueAsync(req);
+            
+            logger.LogInformation("BuildEnqueueAsync completed successfully");
+            logger.LogDebug("Response created: {HasResponse}", resp != null);
+            logger.LogDebug("Message created: {HasMessage}", msg != null);
+            
+            if (msg != null)
+            {
+                logger.LogInformation("Message enqueued for processing - Type: {MessageType}", msg.GetType().Name);
+            }
+            else
+            {
+                logger.LogWarning("No message was created during BuildEnqueueAsync");
+            }
+            
+            // ensure we always return a valid HTTP response
+            if (resp == null)
+            {
+                logger.LogInformation("No response from BuildEnqueueAsync - creating default OK response");
+                resp = req.CreateResponse(HttpStatusCode.OK);
+            }
+            else
+            {
+                logger.LogInformation("Using response from BuildEnqueueAsync - Status: {StatusCode}", resp.StatusCode);
+            }
 
-        return new Out(msg, resp);
+            logger.LogInformation("Webhook processing completed successfully");
+            return new Out(msg, resp);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error during BuildEnqueueAsync: {Message}", ex.Message);
+            
+            // Create error response
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            logger.LogWarning("Created error response due to exception");
+            
+            return new Out(null, errorResponse);
+        }
     }
 }

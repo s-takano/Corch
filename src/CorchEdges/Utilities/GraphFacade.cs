@@ -59,65 +59,26 @@ public sealed class GraphFacade(GraphServiceClient graphServiceClient) : IGraphF
     /// Returns a result indicating whether the connection test was successful or failed,
     /// including any error details in case of failure.
     /// <returns>A ConnectionTestResult indicating the success status of the test and any relevant error details.</returns>
-    public async Task<ConnectionTestResult> TestConnectionAsync()
+    public async Task<ConnectionTestResult> TestConnectionAsync(string siteId = "root")
     {
         try
         {
-            // Test with a minimal permissions endpoint
-            var servicePrincipal = await graphServiceClient.ServicePrincipals
-                .GetAsync(requestConfiguration => { requestConfiguration.QueryParameters.Top = 1; });
+            // requires only Sites.Read.All
+            var site = await graphServiceClient.Sites[siteId].GetAsync();
 
-            return servicePrincipal?.Value?.Count >= 0
+            return site != null
                 ? ConnectionTestResult.Success()
-                : ConnectionTestResult.Failure("No service principals returned", "EmptyResponse");
+                : ConnectionTestResult.Failure("Site not found", "NotFound");
         }
-        catch (ODataError ex) when (ex.Error?.Code == "Forbidden")
+        catch (ODataError ex) when (ex.Error?.Code is "Forbidden" or "AccessDenied")
         {
             return ConnectionTestResult.Failure(
-                $"Insufficient permissions: {ex.Error?.Message ?? "Access denied"}",
-                ex.Error?.Code);
-        }
-        catch (ODataError ex) when (ex.Error?.Code == "Unauthorized")
-        {
-            return ConnectionTestResult.Failure(
-                $"Authentication failed: {ex.Error?.Message ?? "Invalid credentials"}",
-                ex.Error?.Code);
-        }
-        catch (ODataError ex) when (ex.Error?.Code == "InvalidAuthenticationToken")
-        {
-            return ConnectionTestResult.Failure(
-                $"Invalid token: {ex.Error?.Message ?? "Token expired or malformed"}",
-                ex.Error?.Code);
-        }
-        catch (Azure.Identity.AuthenticationFailedException ex)
-        {
-            return ConnectionTestResult.Failure(
-                $"Credential acquisition failed: {ex.Message}",
-                "AuthenticationFailed");
-        }
-        catch (Azure.RequestFailedException ex)
-        {
-            return ConnectionTestResult.Failure(
-                $"Azure service error: {ex.Message}",
-                ex.ErrorCode);
-        }
-        catch (HttpRequestException ex)
-        {
-            return ConnectionTestResult.Failure(
-                $"Network error: {ex.Message}",
-                "NetworkError");
-        }
-        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
-        {
-            return ConnectionTestResult.Failure(
-                "Request timeout - Graph API took too long to respond",
-                "Timeout");
+                $"Insufficient permissions: {ex.Error?.Message}", ex.Error?.Code);
         }
         catch (Exception ex)
         {
-            return ConnectionTestResult.Failure(
-                $"Unexpected error: {ex.Message}",
-                ex.GetType().Name);
+            return ConnectionTestResult.Failure($"Unexpected error: {ex.Message}", ex.GetType().Name);
         }
     }
+
 }

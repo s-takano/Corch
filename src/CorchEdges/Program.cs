@@ -1,7 +1,9 @@
 using System.Data;
+using Azure.Core;
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
+using Azure.Storage.Blobs;
 using CorchEdges;
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
@@ -56,6 +58,18 @@ var host = Host.CreateDefaultBuilder(args)
     {
         svcs.AddApplicationInsightsTelemetryWorkerService();
         svcs.ConfigureFunctionsApplicationInsights();
+
+        // Register BlobServiceClient
+        svcs.AddSingleton<BlobServiceClient>(provider =>
+        {
+            var blobServiceUri = Environment.GetEnvironmentVariable("AzureWebJobsStorage__blobServiceUri")
+                                   ?? throw new InvalidOperationException(
+                                       "AzureWebJobsStorage__blobServiceUri connection string is missing");
+            
+            var credential = provider.GetRequiredService<TokenCredential>();
+
+            return new BlobServiceClient(new Uri(blobServiceUri), credential);
+        });
 
         svcs.AddScoped<IWebhookProcessor, DefaultWebhookProcessor>();
 
@@ -173,8 +187,18 @@ static (Action<DbContextOptionsBuilder>, Func<IServiceProvider, IPostgresTableWr
 static void RegisterGraph(IServiceCollection svcs)
 {
     Console.WriteLine("Starting Graph services registration...");
+    
+    // 1️⃣  one TokenCredential to rule them all
+    svcs.AddSingleton<TokenCredential, DefaultAzureCredential>();
 
-    svcs.AddScoped<GraphServiceClient>(_ => new GraphServiceClient(new DefaultAzureCredential()));
+    // 2️⃣  one GraphServiceClient, singleton, with resource scope
+    svcs.AddSingleton<GraphServiceClient>(sp =>
+    {
+        var credential = sp.GetRequiredService<TokenCredential>();
+        var scopes     = new[] { "https://graph.microsoft.com/.default" };
+        return new GraphServiceClient(credential, scopes);
+    });
+
     svcs.AddScoped<IGraphFacade, GraphFacade>();
 
     Console.WriteLine("✓ Graph services registration completed.");

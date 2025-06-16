@@ -1,5 +1,4 @@
-﻿
-using CorchEdges.Data;
+﻿using CorchEdges.Data;
 using CorchEdges.Data.Entities;
 using CorchEdges.Data.Providers;
 using Xunit;
@@ -46,15 +45,20 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
     [Fact]
     public void GetColumnType_WithRealProcessingLogEntity_ReturnsCorrectTypes()
     {
-        // This mirrors ExcelToDatabaseConverterIntegrationTests.PrepareDataSetForDatabase_NormalizesColumnTypes
-        // Test real ProcessingLog entity properties using _metadataProvider directly
-            
-        // Act & Assert
+        // Test the actual ProcessingLog entity properties
         Assert.Equal(typeof(long), _metadataProvider.GetColumnType("processing_log", "Id"));
-        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "Level"));
-        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "Message"));
+        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "SiteId"));
+        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "ListId"));
+        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "DeltaLink"));
+        Assert.Equal(typeof(DateTime), _metadataProvider.GetColumnType("processing_log", "LastProcessedAt"));
         Assert.Equal(typeof(DateTime), _metadataProvider.GetColumnType("processing_log", "CreatedAt"));
-        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "SharePointItemId"));
+        Assert.Equal(typeof(DateTime), _metadataProvider.GetColumnType("processing_log", "UpdatedAt"));
+        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "LastProcessedCount"));
+        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "Status"));
+        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "LastError"));
+        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "SubscriptionId"));
+        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "SuccessfulRuns"));
+        Assert.Equal(typeof(int), _metadataProvider.GetColumnType("processing_log", "FailedRuns"));
     }
 
     [Fact]
@@ -87,24 +91,19 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
     }
 
     [Theory]
+    [InlineData("contract_creation", "Id")]
     [InlineData("contract_creation", "ContractId")]
-    [InlineData("contract_creation", "PropertyNo")]
-    [InlineData("contract_creation", "PropertyName")]
-    [InlineData("contract_creation", "OutputDateTime")]
+    [InlineData("contract_current", "Id")]
     [InlineData("processing_log", "Id")]
-    [InlineData("processing_log", "Level")]
-    [InlineData("processing_log", "Message")]
-    [InlineData("processing_log", "CreatedAt")]
-    [InlineData("processing_log", "SharePointItemId")]
+    [InlineData("processing_log", "SiteId")]
+    [InlineData("processing_log", "ListId")]
+    [InlineData("processing_log", "Status")]
+    [InlineData("processed_file", "Id")]
     [InlineData("processed_file", "FileName")]
-    [InlineData("processed_file", "ProcessedAt")]
     public void HasColumn_WithRealEntityProperties_ReturnsTrue(string tableName, string columnName)
     {
-        // Act
-        var result = _metadataProvider.HasColumn(tableName, columnName);
-
-        // Assert
-        Assert.True(result);
+        // Act & Assert
+        Assert.True(_metadataProvider.HasColumn(tableName, columnName));
     }
 
     #endregion
@@ -199,7 +198,7 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
             
         // String properties (reference types) should return string, not nullable
         Assert.Equal(typeof(string), _metadataProvider.GetColumnType("contract_creation", "ContractId"));
-        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "Level"));
+        Assert.Equal(typeof(string), _metadataProvider.GetColumnType("processing_log", "Status"));
     }
 
     #endregion
@@ -219,10 +218,18 @@ public class ReflectionEntityMetadataProviderIntegrationTests : DatabaseTestBase
             ("contract_creation", "PropertyName", typeof(string)),
             ("contract_creation", "OutputDateTime", typeof(DateTime?)),
             ("processing_log", "Id", typeof(long)),
-            ("processing_log", "Level", typeof(string)),
-            ("processing_log", "Message", typeof(string)),
+            ("processing_log", "SiteId", typeof(string)),
+            ("processing_log", "ListId", typeof(string)),
+            ("processing_log", "DeltaLink", typeof(string)),
+            ("processing_log", "LastProcessedAt", typeof(DateTime)),
             ("processing_log", "CreatedAt", typeof(DateTime)),
-            ("processing_log", "SharePointItemId", typeof(string))
+            ("processing_log", "UpdatedAt", typeof(DateTime)),
+            ("processing_log", "LastProcessedCount", typeof(int)),
+            ("processing_log", "Status", typeof(string)),
+            ("processing_log", "LastError", typeof(string)),
+            ("processing_log", "SubscriptionId", typeof(string)),
+            ("processing_log", "SuccessfulRuns", typeof(int)),
+            ("processing_log", "FailedRuns", typeof(int))
         };
 
         foreach (var (tableName, columnName, expectedType) in testCases)

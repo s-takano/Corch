@@ -1,18 +1,40 @@
 ﻿using System.Text.Json.Serialization;
-using Microsoft.Graph.Models;
 
 namespace CorchEdges.Models;
 
 /// <summary>
-/// Represents a container for Microsoft Graph change notifications, typically
-/// deserialized from a Service Bus message. This class encapsulates the incoming
-/// notifications and provides a strongly-typed structure to process them.
+/// Represents a container for SharePoint webhook change notifications.
 /// </summary>
 public sealed class NotificationEnvelope
 {
-    /// Represents an array of change notifications received in the notification envelope.
-    /// This property contains the notifications for changes detected in tracked resources.
-    /// Each notification provides information such as the resource that was changed
-    /// and the type of change (e.g., created, updated, or deleted).
-    [JsonPropertyName("value")] public ChangeNotification[] Value { get; set; } = [];
+    [JsonPropertyName("value")] public SharePointNotification[] Value { get; set; } = [];
+}
+
+/// <summary>
+/// Represents a SharePoint webhook change notification.
+/// </summary>
+public class SharePointNotification
+{
+    [JsonPropertyName("subscriptionId")] public string SubscriptionId { get; set; } = string.Empty;
+
+    [JsonPropertyName("clientState")] public string ClientState { get; set; } = string.Empty;
+
+    [JsonPropertyName("resource")] public string Resource { get; set; } = string.Empty;
+
+    [JsonPropertyName("tenantId")] public string TenantId { get; set; } = string.Empty;
+
+    [JsonPropertyName("resourceData")] public ResourceData ResourceData { get; set; } = new();
+
+    [JsonPropertyName("subscriptionExpirationDateTime")]
+    public DateTimeOffset SubscriptionExpirationDateTime { get; set; }
+
+    [JsonPropertyName("changeType")] public string ChangeType { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Represents the resource data in a SharePoint notification.
+/// </summary>
+public class ResourceData
+{
+    [JsonPropertyName("@odata.type")] public string ODataType { get; set; } = string.Empty;
 }

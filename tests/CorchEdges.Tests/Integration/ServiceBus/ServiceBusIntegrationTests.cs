@@ -362,14 +362,14 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         {
             Value = new[]
             {
-                new ChangeNotification
+                new SharePointNotification
                 {
-                    SubscriptionId = Guid.NewGuid(),
+                    SubscriptionId = Guid.NewGuid().ToString(),
                     ClientState = "integration-test-state",
                     SubscriptionExpirationDateTime = DateTimeOffset.UtcNow.AddHours(1),
                     Resource = "sites/test-site/lists/test-list/items/123",
-                    TenantId = Guid.NewGuid(),
-                    ChangeType = ChangeType.Updated
+                    TenantId = Guid.NewGuid().ToString(),
+                    ChangeType = nameof(ChangeType.Updated)
                 }
             }
         };
@@ -382,14 +382,14 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
             {
                 Value = new[]
                 {
-                    new ChangeNotification
+                    new SharePointNotification
                     {
-                        SubscriptionId = Guid.NewGuid(),
+                        SubscriptionId = Guid.NewGuid().ToString(),
                         ClientState = $"test-state-{i}",
                         SubscriptionExpirationDateTime = DateTimeOffset.UtcNow.AddHours(1),
                         Resource = $"sites/test-site/lists/test-list/items/{i}",
-                        TenantId = Guid.NewGuid(),
-                        ChangeType = ChangeType.Updated
+                        TenantId = Guid.NewGuid().ToString(),
+                        ChangeType = nameof(ChangeType.Updated)
                     }
                 }
             })
@@ -399,14 +399,14 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
     private static NotificationEnvelope CreateLargeNotificationEnvelope(int itemCount)
     {
         var notifications = Enumerable.Range(1, itemCount)
-            .Select(i => new ChangeNotification
+            .Select(i => new SharePointNotification
             {
-                SubscriptionId = Guid.NewGuid(),
+                SubscriptionId = Guid.NewGuid().ToString(),
                 ClientState = $"large-batch-item-{i}",
                 SubscriptionExpirationDateTime = DateTimeOffset.UtcNow.AddHours(1),
                 Resource = $"sites/large-site/lists/large-list/items/{i}",
-                TenantId = Guid.NewGuid(),
-                ChangeType = ChangeType.Updated
+                TenantId = Guid.NewGuid().ToString(),
+                ChangeType = nameof(ChangeType.Updated)
             })
             .ToArray();
 

@@ -1,4 +1,4 @@
-﻿namespace CorchEdges.Data;
+﻿namespace CorchEdges.Data.Entities;
 
 public class ProcessedFile
 {

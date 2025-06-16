@@ -7,6 +7,8 @@ using FluentAssertions;
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Models;
+using CorchEdges.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Graph.Models;
 
@@ -276,10 +278,10 @@ namespace CorchEdges.Tests.Unit.Services
             var watchedPath = "/sites/test/Shared Documents/WatchedFolder";
             var handler = CreateHandler(watchedPath);
 
-            var changeNotification = new ChangeNotification
+            var changeNotification = new SharePointNotification
             {
                 Resource = "sites/test-site/lists/test-list/items/123",
-                ChangeType = ChangeType.Updated
+                ChangeType = nameof(ChangeType.Updated)
             };
 
             var mockDriveItem = new DriveItem
@@ -308,7 +310,7 @@ namespace CorchEdges.Tests.Unit.Services
                 .ReturnsAsync(new MemoryStream());
 
             // Act
-            await handler.HandleAsync(changeNotification);
+            await handler.HandleAsync([changeNotification]);
 
             // Assert
             _mockGraph.Verify(g => g.GetListItemAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
@@ -322,10 +324,10 @@ namespace CorchEdges.Tests.Unit.Services
             var watchedPath = "/sites/test/Shared Documents/WatchedFolder";
             var handler = CreateHandler(watchedPath);
 
-            var changeNotification = new ChangeNotification
+            var changeNotification = new SharePointNotification
             {
                 Resource = "sites/test-site/lists/test-list/items/123",
-                ChangeType = ChangeType.Updated
+                ChangeType = nameof(ChangeType.Updated)
             };
 
             var mockDriveItem = new DriveItem
@@ -348,7 +350,7 @@ namespace CorchEdges.Tests.Unit.Services
                 .ReturnsAsync(mockDriveItem);
 
             // Act
-            await handler.HandleAsync(changeNotification);
+            await handler.HandleAsync([changeNotification]);
 
             // Assert
             VerifyLogMessage("Skipping item outside watched folder", Times.Once());
@@ -384,10 +386,10 @@ namespace CorchEdges.Tests.Unit.Services
             // Arrange
             var handler = CreateHandler(watchedPath);
 
-            var changeNotification = new ChangeNotification
+            var changeNotification = new SharePointNotification
             {
                 Resource = "sites/test-site/lists/test-list/items/123",
-                ChangeType = ChangeType.Updated
+                ChangeType = nameof(ChangeType.Updated)
             };
 
             var mockDriveItem = new DriveItem
@@ -415,7 +417,7 @@ namespace CorchEdges.Tests.Unit.Services
             }
 
             // Act
-            await handler.HandleAsync(changeNotification);
+            await handler.HandleAsync([changeNotification]);
 
             // Assert
             if (shouldProcess)
@@ -438,10 +440,10 @@ namespace CorchEdges.Tests.Unit.Services
             // Arrange
             var handler = CreateHandler(watchedPath);
 
-            var changeNotification = new ChangeNotification
+            var changeNotification = new SharePointNotification
             {
                 Resource = "sites/test-site/lists/test-list/items/123",
-                ChangeType = ChangeType.Updated
+                ChangeType = nameof(ChangeType.Updated)
             };
 
             var mockDriveItem = new DriveItem
@@ -466,7 +468,7 @@ namespace CorchEdges.Tests.Unit.Services
                 .ReturnsAsync(new MemoryStream());
 
             // Act
-            await handler.HandleAsync(changeNotification);
+            await handler.HandleAsync([changeNotification]);
 
             // Assert
             VerifyLogMessage("Skipping item outside watched folder", Times.Never());
@@ -478,14 +480,14 @@ namespace CorchEdges.Tests.Unit.Services
             // Arrange
             var handler = CreateHandler();
             var connectionResult = new ConnectionTestResult(true, null, null);
-            _mockGraph.Setup(g => g.TestConnectionAsync()).ReturnsAsync(connectionResult);
+            _mockGraph.Setup(g => g.TestConnectionAsync("root")).ReturnsAsync(connectionResult);
 
             // Act
             var result = await handler.EnsureGraphConnectionAsync();
 
             // Assert
             result.Should().BeTrue();
-            _mockGraph.Verify(g => g.TestConnectionAsync(), Times.Once);
+            _mockGraph.Verify(g => g.TestConnectionAsync("root"), Times.Once);
         }
 
         private void VerifyLogMessage(string expectedMessage, Times times)

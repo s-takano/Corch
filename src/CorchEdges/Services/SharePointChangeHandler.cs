@@ -2,12 +2,13 @@
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
 
-namespace CorchEdges;
+namespace CorchEdges.Services;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Orchestrator that can be unit‑tested in isolation
@@ -120,27 +121,27 @@ public sealed class SharePointChangeHandler
         _parser = parser ?? throw new ArgumentNullException(nameof(parser));
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _context = context ?? throw new ArgumentNullException(nameof(context));
-        
+
         // Validate string parameters
         if (string.IsNullOrWhiteSpace(siteId))
             throw new ArgumentException("Site ID cannot be null or whitespace.", nameof(siteId));
-        
+
         if (string.IsNullOrWhiteSpace(listId))
             throw new ArgumentException("List ID cannot be null or whitespace.", nameof(listId));
-        
+
         if (string.IsNullOrWhiteSpace(watchedPath))
             throw new ArgumentException("Watched folder drive ID cannot be null or whitespace.", nameof(watchedPath));
-        
+
         // Additional validation for ID formats (optional but recommended)
         if (!IsValidGuid(siteId) && !IsValidSharePointId(siteId))
             throw new ArgumentException("Site ID must be a valid GUID or SharePoint ID format.", nameof(siteId));
-        
+
         if (!IsValidGuid(listId))
             throw new ArgumentException("List ID must be a valid GUID.", nameof(listId));
-        
+
         if (string.IsNullOrEmpty(watchedPath))
             throw new ArgumentException("Watched folder drive path must be a valid GUID.", nameof(watchedPath));
-        
+
         // Assign validated parameters
         _siteId = siteId;
         _listId = listId;
@@ -174,16 +175,16 @@ public sealed class SharePointChangeHandler
         // Example: contoso.sharepoint.com,12345678-1234-1234-1234-123456789012,87654321-4321-4321-4321-210987654321
         if (string.IsNullOrWhiteSpace(value))
             return false;
-        
+
         var parts = value.Split(',');
         if (parts.Length == 3)
         {
             // First part should be hostname, second and third should be GUIDs
-            return !string.IsNullOrWhiteSpace(parts[0]) && 
-                   IsValidGuid(parts[1]) && 
+            return !string.IsNullOrWhiteSpace(parts[0]) &&
+                   IsValidGuid(parts[1]) &&
                    IsValidGuid(parts[2]);
         }
-        
+
         return false;
     }
 
@@ -229,79 +230,84 @@ public sealed class SharePointChangeHandler
     /// <summary>
     /// Asynchronously processes a SharePoint change notification to manage updates to relevant resources.
     /// </summary>
-    /// <param name="change">The <see cref="ChangeNotification"/> object containing details about the resource and change metadata.</param>
+    /// <param name="notifications">a collection of the <see cref="SharePointNotification"/> object containing details about the resource and change metadata.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation, which resolves to a boolean indicating whether the operation succeeded.</returns>
-    public async Task HandleAsync(ChangeNotification change)
+    public async Task HandleAsync(IEnumerable<SharePointNotification> notifications)
     {
-        string itemId = Rx.Match(change.Resource ?? "").Groups[1].Value;
-        if (string.IsNullOrEmpty(itemId))
+        foreach (var notification in notifications)
         {
-            _log.LogWarning("Bad resource {r}", change.Resource);
-            return;
-        }
+            _log.LogDebug("Processing change notification for resource: {resource}", notification.Resource);
+            
+            string itemId = Rx.Match(notification.Resource ?? "").Groups[1].Value;
+            if (string.IsNullOrEmpty(itemId))
+            {
+                _log.LogWarning("Bad resource {r}", notification.Resource);
+                return;
+            }
 
-        var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
-        if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
-            !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
-        {
-            _log.LogInformation("Skipping {id}", itemId);
-            return;
-        }
+            var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
+            if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
+                !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                _log.LogInformation("Skipping {id}", itemId);
+                return;
+            }
 
-        var di = await _graph.GetDriveItemAsync(_siteId, _listId, itemId) ??
-                 throw new InvalidOperationException("drive item null");
+            var di = await _graph.GetDriveItemAsync(_siteId, _listId, itemId) ??
+                     throw new InvalidOperationException("drive item null");
 
-        // Filter by watched folder
-        var parentPathRaw = di.ParentReference?.Path;
-        if (parentPathRaw is null)
-        {
-            _log.LogWarning("DriveItem has no parent path. Id={id}", di.Id);
-            return;
-        }
+            // Filter by watched folder
+            var parentPathRaw = di.ParentReference?.Path;
+            if (parentPathRaw is null)
+            {
+                _log.LogWarning("DriveItem has no parent path. Id={id}", di.Id);
+                return;
+            }
 
-        var parentCanon = Canon(parentPathRaw);
-        var watchedCanon = Canon(_watchedPath);
+            var parentCanon = Canon(parentPathRaw);
+            var watchedCanon = Canon(_watchedPath);
 
-        if (parentCanon != watchedCanon)
-        {
-            _log.LogInformation("Skipping item outside watched folder: {p}", parentPathRaw);
-            return;             // everything else stays the same
-        }
+            if (parentCanon != watchedCanon)
+            {
+                _log.LogInformation("Skipping item outside watched folder: {p}", parentPathRaw);
+                return; // everything else stays the same
+            }
 
-        // Filter by file extension before downloading
-        if (!IsExcelFile(di.Name))
-        {
-            _log.LogInformation("Skipping non-Excel file: {fileName}", di.Name);
-            return;
-        }
+            // Filter by file extension before downloading
+            if (!IsExcelFile(di.Name))
+            {
+                _log.LogInformation("Skipping non-Excel file: {fileName}", di.Name);
+                return;
+            }
 
-        await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
-        await using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms);
-        var bytes = ms.ToArray();
+            await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
+            await using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
 
-        var (ds, err) = _parser.Parse(bytes);
-        if (err != null)
-        {
-            _log.LogError(err);
-            return;
-        }
+            var (ds, err) = _parser.Parse(bytes);
+            if (err != null)
+            {
+                _log.LogError(err);
+                return;
+            }
 
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-        try
-        {
-            // Start transaction
-            var connection = _context.Database.GetDbConnection();
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Start transaction
+                var connection = _context.Database.GetDbConnection();
 
-            await _db.WriteAsync(ds!, _context, connection, transaction.GetDbTransaction());
+                await _db.WriteAsync(ds!, _context, connection, transaction.GetDbTransaction());
 
-            await transaction.CommitAsync();
-        }
-        catch (Exception e)
-        {
-            _log.LogWarning("Database Writer failed: {EMessage}", e.Message);
-            await transaction.RollbackAsync();
-            throw;
+                await transaction.CommitAsync();
+            }
+            catch (Exception e)
+            {
+                _log.LogWarning("Database Writer failed: {EMessage}", e.Message);
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
     }
 
@@ -323,7 +329,7 @@ public sealed class SharePointChangeHandler
         if (idx >= 0 && idx + 1 < raw.Length) raw = raw[(idx + 1)..];
         return Uri.UnescapeDataString(raw)
             .Replace('\\', '/')
-            .TrimEnd('/')                    // no trailing slash
+            .TrimEnd('/') // no trailing slash
             .ToLowerInvariant();
     }
 

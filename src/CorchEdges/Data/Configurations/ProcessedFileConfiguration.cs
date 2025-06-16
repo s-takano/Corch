@@ -10,7 +10,7 @@ public class ProcessedFileConfiguration : BaseEntityConfiguration<ProcessedFile>
 {
     public override string GetTableName() => "processed_file";
 
-    public override string? GetSchemaName() => null; // Assuming default schema
+    public override string? GetSchemaName() => "corch_edges_raw";
 
     public override IEnumerable<ColumnMetaInfo> GetColumnMetadata()
     {
