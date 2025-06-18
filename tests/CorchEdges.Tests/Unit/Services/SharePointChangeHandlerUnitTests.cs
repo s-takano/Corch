@@ -8,6 +8,7 @@ using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
 using CorchEdges.Data.Entities;
+using CorchEdges.Data.Repositories;
 using CorchEdges.Models;
 using CorchEdges.Services;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,7 @@ namespace CorchEdges.Tests.Unit.Services
         private readonly Mock<IExcelParser> _mockParser;
         private readonly Mock<IDatabaseWriter> _mockDb;
         private readonly EdgesDbContext _mockContext;
+        private readonly ProcessingLogRepository _mockProcessingLogRepository;
         private readonly string _testSiteId = "12345678-1234-1234-1234-123456789012";
         private readonly string _testListId = "87654321-4321-4321-4321-210987654321";
 
@@ -33,6 +35,7 @@ namespace CorchEdges.Tests.Unit.Services
             _mockParser = new Mock<IExcelParser>();
             _mockDb = new Mock<IDatabaseWriter>();
             _mockContext = CreateInMemoryDbContext();
+            _mockProcessingLogRepository = new ProcessingLogRepository(_mockContext);
         }
 
         private EdgesDbContext CreateInMemoryDbContext()
@@ -57,6 +60,7 @@ namespace CorchEdges.Tests.Unit.Services
                 _mockParser.Object,
                 _mockDb.Object,
                 _mockContext,
+                _mockProcessingLogRepository,
                 _testSiteId,
                 _testListId,
                 watchedPath);
@@ -83,6 +87,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockParser.Object,
                     _mockDb.Object,
                     _mockContext,
+                    _mockProcessingLogRepository,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -99,6 +104,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockParser.Object,
                     _mockDb.Object,
                     _mockContext,
+                    _mockProcessingLogRepository,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -115,6 +121,7 @@ namespace CorchEdges.Tests.Unit.Services
                     null!,
                     _mockDb.Object,
                     _mockContext,
+                    _mockProcessingLogRepository,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -131,6 +138,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockParser.Object,
                     null!,
                     _mockContext,
+                    _mockProcessingLogRepository,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -147,6 +155,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockParser.Object,
                     _mockDb.Object,
                     null!,
+                    _mockProcessingLogRepository,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -166,6 +175,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockParser.Object,
                     _mockDb.Object,
                     _mockContext,
+                    _mockProcessingLogRepository,
                     invalidSiteId,
                     _testListId,
                     "/test/path"));
@@ -187,6 +197,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockParser.Object,
                     _mockDb.Object,
                     _mockContext,
+                    _mockProcessingLogRepository,
                     _testSiteId,
                     invalidListId,
                     "/test/path"));
@@ -208,6 +219,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockParser.Object,
                     _mockDb.Object,
                     _mockContext,
+                    _mockProcessingLogRepository,
                     _testSiteId,
                     _testListId,
                     invalidWatchedPath));
@@ -229,6 +241,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockParser.Object,
                     _mockDb.Object,
                     _mockContext,
+                    _mockProcessingLogRepository,
                     invalidSiteId,
                     _testListId,
                     "/test/path"));
@@ -250,6 +263,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockParser.Object,
                     _mockDb.Object,
                     _mockContext,
+                    _mockProcessingLogRepository,
                     _testSiteId,
                     invalidListId,
                     "/test/path"));
@@ -271,6 +285,7 @@ namespace CorchEdges.Tests.Unit.Services
                 _mockParser.Object,
                 _mockDb.Object,
                 _mockContext,
+                _mockProcessingLogRepository,
                 sharePointSiteId,
                 _testListId,
                 "/test/path");
@@ -309,6 +324,9 @@ namespace CorchEdges.Tests.Unit.Services
                     It.IsAny<string>(),
                     It.IsAny<string>()))
                 .ReturnsAsync(mockDriveItem);
+
+            _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
             _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
                 .Returns((new DataSet(), string.Empty));
@@ -355,6 +373,9 @@ namespace CorchEdges.Tests.Unit.Services
                     It.IsAny<string>(),
                     It.IsAny<string>()))
                 .ReturnsAsync(mockDriveItem);
+
+            _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
             // Act
             await handler.HandleAsync([changeNotification]);
@@ -415,6 +436,9 @@ namespace CorchEdges.Tests.Unit.Services
                     It.IsAny<string>()))
                 .ReturnsAsync(mockDriveItem);
 
+            _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
+
             if (shouldProcess)
             {
                 _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
@@ -468,6 +492,9 @@ namespace CorchEdges.Tests.Unit.Services
                     It.IsAny<string>(),
                     It.IsAny<string>()))
                 .ReturnsAsync(mockDriveItem);
+
+            _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
             _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
                 .Returns((new DataSet(), string.Empty));
@@ -527,6 +554,9 @@ namespace CorchEdges.Tests.Unit.Services
 
             _mockGraph.Setup(g => g.GetDriveItemAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(mockDriveItem);
+            
+            _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
             _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
                 .Returns((new DataSet(), string.Empty));
@@ -585,8 +615,12 @@ namespace CorchEdges.Tests.Unit.Services
             _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(new MemoryStream());
 
+            _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
+            
             _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
                 .Returns((null, "Test parsing error"));
+            
 
             // Act
             await handler.HandleAsync([changeNotification]);

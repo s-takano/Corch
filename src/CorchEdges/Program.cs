@@ -8,6 +8,7 @@ using CorchEdges;
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Repositories;
 using CorchEdges.Services;
 using CorchEdges.Utilities;
 using Microsoft.Azure.Functions.Worker;
@@ -63,9 +64,9 @@ var host = Host.CreateDefaultBuilder(args)
         svcs.AddSingleton<BlobServiceClient>(provider =>
         {
             var blobServiceUri = Environment.GetEnvironmentVariable("AzureWebJobsStorage__blobServiceUri")
-                                   ?? throw new InvalidOperationException(
-                                       "AzureWebJobsStorage__blobServiceUri connection string is missing");
-            
+                                 ?? throw new InvalidOperationException(
+                                     "AzureWebJobsStorage__blobServiceUri connection string is missing");
+
             var credential = provider.GetRequiredService<TokenCredential>();
 
             return new BlobServiceClient(new Uri(blobServiceUri), credential);
@@ -121,73 +122,36 @@ static void RegisterDatabaseServices(IServiceCollection services, IConfiguration
 {
     Console.WriteLine("Starting database services registration...");
 
-    var (dbContextFactory, postgresTableWriterFactory, databaseWriterFactory) = CreateDatabaseFactories(config);
+    services.AddDbContext<EdgesDbContext>(CreateContextFactory(config));
+    
+    services.AddTransient<PostgresTableWriter>();
+    services.AddTransient<ExcelDatasetWriter>(provider => new ExcelDatasetWriter(
+        provider.GetRequiredService<IPostgresTableWriter>(),
+        provider.GetRequiredService<ILogger<ExcelDatasetWriter>>()));
 
-    services.AddDbContext<EdgesDbContext>(dbContextFactory);
-    services.AddScoped(postgresTableWriterFactory);
-    services.AddScoped(databaseWriterFactory);
-
+    services.AddTransient<ProcessingLogRepository>();
+    
     Console.WriteLine("Database services registration completed.");
 }
 
-static (Action<DbContextOptionsBuilder>, Func<IServiceProvider, IPostgresTableWriter>,
-    Func<IServiceProvider, IDatabaseWriter>) CreateDatabaseFactories(IConfiguration config)
+static Action<DbContextOptionsBuilder> CreateContextFactory(IConfiguration config)
 {
-    Action<DbContextOptionsBuilder> dbContextFactory;
-    Func<IServiceProvider, IPostgresTableWriter> postgresTableWriterFactory;
-    Func<IServiceProvider, IDatabaseWriter> databaseWriterFactory;
-
-    try
+    var connectionString = config.GetConnectionString("PostgreSQLConnection");
+    if (string.IsNullOrEmpty(connectionString))
     {
-        var connectionString = config.GetConnectionString("PostgreSQLConnection");
-        if (!string.IsNullOrEmpty(connectionString))
-        {
-            // Register the actual implementations
-            dbContextFactory = options => { options.UseNpgsql(connectionString); };
-            postgresTableWriterFactory = _ => new PostgresTableWriter();
-            databaseWriterFactory = provider => new ExcelDatasetWriter(
-                provider.GetRequiredService<IPostgresTableWriter>(),
-                provider.GetRequiredService<ILogger<ExcelDatasetWriter>>());
-
-            Console.WriteLine("✓ Database services registered with PostgreSQL");
-        }
-        else
-        {
-            // Register stub implementations when a database is not available
-            (dbContextFactory, postgresTableWriterFactory, databaseWriterFactory) =
-                CreateStubImplementations("Database not configured - PostgreSQL connection string missing");
-
-            Console.WriteLine("⚠ Database services registered as stubs (no PostgreSQL connection string)");
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"⚠ Database registration failed: {ex.Message}");
-
-        // Register stub implementations on error
-        (dbContextFactory, postgresTableWriterFactory, databaseWriterFactory) =
-            CreateStubImplementations($"Database error: {ex.Message}");
+        // Register stub implementations when a database is not available
+        throw new InvalidOperationException("Database not configured - PostgreSQL connection string missing");
     }
 
-    return (dbContextFactory, postgresTableWriterFactory, databaseWriterFactory);
-}
+    Console.WriteLine("✓ Database services registered with a valid connection string");
 
-static (Action<DbContextOptionsBuilder>, Func<IServiceProvider, IPostgresTableWriter>,
-    Func<IServiceProvider, IDatabaseWriter>) CreateStubImplementations(string errorMessage)
-{
-    Console.WriteLine($"Creating stub implementations: {errorMessage}");
-
-    return (
-        _ => throw new InvalidOperationException(errorMessage),
-        _ => throw new InvalidOperationException(errorMessage),
-        _ => throw new InvalidOperationException(errorMessage)
-    );
+    return options => { options.UseNpgsql(connectionString); };
 }
 
 static void RegisterGraph(IServiceCollection svcs)
 {
     Console.WriteLine("Starting Graph services registration...");
-    
+
     // 1️⃣  one TokenCredential to rule them all
     svcs.AddSingleton<TokenCredential, DefaultAzureCredential>();
 
@@ -195,11 +159,11 @@ static void RegisterGraph(IServiceCollection svcs)
     svcs.AddSingleton<GraphServiceClient>(sp =>
     {
         var credential = sp.GetRequiredService<TokenCredential>();
-        var scopes     = new[] { "https://graph.microsoft.com/.default" };
+        var scopes = new[] { "https://graph.microsoft.com/.default" };
         return new GraphServiceClient(credential, scopes);
     });
 
-    svcs.AddScoped<IGraphFacade, GraphFacade>();
+    svcs.AddTransient<IGraphFacade, GraphFacade>();
 
     Console.WriteLine("✓ Graph services registration completed.");
 }
@@ -232,11 +196,11 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
 {
     Console.WriteLine("Starting Business services registration...");
 
-    svcs.AddScoped<IExcelParser, ExcelDataParser>();
-    svcs.AddScoped<IDatabaseWriter, ExcelDatasetWriter>();
+    svcs.AddTransient<IExcelParser, ExcelDataParser>();
+    svcs.AddTransient<IDatabaseWriter, ExcelDatasetWriter>();
 
     // Add WebhookRegistrationService service
-    svcs.AddScoped<WebhookRegistration>();
+    svcs.AddTransient<WebhookRegistration>();
 
     svcs.AddScoped<SharePointChangeHandler>(p => new SharePointChangeHandler(
         p.GetRequiredService<ILogger<SharePointChangeHandler>>(),
@@ -244,6 +208,7 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
         p.GetRequiredService<IExcelParser>(),
         p.GetRequiredService<IDatabaseWriter>(),
         p.GetRequiredService<EdgesDbContext>(),
+        p.GetRequiredService<ProcessingLogRepository>(),
         cfg["SharePoint:SiteId"] ?? "MISSING",
         cfg["SharePoint:ListId"] ?? "MISSING",
         cfg["SharePoint:WatchedPath"] ?? "MISSING"));

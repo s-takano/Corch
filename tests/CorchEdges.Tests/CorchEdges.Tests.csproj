@@ -57,6 +57,7 @@
   
   <ItemGroup>
     <Folder Include="Integration\ServiceBus\" />
+    <Folder Include="Unit\Data\Repositories\" />
   </ItemGroup>
 
 </Project>

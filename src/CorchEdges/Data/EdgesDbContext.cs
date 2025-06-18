@@ -10,7 +10,7 @@ namespace CorchEdges.Data;
 /// This class derives from DbContext and is used to interact with the database.
 /// It defines the DbSet properties required for querying and saving instances of entity types.
 /// </remarks>
-public class EdgesDbContext : DbContext
+public partial class EdgesDbContext : DbContext
 {
     // Add a constructor that accepts options
     /// <summary>

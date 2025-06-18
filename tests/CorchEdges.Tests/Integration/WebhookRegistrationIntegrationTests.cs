@@ -25,6 +25,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
 
     protected override void ConfigureServices(IServiceCollection services)
     {
+        base.ConfigureServices(services);
         services.AddScoped<GraphServiceClient>(_ => new GraphServiceClient(new DefaultAzureCredential()));
         services.AddScoped<WebhookRegistration>();
     }

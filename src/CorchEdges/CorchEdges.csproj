@@ -65,6 +65,7 @@
 
   <ItemGroup>
     <Folder Include="Data\Configurations\" />
+    <Folder Include="Data\Repositories\" />
     <Folder Include="Extensions\" />
   </ItemGroup>
 

@@ -1,13 +1,13 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Data.Common;
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
 using CorchEdges.Data.Entities;
+using CorchEdges.Data.Repositories;
 using CorchEdges.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph.Models;
 
 namespace CorchEdges.Services;
 
@@ -73,16 +73,7 @@ public sealed class SharePointChangeHandler
     /// </remarks>
     private readonly EdgesDbContext _context;
 
-    /// <summary>
-    /// Represents a compiled regular expression utilized to identify and extract numeric identifiers
-    /// from strings following a specific pattern, such as "items/123".
-    /// </summary>
-    /// <remarks>
-    /// The regular expression is optimized using the RegexOptions.Compiled flag to improve performance.
-    /// It is specifically tailored for use cases like parsing resource paths from SharePoint or Graph API
-    /// notifications where the numeric identifier is critical for further processing.
-    /// </remarks>
-    private static readonly Regex Rx = new(@"items/(\d+)$", RegexOptions.Compiled);
+    private readonly ProcessingLogRepository _processingLogRepository;
 
     /// <summary>
     /// Represents the unique identifier of a SharePoint site, used for identifying
@@ -112,6 +103,7 @@ public sealed class SharePointChangeHandler
         IExcelParser parser,
         IDatabaseWriter db,
         EdgesDbContext context,
+        ProcessingLogRepository processingLogRepository,
         string siteId,
         string listId,
         string watchedPath)
@@ -122,6 +114,8 @@ public sealed class SharePointChangeHandler
         _parser = parser ?? throw new ArgumentNullException(nameof(parser));
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _context = context ?? throw new ArgumentNullException(nameof(context));
+        _processingLogRepository =
+            processingLogRepository ?? throw new ArgumentNullException(nameof(processingLogRepository));
 
         // Validate string parameters
         if (string.IsNullOrWhiteSpace(siteId))
@@ -236,122 +230,126 @@ public sealed class SharePointChangeHandler
     public async Task HandleAsync(IEnumerable<SharePointNotification> notifications)
     {
         var notificationList = notifications.ToList();
-        var processedCount = 0;
+        var successfulItems = 0;
         var failedCount = 0;
         var hasErrors = false;
         string? lastError = null;
 
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        foreach (var notification in notificationList) await ProcessNotificationAsync(notification);
+
+        return;
+
+        async Task ProcessNotificationAsync(SharePointNotification notification)
         {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            var lastDataLink = await _processingLogRepository.GetDeltaLinkForSyncAsync(_siteId, _listId);
+
             var connection = _context.Database.GetDbConnection();
-
-            // todo: fetch the last DeltaLink
-            
-            foreach (var notification in notificationList)
+            try
             {
-                try
+                _log.LogDebug("Processing change notification for resource: {resource}", notification.Resource);
+
+                var (deltaLink, itemIds) = await _graph.PullItemsDeltaAsync(_siteId, _listId, lastDataLink);
+
+                foreach (var itemId in itemIds)
                 {
-                    _log.LogDebug("Processing change notification for resource: {resource}", notification.Resource);
-                    
-                    string itemId = Rx.Match(notification.Resource ?? "").Groups[1].Value;
-                    if (string.IsNullOrEmpty(itemId))
+                    try
                     {
-                        _log.LogWarning("Bad resource {r}", notification.Resource);
-                        failedCount++;
+                        await ProcessItemAsync(itemId, connection, transaction);
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.LogError(ex, "Error processing notification for resource: {resource}",
+                            notification.Resource);
                         hasErrors = true;
-                        lastError = "Invalid resource format";
-                        continue;
-                    }
-
-                    // todo: pass the DeltaLink to GetListItemAsync to filter items 
-                    var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
-                    if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
-                        !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
-                    {
-                        _log.LogInformation("Skipping {id}", itemId);
-                        continue; // This is not counted as success or failure
-                    }
-                    
-                    // todo: Get DeltaLink from AdditionalData and validate it
-
-                    var di = await _graph.GetDriveItemAsync(_siteId, _listId, itemId) ??
-                         throw new InvalidOperationException("drive item null");
-
-                    // Filter by watched folder
-                    var parentPathRaw = di.ParentReference?.Path;
-                    if (parentPathRaw is null)
-                    {
-                        _log.LogWarning("DriveItem has no parent path. Id={id}", di.Id);
-                        continue; // This is not counted as success or failure
-                    }
-
-                    var parentCanon = Canon(parentPathRaw);
-                    var watchedCanon = Canon(_watchedPath);
-
-                    if (parentCanon != watchedCanon)
-                    {
-                        _log.LogInformation("Skipping item outside watched folder: {p}", parentPathRaw);
-                        continue; // This is not counted as success or failure
-                    }
-
-                    // Filter by file extension before downloading
-                    if (!IsExcelFile(di.Name))
-                    {
-                        _log.LogInformation("Skipping non-Excel file: {fileName}", di.Name);
-                        continue; // This is not counted as success or failure
-                    }
-
-                    await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
-                    await using var ms = new MemoryStream();
-                    await stream.CopyToAsync(ms);
-                    var bytes = ms.ToArray();
-
-                    var (ds, err) = _parser.Parse(bytes);
-                    if (!string.IsNullOrEmpty(err))
-                    {
-                        _log.LogError("Parser error: {error}", err);
-                        hasErrors = true;
-                        lastError = err;
+                        lastError = ex.Message;
                         failedCount++;
-                        continue;
                     }
-
-                    if (ds == null)
-                    {
-                        _log.LogError("Parser returned null dataset");
-                        hasErrors = true;
-                        lastError = "Parser returned null dataset";
-                        failedCount++;
-                        continue;
-                    }
-
-                    await _db.WriteAsync(ds, _context, connection, transaction.GetDbTransaction());
-                    processedCount++;
                 }
-                catch (Exception ex)
-                {
-                    _log.LogError(ex, "Error processing notification for resource: {resource}", notification.Resource);
-                    hasErrors = true;
-                    lastError = ex.Message;
-                    failedCount++;
-                }
+
+                // Create a new processing log for each notification
+                await RecordProcessingLogAsync(successfulItems, failedCount, hasErrors, lastError, deltaLink);
+                
+                await transaction.CommitAsync();
+
+                _log.LogInformation("Successfully processed {count} notifications", successfulItems);
+            }
+            catch (Exception e)
+            {
+                _log.LogWarning("Transaction failed: {EMessage}", e.Message);
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        async Task ProcessItemAsync(string itemId, DbConnection connection, IDbContextTransaction transaction)
+        {
+            var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
+            if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
+                !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                _log.LogInformation("Skipping {id}", itemId);
+                return;
             }
 
-            // todo: store the last DeltaLink
-            // Create a new processing log for each HandleAsync call
-            await CreateProcessingLogAsync(processedCount, failedCount, hasErrors, lastError);
+            var di = await _graph.GetDriveItemAsync(_siteId, _listId, itemId) ??
+                     throw new InvalidOperationException("drive item null");
 
-            await transaction.CommitAsync();
-            _log.LogInformation("Successfully processed {count} notifications", processedCount);
-        }
-        catch (Exception e)
-        {
-            _log.LogWarning("Transaction failed: {EMessage}", e.Message);
-            await transaction.RollbackAsync();
-            throw;
+            // Filter by watched folder
+            var parentPathRaw = di.ParentReference?.Path;
+            if (parentPathRaw is null)
+            {
+                _log.LogWarning("DriveItem has no parent path. Id={id}", di.Id);
+                return;
+            }
+
+            var parentCanon = Canon(parentPathRaw);
+            var watchedCanon = Canon(_watchedPath);
+
+            if (parentCanon != watchedCanon)
+            {
+                _log.LogInformation("Skipping item outside watched folder: {p}", parentPathRaw);
+                return;
+            }
+
+            // Filter by file extension before downloading
+            if (!IsExcelFile(di.Name))
+            {
+                _log.LogInformation("Skipping non-Excel file: {fileName}", di.Name);
+                return;
+            }
+
+            await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
+            await using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+
+            var (ds, err) = _parser.Parse(bytes);
+            if (!string.IsNullOrEmpty(err))
+            {
+                _log.LogError("Parser error: {error}", err);
+                hasErrors = true;
+                lastError = err;
+                failedCount++;
+                return;
+            }
+
+            if (ds == null)
+            {
+                _log.LogError("Parser returned null dataset");
+                hasErrors = true;
+                lastError = "Parser returned null dataset";
+                failedCount++;
+                return;
+            }
+
+            await _db.WriteAsync(ds, _context, connection, transaction.GetDbTransaction());
+
+            successfulItems++;
         }
     }
+
 
     /// <summary>
     /// Creates a new processing log record in the database to track the processing results.
@@ -361,25 +359,15 @@ public sealed class SharePointChangeHandler
     /// <param name="failedItems">Number of notifications that failed to process</param>
     /// <param name="hasErrors">Whether any errors occurred during processing</param>
     /// <param name="lastError">The last error message if any errors occurred</param>
-    private async Task CreateProcessingLogAsync(int successfulItems, int failedItems, bool hasErrors, string? lastError)
+    /// <param name="dataLink"></param>
+    private async Task RecordProcessingLogAsync(int successfulItems, int failedItems, bool hasErrors, string? lastError,
+        string dataLink)
     {
-        // Always create a new log for each HandleAsync call
-        var newLog = new ProcessingLog
-        {
-            SiteId = _siteId,
-            ListId = _listId,
-            LastProcessedAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            LastProcessedCount = successfulItems + failedItems,
-            Status = hasErrors ? "Failed" : "Success",
-            LastError = lastError,
-            SuccessfulItems = successfulItems,
-            FailedItems = failedItems,
-        };
-
-        _context.ProcessingLogs.Add(newLog);
-        await _context.SaveChangesAsync();
+        if (hasErrors)
+            await _processingLogRepository.RecordFailedSyncAsync(_siteId, _listId, lastError!, failedItems);
+        else
+            await _processingLogRepository.RecordSuccessfulSyncAsync(_siteId, _listId, dataLink, successfulItems);
+        
         _log.LogDebug("Processing log created successfully");
     }
 

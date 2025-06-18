@@ -1,4 +1,5 @@
-﻿using Azure.Identity;
+﻿using Azure.Core;
+using Azure.Identity;
 using CorchEdges.Abstractions;
 using CorchEdges.Utilities;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,8 +20,13 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
 
     protected override void ConfigureServices(IServiceCollection services)
     {
+        base.ConfigureServices(services);
         services.AddScoped<IGraphFacade, GraphFacade>();
-        services.AddScoped<GraphServiceClient>(_ => new GraphServiceClient(new DefaultAzureCredential()));
+        services.AddSingleton<GraphServiceClient>(provider =>
+        {
+            var credential = provider.GetRequiredService<TokenCredential>();
+            return new GraphServiceClient(credential);
+        });
     }
 
     public GraphFacadeIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
@@ -289,6 +295,275 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         Assert.True(stopwatch.ElapsedMilliseconds < 30000, 
             $"Concurrent requests took too long: {stopwatch.ElapsedMilliseconds}ms");
     }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetItemsDeltaAsync_WithLatestToken_ReturnsInitialDelta()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+
+        // Act
+        var (deltaLink, itemIds) = await _graphFacade.PullItemsDeltaAsync(
+            Fixture.GetTestSiteId(),
+            Fixture.GetTestListId(),
+            "latest");
+
+        // Assert
+        Assert.NotNull(deltaLink);
+        Assert.NotNull(itemIds);
+        Assert.NotEmpty(deltaLink);
+
+        _output.WriteLine($"✅ Retrieved delta with 'latest' token");
+        _output.WriteLine($"   Delta Link: {deltaLink}");
+        _output.WriteLine($"   Items Count: {itemIds.Count}");
+
+        // Verify delta link format (should contain SharePoint-specific URL structure)
+        Assert.Contains("delta", deltaLink, StringComparison.OrdinalIgnoreCase);
+
+        // Log some item details if any exist
+        if (itemIds.Count > 0)
+        {
+            var firstItemId = itemIds.First();
+            _output.WriteLine($"   First Item ID: {firstItemId}");
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetItemsDeltaAsync_WithPreviousDeltaLink_ReturnsSubsequentChanges()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+
+        // First, get the initial delta to obtain a delta link
+        var (initialDeltaLink, initialItems) = await _graphFacade.PullItemsDeltaAsync(
+            Fixture.GetTestSiteId(),
+            Fixture.GetTestListId(),
+            "latest");
+
+        Assert.NotNull(initialDeltaLink);
+        Assert.NotNull(initialItems);
+
+        // Wait a brief moment to ensure any subsequent changes are captured
+        await Task.Delay(1000);
+
+        // Act - Use the delta link from the previous call
+        var (subsequentDeltaLink, subsequentItems) = await _graphFacade.PullItemsDeltaAsync(
+            Fixture.GetTestSiteId(),
+            Fixture.GetTestListId(),
+            initialDeltaLink);
+
+        // Assert
+        Assert.NotNull(subsequentDeltaLink);
+        Assert.NotNull(subsequentItems);
+
+        _output.WriteLine($"✅ Retrieved subsequent delta");
+        _output.WriteLine($"   Initial Items Count: {initialItems.Count}");
+        _output.WriteLine($"   Subsequent Items Count: {subsequentItems.Count}");
+        _output.WriteLine($"   Initial Delta Link: {initialDeltaLink}");
+        _output.WriteLine($"   Subsequent Delta Link: {subsequentDeltaLink}");
+
+        // The subsequent delta link should be different from the initial one
+        Assert.NotEqual(initialDeltaLink, subsequentDeltaLink);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetItemsDeltaAsync_WithInvalidSiteId_ThrowsException()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+        const string invalidSiteId = "invalid-site-id";
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ODataError>(async () =>
+        {
+            await _graphFacade.PullItemsDeltaAsync(invalidSiteId, Fixture.GetTestListId(), "latest");
+        });
+
+        _output.WriteLine("✅ Invalid site ID correctly threw ODataError");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetItemsDeltaAsync_WithInvalidListId_ThrowsException()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+        const string invalidListId = "invalid-list-id";
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ODataError>(async () =>
+        {
+            await _graphFacade.PullItemsDeltaAsync(Fixture.GetTestSiteId(), invalidListId, "latest");
+        });
+
+        _output.WriteLine("✅ Invalid list ID correctly threw ODataError");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetItemsDeltaAsync_WithInvalidDeltaToken_ThrowsException()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+        const string invalidDeltaToken = "invalid-delta-token";
+
+        // Act & Assert
+        await Assert.ThrowsAsync<UriFormatException>(async () =>
+        {
+            await _graphFacade.PullItemsDeltaAsync(
+                Fixture.GetTestSiteId(),
+                Fixture.GetTestListId(),
+                invalidDeltaToken);
+        });
+
+        _output.WriteLine("✅ Invalid delta token correctly threw ODataError");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetItemsDeltaAsync_WithEmptyParameters_ThrowsException()
+    {
+        // Arrange & Act & Assert
+        await Assert.ThrowsAsync<ODataError>(async () =>
+        {
+            await _graphFacade.PullItemsDeltaAsync("", Fixture.GetTestListId(), "latest");
+        });
+
+        await Assert.ThrowsAsync<ODataError>(async () =>
+        {
+            await _graphFacade.PullItemsDeltaAsync(Fixture.GetTestSiteId(), "", "latest");
+        });
+
+        // empty cursor is okay
+        await _graphFacade.PullItemsDeltaAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), "");
+
+        _output.WriteLine("✅ Empty parameters correctly threw ArgumentException");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetItemsDeltaAsync_ReturnsConsistentDataStructure()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+
+        // Act
+        var (deltaLink, itemIds) = await _graphFacade.PullItemsDeltaAsync(
+            Fixture.GetTestSiteId(),
+            Fixture.GetTestListId(),
+            "latest");
+
+        // Assert
+        Assert.NotNull(deltaLink);
+        Assert.NotNull(itemIds);
+
+        // Verify delta link is a valid URL-like string
+        Assert.True(Uri.TryCreate(deltaLink, UriKind.Absolute, out var deltaUri));
+        Assert.NotNull(deltaUri);
+
+        _output.WriteLine($"✅ Delta structure validation passed");
+        _output.WriteLine($"   Delta Link is: {deltaLink}");
+        _output.WriteLine($"   Delta Link is valid URI: {deltaUri}");
+        _output.WriteLine($"   Items collection initialized: {itemIds.Count} items");
+
+        // If items exist, verify their basic structure
+        if (itemIds.Count > 0)
+        {
+            foreach (var itemId in itemIds.Take(3)) // Check first 3 items to avoid excessive logging
+            {
+                Assert.NotNull(itemId);
+
+                _output.WriteLine(
+                    $"   Item {itemId}");
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Category", "Performance")]
+    public async Task GetItemsDeltaAsync_Performance_CompletesWithinReasonableTime()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        // Act
+        var (deltaLink, items) = await _graphFacade.PullItemsDeltaAsync(
+            Fixture.GetTestSiteId(),
+            Fixture.GetTestListId(),
+            "latest");
+
+        stopwatch.Stop();
+
+        // Assert
+        Assert.NotNull(deltaLink);
+        Assert.NotNull(items);
+
+        _output.WriteLine($"✅ GetItemsDeltaAsync performance test completed");
+        _output.WriteLine($"   Execution time: {stopwatch.ElapsedMilliseconds}ms");
+        _output.WriteLine($"   Items retrieved: {items.Count}");
+
+        // Performance assertion - adjust threshold based on your requirements
+        Assert.True(stopwatch.ElapsedMilliseconds < 15000,
+            $"GetItemsDeltaAsync took too long: {stopwatch.ElapsedMilliseconds}ms");
+
+        if (items.Count > 0)
+        {
+            var avgTimePerItem = stopwatch.ElapsedMilliseconds / (double)items.Count;
+            _output.WriteLine($"   Average time per item: {avgTimePerItem:F2}ms");
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetItemsDeltaAsync_MultipleCalls_MaintainsDeltaChain()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+        var deltaLinks = new List<string>();
+        var allItemCounts = new List<int>();
+
+        // Act - Make multiple consecutive delta calls
+        string currentDeltaLink = "latest";
+
+        for (int i = 0; i < 3; i++)
+        {
+            var (nextDeltaLink, items) = await _graphFacade.PullItemsDeltaAsync(
+                Fixture.GetTestSiteId(),
+                Fixture.GetTestListId(),
+                currentDeltaLink);
+
+            Assert.NotNull(nextDeltaLink);
+            Assert.NotNull(items);
+
+            deltaLinks.Add(nextDeltaLink);
+            allItemCounts.Add(items.Count);
+            currentDeltaLink = nextDeltaLink;
+
+            // Small delay between calls
+            if (i < 2) await Task.Delay(500);
+        }
+
+        // Assert
+        Assert.Equal(3, deltaLinks.Count);
+        Assert.Equal(3, allItemCounts.Count);
+
+        // All delta links should be different (indicating progression)
+        Assert.True(deltaLinks.Distinct().Count() == deltaLinks.Count,
+            "All delta links should be unique");
+
+        _output.WriteLine($"✅ Delta chain maintained across multiple calls");
+        for (int i = 0; i < deltaLinks.Count; i++)
+        {
+            _output.WriteLine(
+                $"   Call {i + 1}: {allItemCounts[i]} items, Delta: {deltaLinks[i][..Math.Min(50, deltaLinks[i].Length)]}...");
+        }
+    }
+
 
     private bool ShouldSkipTest([System.Runtime.CompilerServices.CallerMemberName] string? testName = null)
     {

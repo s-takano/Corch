@@ -62,5 +62,8 @@ public interface IGraphFacade
     /// A task that represents the asynchronous operation. The task result is a <see cref="ConnectionTestResult"/>
     /// containing the outcome of the connection test, including success status, error reason, and error code if applicable.
     /// </returns>
-    Task<ConnectionTestResult> TestConnectionAsync(string siteId = "root"); 
+    Task<ConnectionTestResult> TestConnectionAsync(string siteId = "root");
+
+    Task<(string deltaLink, List<string> itemIds)> PullItemsDeltaAsync(string siteId, string listId, string? cursor = null);
+
 }

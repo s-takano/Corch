@@ -3,7 +3,6 @@ using System.Data.Common;
 using CorchEdges.Data.Abstractions;
 using CorchEdges.Data.Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 
@@ -27,7 +26,8 @@ public class ExcelDatasetWriter(
     /// <param name="connection">The database connection to be used for the operation.</param>
     /// <param name="transaction">The database transaction that ensures atomicity of the operation.</param>
     /// <returns>A <see cref="Task"/> that represents the asynchronous write operation.</returns>
-    public async Task WriteAsync(DataSet tables, EdgesDbContext context, DbConnection connection, DbTransaction transaction)
+    public async Task WriteAsync(DataSet tables, EdgesDbContext context, DbConnection connection,
+        DbTransaction transaction)
     {
         var startTime = DateTime.Now;
 
@@ -47,32 +47,26 @@ public class ExcelDatasetWriter(
 
             // 2. Get the underlying connection and use it for COPY
             var npgsqlConnection = (NpgsqlConnection)context.Database.GetDbConnection();
-            
+
             // 3. Use PostgreSQL COPY with the SAME transaction
             await tableWriter.WriteAsync(tables, npgsqlConnection, transaction);
-            
+
             // 4. Update metadata (still within the same transaction)
             var totalRecords = tables.Tables.Cast<DataTable>().Sum(t => t.Rows.Count);
             processedFile.Status = "Success";
             processedFile.RecordCount = totalRecords;
-            
+
             await context.SaveChangesAsync();
-            
-            // 5. Commit everything together
-            await transaction.CommitAsync();
-            
+
             var duration = DateTime.Now - startTime;
             logger.LogInformation(
-                "Successfully processed {RecordCount} records in {Duration}ms using shared transaction", 
+                "Successfully processed {RecordCount} records in {Duration}ms using shared transaction",
                 totalRecords, duration.TotalMilliseconds);
         }
         catch (Exception ex)
         {
-            // Rollback everything - no orphaned data!
-            await transaction.RollbackAsync();
             logger.LogError(ex, "Failed to write DataSet - transaction rolled back");
             throw;
         }
     }
-
 }

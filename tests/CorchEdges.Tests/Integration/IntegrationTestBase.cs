@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Azure.Core;
+using Azure.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Abstractions;
 
@@ -32,7 +34,7 @@ public abstract class IntegrationTestBase : IClassFixture<IntegrationTestFixture
     /// </summary>
     protected virtual void ConfigureServices(IServiceCollection services)
     {
-        // Default implementation - can be empty or provide common services
+        services.AddSingleton<TokenCredential, DefaultAzureCredential>();
     }
 
     public virtual Task InitializeAsync()
