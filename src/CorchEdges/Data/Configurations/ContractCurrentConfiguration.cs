@@ -8,6 +8,8 @@ namespace CorchEdges.Data.Configurations;
 
 public class ContractCurrentConfiguration : BaseEntityConfiguration<ContractCurrent>
 {
+    public override string SheetName { get; } = "契約一覧to業務管理";
+    
     public override string GetTableName() => "contract_current";
     
     public override string? GetSchemaName() => "corch_edges_raw";

@@ -1,6 +1,7 @@
 ﻿using CorchEdges.Data;
 using CorchEdges.Data.Entities;
 using CorchEdges.Data.Repositories;
+using CorchEdges.Data.Utilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorchEdges.Tests.Unit.Data.Repositories;
@@ -56,8 +57,8 @@ public class ProcessingLogRepositoryTests : IDisposable
             SiteId = siteId,
             ListId = listId,
             DeltaLink = null,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DatabaseDateTime.UtcNow,
+            UpdatedAt = DatabaseDateTime.UtcNow,
             Status = ProcessingStatus.Completed
         };
 
@@ -84,8 +85,8 @@ public class ProcessingLogRepositoryTests : IDisposable
             SiteId = siteId,
             ListId = listId,
             DeltaLink = expectedDeltaLink,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DatabaseDateTime.UtcNow,
+            UpdatedAt = DatabaseDateTime.UtcNow,
             Status = ProcessingStatus.Completed
         };
 
@@ -113,8 +114,8 @@ public class ProcessingLogRepositoryTests : IDisposable
             SiteId = siteId,
             ListId = listId,
             DeltaLink = oldDeltaLink,
-            CreatedAt = DateTime.UtcNow.AddHours(-2),
-            UpdatedAt = DateTime.UtcNow.AddHours(-2),
+            CreatedAt = DatabaseDateTime.UtcNow.AddHours(-2),
+            UpdatedAt = DatabaseDateTime.UtcNow.AddHours(-2),
             Status = ProcessingStatus.Completed
         };
 
@@ -123,8 +124,8 @@ public class ProcessingLogRepositoryTests : IDisposable
             SiteId = siteId,
             ListId = listId,
             DeltaLink = latestDeltaLink,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DatabaseDateTime.UtcNow,
+            UpdatedAt = DatabaseDateTime.UtcNow,
             Status = ProcessingStatus.Completed
         };
 
@@ -152,8 +153,8 @@ public class ProcessingLogRepositoryTests : IDisposable
             SiteId = differentSiteId,
             ListId = differentListId,
             DeltaLink = "https://sharepoint.com/delta/other",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DatabaseDateTime.UtcNow,
+            UpdatedAt = DatabaseDateTime.UtcNow,
             Status = ProcessingStatus.Completed
         };
 
@@ -195,9 +196,9 @@ public class ProcessingLogRepositoryTests : IDisposable
         Assert.Equal(subscriptionId, result.SubscriptionId);
         Assert.Null(result.LastError);
         Assert.True(result.Id > 0);
-        Assert.True((DateTime.UtcNow - result.CreatedAt).TotalSeconds < 5);
-        Assert.True((DateTime.UtcNow - result.UpdatedAt).TotalSeconds < 5);
-        Assert.True((DateTime.UtcNow - result.LastProcessedAt).TotalSeconds < 5);
+        Assert.True((DatabaseDateTime.UtcNow - result.CreatedAt).TotalSeconds < 5);
+        Assert.True((DatabaseDateTime.UtcNow - result.UpdatedAt).TotalSeconds < 5);
+        Assert.True((DatabaseDateTime.UtcNow - result.LastProcessedAt).TotalSeconds < 5);
     }
 
     [Fact]
@@ -250,8 +251,8 @@ public class ProcessingLogRepositoryTests : IDisposable
         Assert.Equal(1, result.FailedItems);
         Assert.Equal(subscriptionId, result.SubscriptionId);
         Assert.True(result.Id > 0);
-        Assert.True((DateTime.UtcNow - result.CreatedAt).TotalSeconds < 5);
-        Assert.True((DateTime.UtcNow - result.UpdatedAt).TotalSeconds < 5);
+        Assert.True((DatabaseDateTime.UtcNow - result.CreatedAt).TotalSeconds < 5);
+        Assert.True((DatabaseDateTime.UtcNow - result.UpdatedAt).TotalSeconds < 5);
     }
 
     [Fact]
@@ -306,8 +307,8 @@ public class ProcessingLogRepositoryTests : IDisposable
         {
             SiteId = siteId,
             ListId = listId,
-            CreatedAt = DateTime.UtcNow.AddHours(-3),
-            UpdatedAt = DateTime.UtcNow.AddHours(-3),
+            CreatedAt = DatabaseDateTime.UtcNow.AddHours(-3),
+            UpdatedAt = DatabaseDateTime.UtcNow.AddHours(-3),
             Status = ProcessingStatus.Completed
         };
 
@@ -315,8 +316,8 @@ public class ProcessingLogRepositoryTests : IDisposable
         {
             SiteId = siteId,
             ListId = listId,
-            CreatedAt = DateTime.UtcNow.AddHours(-1),
-            UpdatedAt = DateTime.UtcNow.AddHours(-1),
+            CreatedAt = DatabaseDateTime.UtcNow.AddHours(-1),
+            UpdatedAt = DatabaseDateTime.UtcNow.AddHours(-1),
             Status = ProcessingStatus.Failed
         };
 
@@ -324,8 +325,8 @@ public class ProcessingLogRepositoryTests : IDisposable
         {
             SiteId = siteId,
             ListId = listId,
-            CreatedAt = DateTime.UtcNow.AddHours(-2),
-            UpdatedAt = DateTime.UtcNow.AddHours(-2),
+            CreatedAt = DatabaseDateTime.UtcNow.AddHours(-2),
+            UpdatedAt = DatabaseDateTime.UtcNow.AddHours(-2),
             Status = ProcessingStatus.Processing
         };
 
@@ -358,8 +359,8 @@ public class ProcessingLogRepositoryTests : IDisposable
             {
                 SiteId = siteId,
                 ListId = listId,
-                CreatedAt = DateTime.UtcNow.AddHours(-i),
-                UpdatedAt = DateTime.UtcNow.AddHours(-i),
+                CreatedAt = DatabaseDateTime.UtcNow.AddHours(-i),
+                UpdatedAt = DatabaseDateTime.UtcNow.AddHours(-i),
                 Status = ProcessingStatus.Completed
             });
         }
@@ -390,8 +391,8 @@ public class ProcessingLogRepositoryTests : IDisposable
         {
             SiteId = differentSiteId,
             ListId = differentListId,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DatabaseDateTime.UtcNow,
+            UpdatedAt = DatabaseDateTime.UtcNow,
             Status = ProcessingStatus.Completed
         };
 
@@ -420,8 +421,8 @@ public class ProcessingLogRepositoryTests : IDisposable
             {
                 SiteId = siteId,
                 ListId = listId,
-                CreatedAt = DateTime.UtcNow.AddHours(-i),
-                UpdatedAt = DateTime.UtcNow.AddHours(-i),
+                CreatedAt = DatabaseDateTime.UtcNow.AddHours(-i),
+                UpdatedAt = DatabaseDateTime.UtcNow.AddHours(-i),
                 Status = ProcessingStatus.Completed
             });
         }

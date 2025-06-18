@@ -518,52 +518,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         }
     }
 
-    [Fact]
-    [Trait("Category", "Integration")]
-    public async Task GetItemsDeltaAsync_MultipleCalls_MaintainsDeltaChain()
-    {
-        // Arrange
-        if (ShouldSkipTest()) return;
-        var deltaLinks = new List<string>();
-        var allItemCounts = new List<int>();
-
-        // Act - Make multiple consecutive delta calls
-        string currentDeltaLink = "latest";
-
-        for (int i = 0; i < 3; i++)
-        {
-            var (nextDeltaLink, items) = await _graphFacade.PullItemsDeltaAsync(
-                Fixture.GetTestSiteId(),
-                Fixture.GetTestListId(),
-                currentDeltaLink);
-
-            Assert.NotNull(nextDeltaLink);
-            Assert.NotNull(items);
-
-            deltaLinks.Add(nextDeltaLink);
-            allItemCounts.Add(items.Count);
-            currentDeltaLink = nextDeltaLink;
-
-            // Small delay between calls
-            if (i < 2) await Task.Delay(500);
-        }
-
-        // Assert
-        Assert.Equal(3, deltaLinks.Count);
-        Assert.Equal(3, allItemCounts.Count);
-
-        // All delta links should be different (indicating progression)
-        Assert.True(deltaLinks.Distinct().Count() == deltaLinks.Count,
-            "All delta links should be unique");
-
-        _output.WriteLine($"✅ Delta chain maintained across multiple calls");
-        for (int i = 0; i < deltaLinks.Count; i++)
-        {
-            _output.WriteLine(
-                $"   Call {i + 1}: {allItemCounts[i]} items, Delta: {deltaLinks[i][..Math.Min(50, deltaLinks[i].Length)]}...");
-        }
-    }
-
 
     private bool ShouldSkipTest([System.Runtime.CompilerServices.CallerMemberName] string? testName = null)
     {

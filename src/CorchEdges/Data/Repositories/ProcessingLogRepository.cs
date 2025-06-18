@@ -1,4 +1,5 @@
 ﻿using CorchEdges.Data.Entities;
+using CorchEdges.Data.Utilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorchEdges.Data.Repositories;
@@ -49,9 +50,9 @@ public sealed class ProcessingLogRepository(EdgesDbContext context)
             SiteId = siteId,
             ListId = listId,
             DeltaLink = deltaLink,
-            LastProcessedAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            LastProcessedAt = DatabaseDateTime.UtcNow,
+            CreatedAt = DatabaseDateTime.UtcNow,
+            UpdatedAt = DatabaseDateTime.UtcNow,
             LastProcessedCount = processedCount,
             Status = ProcessingStatus.Completed,
             SuccessfulItems = processedCount,
@@ -85,8 +86,8 @@ public sealed class ProcessingLogRepository(EdgesDbContext context)
         {
             SiteId = siteId,
             ListId = listId,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DatabaseDateTime.UtcNow,
+            UpdatedAt = DatabaseDateTime.UtcNow,
             Status = ProcessingStatus.Failed,
             LastError = errorMessage,
             FailedItems = failedItems,

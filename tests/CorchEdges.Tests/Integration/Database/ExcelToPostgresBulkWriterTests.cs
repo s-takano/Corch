@@ -7,8 +7,10 @@ using Xunit;
 
 namespace CorchEdges.Tests.Integration.Database;
 
-public class ExcelToPostgresBulkWriterTests : DatabaseTestBase
+public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
 {
+    protected override string TestSchema { get;  } = "corch_edges_raw";
+    
     private readonly IPostgresTableWriter _writer = new PostgresTableWriter();
     private readonly ExcelDataParser _excelParser = new ExcelDataParser();
     private readonly IDataSetConverter _dataSetConverter = new ExcelToDatabaseConverter();
@@ -108,7 +110,7 @@ public class ExcelToPostgresBulkWriterTests : DatabaseTestBase
         // Assert
         Assert.Equal(4, createdTables.Count);
 
-        var expectedTables = new[] { "contract_creation", "contract_current", "contract_renewal", "contract_termination" };
+        var expectedTables = new[] { "corch_edges_raw.contract_creation", "corch_edges_raw.contract_current", "corch_edges_raw.contract_renewal", "corch_edges_raw.contract_termination" };
         var actualMappedNames = createdTables.Select(t => t.mappedName).ToArray();
 
         foreach (var expectedTable in expectedTables)

@@ -55,9 +55,7 @@ public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
     [Trait("Validation", "NullableFields")]
     public async Task Create_WithNullableFieldsAsNull_SavesSuccessfully()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
         
         // Arrange
         var entity = new ContractCreation
@@ -84,9 +82,7 @@ public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
     [Trait("Query", "FilterByStatus")]
     public async Task Query_FilterByProgressStatus_ReturnsCorrectEntities()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
         
         // Arrange
         var entities = new[]

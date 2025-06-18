@@ -10,7 +10,7 @@ namespace CorchEdges.Tests.Integration.Data;
 
 [Trait("Category", "Integration")]
 [Trait("Component", "ExcelToDatabaseConverter")]
-public class ExcelToDatabaseConverterIntegrationTests : DatabaseTestBase
+public class ExcelToMemoryDatabaseConverterIntegrationTests : MemoryDatabaseTestBase
 {
     private readonly IDataSetConverter _dataSetConverter = new ExcelToDatabaseConverter();
 
@@ -28,17 +28,17 @@ public class ExcelToDatabaseConverterIntegrationTests : DatabaseTestBase
         Assert.Single(result.Tables);
             
         var table = result.Tables[0];
-        Assert.Equal("contract_creation", table.TableName);
+        Assert.Equal("corch_edges_raw.contract_creation", table.TableName);
             
         // Verify DataTable column types (underlying types, not nullable)
-        Assert.Equal(typeof(string), table.Columns["ContractId"]!.DataType);
-        Assert.Equal(typeof(int), table.Columns["PropertyNo"]!.DataType); // int, not int?
-        Assert.Equal(typeof(string), table.Columns["PropertyName"]!.DataType);
-        Assert.Equal(typeof(DateTime), table.Columns["OutputDateTime"]!.DataType); // DateTime, not DateTime?
+        Assert.Equal(typeof(string), table.Columns["契約ID"]!.DataType);
+        Assert.Equal(typeof(int), table.Columns["物件No"]!.DataType); // int, not int?
+        Assert.Equal(typeof(string), table.Columns["物件名"]!.DataType);
+        Assert.Equal(typeof(DateTime), table.Columns["出力日時"]!.DataType); // DateTime, not DateTime?
             
         // Verify nullable columns allow DBNull
-        Assert.True(table.Columns["PropertyNo"]!.AllowDBNull);
-        Assert.True(table.Columns["OutputDateTime"]!.AllowDBNull);
+        Assert.True(table.Columns["物件No"]!.AllowDBNull);
+        Assert.True(table.Columns["出力日時"]!.AllowDBNull);
     }
 
     [Fact]
@@ -77,20 +77,20 @@ public class ExcelToDatabaseConverterIntegrationTests : DatabaseTestBase
             
         // First row - with nulls
         var resultRow1 = result.Tables[0].Rows[0];
-        Assert.Equal("CONTRACT_001", resultRow1["ContractId"]);
-        Assert.Equal(DBNull.Value, resultRow1["PropertyNo"]);
-        Assert.Equal(DBNull.Value, resultRow1["OutputDateTime"]);
+        Assert.Equal("CONTRACT_001", resultRow1["契約ID"]);
+        Assert.Equal(DBNull.Value, resultRow1["物件No"]);
+        Assert.Equal(DBNull.Value, resultRow1["出力日時"]);
             
         // Second row - with values
         var resultRow2 = result.Tables[0].Rows[1];
-        Assert.Equal("CONTRACT_002", resultRow2["ContractId"]);
-        Assert.Equal(456, resultRow2["PropertyNo"]);
-        Assert.Equal(DateTime.Parse("2024-01-01T10:00:00"), resultRow2["OutputDateTime"]);
+        Assert.Equal("CONTRACT_002", resultRow2["契約ID"]);
+        Assert.Equal(456, resultRow2["物件No"]);
+        Assert.Equal(DateTime.Parse("2024-01-01T10:00:00"), resultRow2["出力日時"]);
             
         // Verify column settings for nullable behavior
-        Assert.True(result.Tables[0].Columns["PropertyNo"]!.AllowDBNull, "int? property allows nulls");
-        Assert.True(result.Tables[0].Columns["OutputDateTime"]!.AllowDBNull, "DateTime? property allows nulls");
-        Assert.True(result.Tables[0].Columns["ContractId"]!.AllowDBNull, "string? property allows nulls (reference type)");
+        Assert.True(result.Tables[0].Columns["物件No"]!.AllowDBNull, "int? property allows nulls");
+        Assert.True(result.Tables[0].Columns["出力日時"]!.AllowDBNull, "DateTime? property allows nulls");
+        Assert.True(result.Tables[0].Columns["契約ID"]!.AllowDBNull, "string? property allows nulls (reference type)");
     }
 
     private DataSet CreateRealContractDataSet()
@@ -147,8 +147,8 @@ public class ExcelToDatabaseConverterIntegrationTests : DatabaseTestBase
         var resultTable = result.Tables[0];
 
         // Verify column types are normalized to entity types
-        Assert.Equal(typeof(string), resultTable.Columns["ContractId"]!.DataType);
-        Assert.Equal(typeof(int), resultTable.Columns["PropertyNo"]!.DataType);
-        Assert.Equal(typeof(DateTime), resultTable.Columns["OutputDatetime"]!.DataType);
+        Assert.Equal(typeof(string), resultTable.Columns["契約ID"]!.DataType);
+        Assert.Equal(typeof(int), resultTable.Columns["物件No"]!.DataType);
+        Assert.Equal(typeof(DateTime), resultTable.Columns["出力日時"]!.DataType);
     }
 }

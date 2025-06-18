@@ -8,6 +8,7 @@ using System.Text.Json;
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using Npgsql;
 
 namespace CorchEdges;
 
@@ -18,7 +19,7 @@ public class DiagnosticsFunction
     private readonly IServiceProvider _serviceProvider;
 
     public DiagnosticsFunction(
-        ILogger<DiagnosticsFunction> logger, 
+        ILogger<DiagnosticsFunction> logger,
         IConfiguration configuration,
         IServiceProvider serviceProvider)
     {
@@ -29,7 +30,8 @@ public class DiagnosticsFunction
 
     [Function("Diagnostics")]
     public async Task<HttpResponseData> RunAsync(
-        [HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Function, "get")]
+        HttpRequestData req)
     {
         _logger.LogInformation("Diagnostics function executed.");
 
@@ -38,6 +40,7 @@ public class DiagnosticsFunction
             Environment = Environment.GetEnvironmentVariable("AZURE_FUNCTIONS_ENVIRONMENT") ?? "Unknown",
             ConfigurationSources = GetConfigurationSources(),
             ConnectionStrings = GetConnectionStrings(),
+            DatabaseConnection = GetDatabaseConnectionStatus(),
             AppSettings = GetAppSettings(),
             ServiceRegistrations = await GetServiceRegistrationStatus(),
             EnvironmentVariables = GetRelevantEnvironmentVariables()
@@ -45,14 +48,96 @@ public class DiagnosticsFunction
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json");
-        
-        var json = JsonSerializer.Serialize(diagnostics, new JsonSerializerOptions 
-        { 
-            WriteIndented = true 
+
+        var json = JsonSerializer.Serialize(diagnostics, new JsonSerializerOptions
+        {
+            WriteIndented = true
         });
-        
+
         await response.WriteStringAsync(json);
         return response;
+    }
+
+    private object GetDatabaseConnectionStatus()
+    {
+        var connectionString = _configuration.GetConnectionString("PostgreSQLConnection");
+        return connectionString == null ? DatabaseConnectionResult.Failure("Database not configured", "PostgreSQL connection string missing") : TestDatabaseConnectionDetailed(connectionString);
+    }
+
+    static DatabaseConnectionResult TestDatabaseConnectionDetailed(string connectionString)
+    {
+        try
+        {
+            using var connection = new NpgsqlConnection(connectionString);
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            connection.Open();
+            stopwatch.Stop();
+
+            // Get server information
+            var serverVersion = connection.ServerVersion;
+            var database = connection.Database;
+            var host = connection.Host;
+            var port = connection.Port;
+
+            // Test a simple query
+            using var command = new NpgsqlCommand("SELECT version(), current_database(), current_user", connection);
+            using var reader = command.ExecuteReader();
+
+            string? versionInfo = null;
+            string? currentDb = null;
+            string? currentUser = null;
+
+            if (reader.Read())
+            {
+                versionInfo = reader.GetString(0);
+                currentDb = reader.GetString(1);
+                currentUser = reader.GetString(2);
+            }
+
+            return DatabaseConnectionResult.Success(
+                $"PostgreSQL {serverVersion} on {host}:{port}",
+                $"Connected to '{database}' as '{currentUser}' in {stopwatch.ElapsedMilliseconds}ms",
+                versionInfo);
+        }
+        catch (NpgsqlException npgsqlEx)
+        {
+            return DatabaseConnectionResult.Failure(
+                "PostgreSQL connection error",
+                GetPostgresErrorDetails(npgsqlEx));
+        }
+        catch (Exception ex)
+        {
+            return DatabaseConnectionResult.Failure(
+                "Unexpected connection error",
+                $"{ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    static string GetPostgresErrorDetails(NpgsqlException ex)
+    {
+        return ex.SqlState switch
+        {
+            "28P01" => "Authentication failed - check username/password",
+            "3D000" => "Database does not exist",
+            "28000" => "Invalid authorization specification",
+            "08001" => "Unable to connect to server - check host/port",
+            "08006" => "Connection failure - server may be down",
+            _ => $"PostgreSQL Error [{ex.SqlState}]: {ex.Message}"
+        };
+    }
+
+    record DatabaseConnectionResult(
+        bool IsSuccess,
+        string? ErrorMessage = null,
+        string? Details = null,
+        string? ServerInfo = null)
+    {
+        public static DatabaseConnectionResult Success(string serverInfo, string details, string? versionInfo = null) =>
+            new(true, ServerInfo: serverInfo, Details: details);
+
+        public static DatabaseConnectionResult Failure(string errorMessage, string details) =>
+            new(false, errorMessage, details);
     }
 
     private object GetConfigurationSources()
@@ -65,6 +150,7 @@ public class DiagnosticsFunction
                 Keys = p.GetChildKeys(Enumerable.Empty<string>(), null).Take(10).ToList()
             }).ToList();
         }
+
         return new { Error = "Configuration is not IConfigurationRoot" };
     }
 
@@ -72,8 +158,12 @@ public class DiagnosticsFunction
     {
         return new
         {
-            PostgreSQLConnection = _configuration.GetConnectionString("PostgreSQLConnection") != null ? "CONFIGURED" : "NOT FOUND",
-            ServiceBusConnection = _configuration.GetConnectionString("ServiceBusConnection") != null ? "CONFIGURED" : "NOT FOUND"
+            PostgreSQLConnection = _configuration.GetConnectionString("PostgreSQLConnection") != null
+                ? "CONFIGURED"
+                : "NOT FOUND",
+            ServiceBusConnection = _configuration.GetConnectionString("ServiceBusConnection") != null
+                ? "CONFIGURED"
+                : "NOT FOUND"
         };
     }
 
@@ -127,7 +217,7 @@ public class DiagnosticsFunction
     private object GetRelevantEnvironmentVariables()
     {
         var envVars = new Dictionary<string, string>();
-        
+
         var relevantKeys = new[]
         {
             "AZURE_FUNCTIONS_ENVIRONMENT",

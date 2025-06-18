@@ -9,6 +9,7 @@ using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
 using CorchEdges.Data.Entities;
 using CorchEdges.Data.Repositories;
+using CorchEdges.Data.Utilities;
 using CorchEdges.Models;
 using CorchEdges.Services;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,7 @@ namespace CorchEdges.Tests.Unit.Services
         private readonly ProcessingLogRepository _mockProcessingLogRepository;
         private readonly string _testSiteId = "12345678-1234-1234-1234-123456789012";
         private readonly string _testListId = "87654321-4321-4321-4321-210987654321";
+        private readonly Mock<IDataSetConverter> _mockDataSetConverter;
 
         public SharePointChangeHandlerUnitTests()
         {
@@ -34,22 +36,11 @@ namespace CorchEdges.Tests.Unit.Services
             _mockGraph = new Mock<IGraphFacade>();
             _mockParser = new Mock<IExcelParser>();
             _mockDb = new Mock<IDatabaseWriter>();
-            _mockContext = CreateInMemoryDbContext();
+            _mockContext = MemoryDatabaseTestBase.CreateInMemoryDbContext();
             _mockProcessingLogRepository = new ProcessingLogRepository(_mockContext);
+            _mockDataSetConverter = new Mock<IDataSetConverter>();
         }
 
-        private EdgesDbContext CreateInMemoryDbContext()
-        {
-            var options = new DbContextOptionsBuilder<EdgesDbContext>()
-                .UseSqlite("DataSource=:memory:")
-                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.AmbientTransactionWarning))
-                .Options;
-
-            var context = new EdgesDbContext(options);
-            context.Database.OpenConnection();
-            context.Database.EnsureCreated();
-            return context;
-        }
 
 
         private SharePointChangeHandler CreateHandler(string watchedPath = "/sites/test/Shared Documents/WatchedFolder")
@@ -61,6 +52,7 @@ namespace CorchEdges.Tests.Unit.Services
                 _mockDb.Object,
                 _mockContext,
                 _mockProcessingLogRepository,
+                _mockDataSetConverter.Object,
                 _testSiteId,
                 _testListId,
                 watchedPath);
@@ -88,6 +80,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDb.Object,
                     _mockContext,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -105,6 +98,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDb.Object,
                     _mockContext,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -122,6 +116,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDb.Object,
                     _mockContext,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -139,6 +134,7 @@ namespace CorchEdges.Tests.Unit.Services
                     null!,
                     _mockContext,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -156,6 +152,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDb.Object,
                     null!,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     _testSiteId,
                     _testListId,
                     "/test/path"));
@@ -176,6 +173,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDb.Object,
                     _mockContext,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     invalidSiteId,
                     _testListId,
                     "/test/path"));
@@ -198,6 +196,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDb.Object,
                     _mockContext,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     _testSiteId,
                     invalidListId,
                     "/test/path"));
@@ -220,6 +219,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDb.Object,
                     _mockContext,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     _testSiteId,
                     _testListId,
                     invalidWatchedPath));
@@ -242,6 +242,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDb.Object,
                     _mockContext,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     invalidSiteId,
                     _testListId,
                     "/test/path"));
@@ -264,6 +265,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDb.Object,
                     _mockContext,
                     _mockProcessingLogRepository,
+                    _mockDataSetConverter.Object,
                     _testSiteId,
                     invalidListId,
                     "/test/path"));
@@ -286,6 +288,7 @@ namespace CorchEdges.Tests.Unit.Services
                 _mockDb.Object,
                 _mockContext,
                 _mockProcessingLogRepository,
+                _mockDataSetConverter.Object,
                 sharePointSiteId,
                 _testListId,
                 "/test/path");
@@ -575,8 +578,8 @@ namespace CorchEdges.Tests.Unit.Services
 
             log.SiteId.Should().Be(testSiteId);
             log.ListId.Should().Be(testListId);
-            log.Status.Should().Be("Success");
-            log.LastProcessedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+            log.Status.Should().Be("Completed");
+            log.LastProcessedAt.Should().BeCloseTo(DatabaseDateTime.UtcNow, TimeSpan.FromMinutes(1));
             log.SuccessfulItems.Should().Be(1);
             log.FailedItems.Should().Be(0);
             log.LastProcessedCount.Should().Be(1);

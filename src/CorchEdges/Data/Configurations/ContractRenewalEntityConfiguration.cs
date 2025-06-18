@@ -8,6 +8,8 @@ namespace CorchEdges.Data.Configurations;
 
 public class ContractRenewalConfiguration : BaseEntityConfiguration<ContractRenewal>
 {
+    public override string SheetName { get; } = "更新to業務管理";
+    
     public override string GetTableName() => "contract_renewal";
 
     public override string? GetSchemaName() => "corch_edges_raw";

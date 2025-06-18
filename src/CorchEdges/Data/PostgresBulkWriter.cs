@@ -64,28 +64,29 @@ public sealed class PostgresTableWriter : IPostgresTableWriter
     {
         var parts = tableName.Split('.');
         
-        if (parts.Length == 1)
+        switch (parts.Length)
         {
-            var cleanName = parts[0].Trim('"');
-            if (string.IsNullOrEmpty(cleanName)) 
-                throw new ArgumentException("Empty table name");
-            return $"\"{cleanName}\"";
-        }
-        else if (parts.Length == 2)
-        {
-            var schema = parts[0].Trim('"');
-            var table = parts[1].Trim('"');
+            case 1:
+            {
+                var cleanName = parts[0].Trim('"');
+                if (string.IsNullOrEmpty(cleanName)) 
+                    throw new ArgumentException("Empty table name");
+                return $"\"{cleanName}\"";
+            }
+            case 2:
+            {
+                var schema = parts[0].Trim('"');
+                var table = parts[1].Trim('"');
             
-            if (string.IsNullOrEmpty(schema)) 
-                throw new ArgumentException("Empty schema name");
-            if (string.IsNullOrEmpty(table)) 
-                throw new ArgumentException("Empty table name");
+                if (string.IsNullOrEmpty(schema)) 
+                    throw new ArgumentException("Empty schema name");
+                if (string.IsNullOrEmpty(table)) 
+                    throw new ArgumentException("Empty table name");
             
-            return $"\"{schema}\".\"{table}\"";
-        }
-        else
-        {
-            throw new ArgumentException($"Invalid table name format: {tableName}");
+                return $"\"{schema}\".\"{table}\"";
+            }
+            default:
+                throw new ArgumentException($"Invalid table name format: {tableName}");
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Mappers;
 
 namespace CorchEdges.Data.Normalizers;
 
@@ -18,8 +19,8 @@ namespace CorchEdges.Data.Normalizers;
 /// consistent data transformation and type mapping, such as during data migrations or
 /// format standardization workflows.
 /// </example>
-/// <seealso cref="IDataNormalizer" />
-public class EntityDataNormalizer : IDataNormalizer
+/// <seealso cref="ITableNormalizer" />
+public class TableNormalizer : ITableNormalizer
 {
     /// <summary>
     /// Provides access to an implementation of <see cref="IEntityMetadataProvider"/> used to retrieve
@@ -41,40 +42,41 @@ public class EntityDataNormalizer : IDataNormalizer
     /// metadata and configurable column mappings. This class facilitates
     /// transformations of data types and column names to conform to a specified schema.
     /// </summary>
-    public EntityDataNormalizer(IEntityMetadataProvider metadataProvider, IColumnNameMapper columnMapper)
+    public TableNormalizer(IEntityMetadataProvider metadataProvider)
     {
         _metadataProvider = metadataProvider ?? throw new ArgumentNullException(nameof(metadataProvider));
-        _columnMapper = columnMapper ?? throw new ArgumentNullException(nameof(columnMapper));
+        _columnMapper = new EntityBasedColumnMapper(_metadataProvider.GetColumnMappings());
     }
 
     /// <summary>
     /// Normalizes the column data types of a source DataTable to match the schema of the specified target table.
     /// </summary>
-    /// <param name="targetTableName">The name of the target table whose schema will be used to normalize column types.</param>
+    /// <param name="entityName">The name of the target table whose schema will be used to normalize column types.</param>
     /// <param name="sourceTable">The source DataTable containing the data to be normalized.</param>
     /// <returns>A new DataTable with columns converted to match the data types of the target table schema.</returns>
-    public DataTable NormalizeTypes(string targetTableName, DataTable sourceTable)
+    public DataTable Normalize(string entityName, DataTable sourceTable)
     {
-        var result = new DataTable(targetTableName);
+        var result = new DataTable(entityName);
 
         // Create columns with correct types (matching original logic exactly)
-        for (int colIndex = 0; colIndex < sourceTable.Columns.Count; colIndex++)
+        for (var colIndex = 0; colIndex < sourceTable.Columns.Count; colIndex++)
         {
             var originalColumnName = sourceTable.Columns[colIndex].ColumnName;
-            var validatedColumnName = _columnMapper.MapColumnName(sourceTable.TableName, originalColumnName);
-            var columnType = _metadataProvider.GetColumnType(targetTableName, validatedColumnName);
+            var entityPropertyName = _columnMapper.MapColumnName(sourceTable.TableName, originalColumnName);
+            var entityPropertyType = _metadataProvider.GetPropertyType(entityName, entityPropertyName);
             
             // Handle nullable types - DataSet doesn't support nullable types directly
             // This matches the original implementation exactly
-            var dataTableColumnType = Nullable.GetUnderlyingType(columnType) ?? columnType;
+            var dataTableColumnType = Nullable.GetUnderlyingType(entityPropertyType) ?? entityPropertyType;
 
-            var column = result.Columns.Add(validatedColumnName, dataTableColumnType);
+            // respect the original column name 
+            var column = result.Columns.Add(originalColumnName, dataTableColumnType);
             
             // Set AllowDBNull based on whether the ORIGINAL type was nullable OR a reference type
             // For value types: only allow null if it was nullable (int?, bool?, etc.)
             // For reference types: always allow null (string, object, etc.)
-            var isOriginallyNullable = Nullable.GetUnderlyingType(columnType) != null;
-            var isReferenceType = !columnType.IsValueType;
+            var isOriginallyNullable = Nullable.GetUnderlyingType(entityPropertyType) != null;
+            var isReferenceType = !entityPropertyType.IsValueType;
             column.AllowDBNull = isOriginallyNullable || isReferenceType;
         }
 
@@ -89,7 +91,7 @@ public class EntityDataNormalizer : IDataNormalizer
                 var targetColumn = result.Columns[colIndex];
                 var originalColumnName = sourceTable.Columns[colIndex].ColumnName;
                 var validatedColumnName = _columnMapper.MapColumnName(sourceTable.TableName, originalColumnName);
-                var originalColumnType = _metadataProvider.GetColumnType(targetTableName, validatedColumnName);
+                var originalColumnType = _metadataProvider.GetPropertyType(entityName, validatedColumnName);
 
                 if (sourceValue == null || sourceValue == DBNull.Value)
                 {

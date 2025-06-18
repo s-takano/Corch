@@ -8,6 +8,7 @@ namespace CorchEdges.Data.Configurations;
 
 public class ContractTerminationConfiguration : BaseEntityConfiguration<ContractTermination>
 {
+    public override string SheetName { get; } = "解約to業務管理";
     public override string GetTableName() => "contract_termination";
 
     public override string? GetSchemaName() => "corch_edges_raw";
@@ -42,6 +43,7 @@ public class ContractTerminationConfiguration : BaseEntityConfiguration<Contract
             new ColumnMetaInfo(nameof(ContractTermination.SettlementPaymentDate), "精算金送金日", "date", false),
             new ColumnMetaInfo(nameof(ContractTermination.ReverseChargePaymentDate), "逆請求入金日", "date", false),
             new ColumnMetaInfo(nameof(ContractTermination.DocumentScanDate), "書類スキャン日", "date", false),
+            new ColumnMetaInfo(nameof(ContractTermination.ConstructionNumber), "工事No", "text", false),
             new ColumnMetaInfo(nameof(ContractTermination.OutputDateTime), "出力日時", "timestamp without time zone", false)
         };
     }

@@ -74,6 +74,7 @@ public sealed class SharePointChangeHandler
     private readonly EdgesDbContext _context;
 
     private readonly ProcessingLogRepository _processingLogRepository;
+    private readonly IDataSetConverter _dataSetConverter;
 
     /// <summary>
     /// Represents the unique identifier of a SharePoint site, used for identifying
@@ -104,6 +105,7 @@ public sealed class SharePointChangeHandler
         IDatabaseWriter db,
         EdgesDbContext context,
         ProcessingLogRepository processingLogRepository,
+        IDataSetConverter dataSetConverter,
         string siteId,
         string listId,
         string watchedPath)
@@ -116,6 +118,7 @@ public sealed class SharePointChangeHandler
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _processingLogRepository =
             processingLogRepository ?? throw new ArgumentNullException(nameof(processingLogRepository));
+        _dataSetConverter = dataSetConverter ?? throw new ArgumentNullException(nameof(dataSetConverter));
 
         // Validate string parameters
         if (string.IsNullOrWhiteSpace(siteId))
@@ -260,11 +263,10 @@ public sealed class SharePointChangeHandler
                     }
                     catch (Exception ex)
                     {
-                        _log.LogError(ex, "Error processing notification for resource: {resource}",
-                            notification.Resource);
-                        hasErrors = true;
-                        lastError = ex.Message;
-                        failedCount++;
+                        _log.LogError(ex, 
+                            "Fatal error processing notification for resource: {resource}, error item: {itemId}.",
+                            notification.Resource, itemId);
+                        throw;
                     }
                 }
 
@@ -309,7 +311,7 @@ public sealed class SharePointChangeHandler
 
             if (parentCanon != watchedCanon)
             {
-                _log.LogInformation("Skipping item outside watched folder: {p}", parentPathRaw);
+                _log.LogInformation("Skipping item outside watched folder: {p}", parentCanon);
                 return;
             }
 
@@ -344,7 +346,9 @@ public sealed class SharePointChangeHandler
                 return;
             }
 
-            await _db.WriteAsync(ds, _context, connection, transaction.GetDbTransaction());
+            var preparedDataSet = _dataSetConverter.ConvertForDatabase(ds);
+
+            await _db.WriteAsync(preparedDataSet, _context, connection, transaction.GetDbTransaction());
 
             successfulItems++;
         }

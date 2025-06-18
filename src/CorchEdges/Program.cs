@@ -1,24 +1,20 @@
-using System.Data;
 using Azure.Core;
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
-using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Storage.Blobs;
-using CorchEdges;
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
 using CorchEdges.Data.Repositories;
 using CorchEdges.Services;
 using CorchEdges.Utilities;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Extensions.ServiceBus;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
+using Npgsql;
 
 Console.WriteLine("[Bootstrap] CorchEdges Functions starting…");
 
@@ -45,15 +41,19 @@ var host = Host.CreateDefaultBuilder(args)
 // ───────────────────────────────────────── Logging
     .ConfigureLogging((ctx, log) =>
     {
-        // Add the extra sinks you want
-        log.AddConsole();
+        // 1) honour JSON
+        log.AddConfiguration(ctx.Configuration.GetSection("Logging"));
 
-        // Narrow noise with filters instead of ClearProviders
-        log.SetMinimumLevel(LogLevel.Warning); // default for everything
-        log.AddFilter("Startup", LogLevel.Information); // your Program.cs
-        log.AddFilter("CorchEdges", LogLevel.Debug); // your functions
+        // 2) global filters
+        log.SetMinimumLevel(LogLevel.Warning);
+        log.AddFilter("Startup",      LogLevel.Information);
+        log.AddFilter("CorchEdges",   LogLevel.Debug);
+
+        // 3) only add console when useful
+        if (ctx.HostingEnvironment.IsDevelopment())
+            log.AddConsole();
     })
-
+    
 // ───────────────────────────────────────── DI registrations
     .ConfigureServices((ctx, svcs) =>
     {
@@ -123,14 +123,14 @@ static void RegisterDatabaseServices(IServiceCollection services, IConfiguration
     Console.WriteLine("Starting database services registration...");
 
     services.AddDbContext<EdgesDbContext>(CreateContextFactory(config));
-    
-    services.AddTransient<PostgresTableWriter>();
+
+    services.AddTransient<IPostgresTableWriter>(_ => new PostgresTableWriter());
     services.AddTransient<ExcelDatasetWriter>(provider => new ExcelDatasetWriter(
         provider.GetRequiredService<IPostgresTableWriter>(),
         provider.GetRequiredService<ILogger<ExcelDatasetWriter>>()));
 
     services.AddTransient<ProcessingLogRepository>();
-    
+
     Console.WriteLine("Database services registration completed.");
 }
 
@@ -139,14 +139,14 @@ static Action<DbContextOptionsBuilder> CreateContextFactory(IConfiguration confi
     var connectionString = config.GetConnectionString("PostgreSQLConnection");
     if (string.IsNullOrEmpty(connectionString))
     {
-        // Register stub implementations when a database is not available
         throw new InvalidOperationException("Database not configured - PostgreSQL connection string missing");
     }
 
-    Console.WriteLine("✓ Database services registered with a valid connection string");
+    Console.WriteLine("✓ Database services registered");
 
     return options => { options.UseNpgsql(connectionString); };
 }
+
 
 static void RegisterGraph(IServiceCollection svcs)
 {
@@ -198,6 +198,7 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
 
     svcs.AddTransient<IExcelParser, ExcelDataParser>();
     svcs.AddTransient<IDatabaseWriter, ExcelDatasetWriter>();
+    svcs.AddTransient<IDataSetConverter, ExcelToDatabaseConverter>();
 
     // Add WebhookRegistrationService service
     svcs.AddTransient<WebhookRegistration>();
@@ -209,6 +210,7 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
         p.GetRequiredService<IDatabaseWriter>(),
         p.GetRequiredService<EdgesDbContext>(),
         p.GetRequiredService<ProcessingLogRepository>(),
+        p.GetRequiredService<IDataSetConverter>(),
         cfg["SharePoint:SiteId"] ?? "MISSING",
         cfg["SharePoint:ListId"] ?? "MISSING",
         cfg["SharePoint:WatchedPath"] ?? "MISSING"));
@@ -217,3 +219,5 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
     var listId = cfg["SharePoint:ListId"] ?? "MISSING";
     Console.WriteLine($"✓ Business services registration completed. SharePoint SiteId: {siteId}, ListId: {listId}");
 }
+
+

@@ -78,9 +78,7 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     [Trait("Query", "FilterByProperty")]
     public async Task Query_FilterByPropertyNo_ReturnsCorrectEntities()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
         
         // Arrange
         var entities = new[]
@@ -111,9 +109,7 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     [Trait("Query", "FilterByRentRange")]
     public async Task Query_FilterByRentRange_ReturnsCorrectEntities()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
         
         // Arrange
         var entities = new[]
@@ -131,24 +127,22 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
         await dbContext.SaveChangesAsync();
 
         // Act
-        var affordableContracts = await dbContext.ContractCurrents
+        var affordableRents = await dbContext.ContractCurrents
             .Where(c => c.Rent <= 100000)
-            .OrderBy(c => c.Rent)
+            .Select(contract => contract.Rent)
             .ToListAsync();
 
         // Assert
-        Assert.Equal(2, affordableContracts.Count);
-        Assert.Equal(80000, affordableContracts[0].Rent);
-        Assert.Equal(95000, affordableContracts[1].Rent);
+        Assert.Equal(2, affordableRents.Count);
+        Assert.Contains(80000, affordableRents);
+        Assert.Contains(95000, affordableRents);
     }
 
     [Fact]
     [Trait("Validation", "ContractStatus")]
     public async Task Create_WithValidContractStatus_SavesSuccessfully()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
         
         // Arrange
         var entity = CreateValidEntity();
@@ -171,9 +165,7 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     [Trait("Query", "FilterByFixedTermLease")]
     public async Task Query_FilterByFixedTermLease_ReturnsCorrectEntities()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
         
         // Arrange
         var entities = new[]

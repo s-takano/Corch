@@ -1,28 +1,51 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using CorchEdges.Data.Entities;
-using CorchEdges.Data.Configurations;
-using CorchEdges.Data.Abstractions;
 
 namespace CorchEdges.Data.Configurations;
 
-public class ProcessedFileConfiguration : BaseEntityConfiguration<ProcessedFile>
+public class ProcessedFileConfiguration : IEntityTypeConfiguration<ProcessedFile>
 {
-    public override string GetTableName() => "processed_file";
-
-    public override string? GetSchemaName() => "corch_edges_raw";
-
-    public override IEnumerable<ColumnMetaInfo> GetColumnMetadata()
+    public void Configure(EntityTypeBuilder<ProcessedFile> builder)
     {
-        return new[]
-        {
-            new ColumnMetaInfo(nameof(ProcessedFile.Id), "Id", "integer", true, true, true),
-            new ColumnMetaInfo(nameof(ProcessedFile.FileName), "FileName", "varchar(500)", false, false, false),
-            new ColumnMetaInfo(nameof(ProcessedFile.SharePointItemId), "SharePointItemId", "varchar(100)", false),
-            new ColumnMetaInfo(nameof(ProcessedFile.ProcessedAt), "ProcessedAt", "timestamp", false, false, false),
-            new ColumnMetaInfo(nameof(ProcessedFile.Status), "Status", "varchar(50)", false, false, false),
-            new ColumnMetaInfo(nameof(ProcessedFile.ErrorMessage), "ErrorMessage", "text", false),
-            new ColumnMetaInfo(nameof(ProcessedFile.RecordCount), "RecordCount", "integer", false)
-        };
+        // Table configuration
+        builder.ToTable("processed_file", "corch_edges_raw");
+        
+        // Primary key
+        builder.HasKey(e => e.Id);
+        
+        // Properties configuration
+        builder.Property(e => e.Id)
+            .HasColumnName("id")
+            .HasColumnType("integer")
+            .ValueGeneratedOnAdd()
+            .IsRequired();
+            
+        builder.Property(e => e.FileName)
+            .HasColumnName("file_name")
+            .HasColumnType("varchar(500)")
+            .IsRequired();
+            
+        builder.Property(e => e.SharePointItemId)
+            .HasColumnName("share_point_item_id")
+            .HasColumnType("varchar(100)");
+            
+        builder.Property(e => e.ProcessedAt)
+            .HasColumnName("processed_at")
+            .HasColumnType("timestamp without time zone")
+            .IsRequired();
+            
+        builder.Property(e => e.Status)
+            .HasColumnName("status")
+            .HasColumnType("varchar(50)")
+            .IsRequired();
+            
+        builder.Property(e => e.ErrorMessage)
+            .HasColumnName("error_message")
+            .HasColumnType("text");
+            
+        builder.Property(e => e.RecordCount)
+            .HasColumnName("record_count")
+            .HasColumnType("integer");
     }
 }

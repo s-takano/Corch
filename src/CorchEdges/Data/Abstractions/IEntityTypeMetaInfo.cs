@@ -38,4 +38,9 @@ public interface IEntityTypeMetaInfo
     /// </returns>
     Dictionary<string, string> GetColumnMappings() =>
         GetColumnMetadata().ToDictionary(c => c.ColumnName, c => c.PropertyName);
+    
+    
+    Type EntityType { get; }
+    
+    string SheetName { get; }
 }

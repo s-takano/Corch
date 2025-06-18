@@ -8,6 +8,8 @@ namespace CorchEdges.Data.Configurations;
 
 public class ContractCreationConfiguration : BaseEntityConfiguration<ContractCreation>
 {
+    public override string SheetName { get; } = "新規to業務管理";
+    
     public override string GetTableName() => "contract_creation";
 
     public override string? GetSchemaName() => "corch_edges_raw";
@@ -45,4 +47,6 @@ public class ContractCreationConfiguration : BaseEntityConfiguration<ContractCre
             new ColumnMetaInfo(nameof(ContractCreation.OutputDateTime), "出力日時", "timestamp without time zone", false)
         };
     }
+
+
 }

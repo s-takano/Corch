@@ -6,8 +6,10 @@ using Xunit;
 
 namespace CorchEdges.Tests.Integration.Database;
 
-public class PostgresTableWriterTests : DatabaseTestBase
+public class PostgresTableWriterTests : PostgresDatabaseTestBase
 {
+    protected override string TestSchema { get;  } = "corch_edges_raw";
+    
     private readonly IPostgresTableWriter _writer = new PostgresTableWriter();
 
     [Fact]

@@ -56,6 +56,10 @@ public abstract class BaseEntityConfiguration<TEntity> : IEntityTypeConfiguratio
     /// <returns>A collection of <see cref="ColumnMetaInfo"/> instances representing metadata for each column of the entity.</returns>
     public abstract IEnumerable<ColumnMetaInfo> GetColumnMetadata();
 
+    public Type EntityType { get; } = typeof(TEntity);
+
+    public abstract string SheetName { get; }
+
     /// <summary>
     /// Configures the entity type used in the Entity Framework Core model by setting up the table name,
     /// schema, keys, properties, and indexes based on the column metadata provided by the entity type.

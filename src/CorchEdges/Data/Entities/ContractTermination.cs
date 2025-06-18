@@ -41,6 +41,9 @@ public class ContractTermination
     // Document Management
     public DateOnly? DocumentScanDate { get; set; }
     
+    public string? ConstructionNumber { get; set; }
+    
     // Metadata
     public DateTime? OutputDateTime { get; set; }
+    
 }

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CorchEdges.Tests.Entities;
 
-public abstract class EntityCrudTestBase<TEntity> : DatabaseTestBase 
+public abstract class EntityCrudTestBase<TEntity> : MemoryDatabaseTestBase 
     where TEntity : class
 {
     protected abstract TEntity CreateValidEntity();
@@ -16,9 +16,9 @@ public abstract class EntityCrudTestBase<TEntity> : DatabaseTestBase
     public async Task Create_ValidEntity_SavesSuccessfully()
     {
         // Create fresh DbContext and transaction for this test
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
+        // using var transaction = await Connection.BeginTransactionAsync();
+        // await dbContext.Database.UseTransactionAsync(transaction);
         
         // Arrange
         var entity = CreateValidEntity();
@@ -41,9 +41,9 @@ public abstract class EntityCrudTestBase<TEntity> : DatabaseTestBase
     [Trait("Operation", "Read")]
     public async Task Read_ExistingEntity_ReturnsCorrectly()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
+        // using var transaction = await Connection.BeginTransactionAsync();
+        // await dbContext.Database.UseTransactionAsync(transaction);
         
         // Arrange
         var entity = CreateValidEntity();
@@ -62,9 +62,9 @@ public abstract class EntityCrudTestBase<TEntity> : DatabaseTestBase
     [Trait("Operation", "Update")]
     public async Task Update_ExistingEntity_UpdatesSuccessfully()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
+        // using var transaction = await Connection.BeginTransactionAsync();
+        // await dbContext.Database.UseTransactionAsync(transaction);
         
         // Arrange
         var entity = CreateValidEntity();
@@ -88,9 +88,9 @@ public abstract class EntityCrudTestBase<TEntity> : DatabaseTestBase
     [Trait("Operation", "Delete")]
     public async Task Delete_ExistingEntity_RemovesSuccessfully()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
+        // using var transaction = await Connection.BeginTransactionAsync();
+        // await dbContext.Database.UseTransactionAsync(transaction);
         
         // Arrange
         var entity = CreateValidEntity();
@@ -113,9 +113,9 @@ public abstract class EntityCrudTestBase<TEntity> : DatabaseTestBase
     [Trait("Operation", "BulkCreate")]
     public async Task Create_MultipleEntities_SavesAllSuccessfully()
     {
-        using var dbContext = CreateDbContext();
-        using var transaction = await Connection.BeginTransactionAsync();
-        await dbContext.Database.UseTransactionAsync(transaction);
+        using var dbContext = CreateInMemoryDbContext();
+        // using var transaction = await Connection.BeginTransactionAsync();
+        // await dbContext.Database.UseTransactionAsync(transaction);
         
         // Arrange
         var entities = new[]
@@ -136,6 +136,7 @@ public abstract class EntityCrudTestBase<TEntity> : DatabaseTestBase
         var count = await GetDbSet(dbContext).CountAsync();
         Assert.Equal(3, count);
     }
+    
 
     protected virtual void AssertEntitiesEqual(TEntity expected, TEntity actual)
     {
