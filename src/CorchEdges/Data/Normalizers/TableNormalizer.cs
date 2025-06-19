@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using CorchEdges.Data.Abstractions;
 using CorchEdges.Data.Mappers;
+using System.Linq;
 
 namespace CorchEdges.Data.Normalizers;
 
@@ -58,83 +59,75 @@ public class TableNormalizer : ITableNormalizer
     {
         var result = new DataTable(entityName);
 
-        // Create columns with correct types (matching original logic exactly)
-        for (var colIndex = 0; colIndex < sourceTable.Columns.Count; colIndex++)
+        sourceTable.Columns.Cast<DataColumn>().ToList().ForEach(dataColumn => result.Columns.Add(
+            MapColumnDefinition(sourceTable.TableName, dataColumn.ColumnName)));
+
+        sourceTable.Rows.Cast<DataRow>().ToList().ForEach(sourceRow => result.Rows.Add(
+            ConvertRow(result, sourceRow)));
+
+        return result;
+
+        DataColumn MapColumnDefinition(string sheetName, string sheetColumnName)
         {
-            var originalColumnName = sourceTable.Columns[colIndex].ColumnName;
-            var entityPropertyName = _columnMapper.MapColumnName(sourceTable.TableName, originalColumnName);
+            var entityPropertyName = _columnMapper.MapColumnName(sheetName, sheetColumnName);
             var entityPropertyType = _metadataProvider.GetPropertyType(entityName, entityPropertyName);
-            
+
             // Handle nullable types - DataSet doesn't support nullable types directly
             // This matches the original implementation exactly
             var dataTableColumnType = Nullable.GetUnderlyingType(entityPropertyType) ?? entityPropertyType;
 
             // respect the original column name 
-            var column = result.Columns.Add(originalColumnName, dataTableColumnType);
-            
+            var column = new DataColumn(sheetColumnName, dataTableColumnType);
+            // var column = dataColumnCollection.Add(sheetColumnName, dataTableColumnType);
+
             // Set AllowDBNull based on whether the ORIGINAL type was nullable OR a reference type
             // For value types: only allow null if it was nullable (int?, bool?, etc.)
             // For reference types: always allow null (string, object, etc.)
             var isOriginallyNullable = Nullable.GetUnderlyingType(entityPropertyType) != null;
             var isReferenceType = !entityPropertyType.IsValueType;
             column.AllowDBNull = isOriginallyNullable || isReferenceType;
+            return column;
         }
 
-        // Convert and copy data
-        foreach (DataRow sourceRow in sourceTable.Rows)
+        DataRow ConvertRow(DataTable targetTable, DataRow sourceRow)
         {
-            var newRow = result.NewRow();
-
-            for (int colIndex = 0; colIndex < sourceTable.Columns.Count; colIndex++)
+            var newRow = targetTable.NewRow();
+            for (var i = 0; i < sourceRow.Table.Columns.Count; i++)
             {
-                var sourceValue = sourceRow[colIndex];
-                var targetColumn = result.Columns[colIndex];
-                var originalColumnName = sourceTable.Columns[colIndex].ColumnName;
-                var validatedColumnName = _columnMapper.MapColumnName(sourceTable.TableName, originalColumnName);
-                var originalColumnType = _metadataProvider.GetPropertyType(entityName, validatedColumnName);
-
-                if (sourceValue == null || sourceValue == DBNull.Value)
-                {
-                    // Only set DBNull if the column allows it
-                    if (targetColumn.AllowDBNull)
-                    {
-                        newRow[colIndex] = DBNull.Value;
-                    }
-                    else
-                    {
-                        // For non-nullable columns, provide a default value
-                        newRow[colIndex] = GetDefaultValueForType(targetColumn.DataType);
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        var convertedValue = ConvertValueToType(sourceValue, targetColumn.DataType, targetColumn.AllowDBNull);
-                        
-                        // If conversion returned DBNull but column doesn't allow nulls, use default
-                        if (convertedValue == DBNull.Value && !targetColumn.AllowDBNull)
-                        {
-                            newRow[colIndex] = GetDefaultValueForType(targetColumn.DataType);
-                        }
-                        else
-                        {
-                            newRow[colIndex] = convertedValue;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new InvalidOperationException(
-                            $"Failed to convert value '{sourceValue}' in column '{targetColumn.ColumnName}' " +
-                            $"to type {targetColumn.DataType.Name}: {ex.Message}", ex);
-                    }
-                }
+                var targetColumn = targetTable.Columns[i];
+                newRow[i] = ConvertColumnValues(
+                    sourceRow[i],
+                    targetColumn.ColumnName,
+                    targetColumn.DataType,
+                    targetColumn.AllowDBNull);
             }
 
-            result.Rows.Add(newRow);
+            return newRow;
         }
 
-        return result;
+        object ConvertColumnValues(object sourceValue, string columnName, Type dataType, bool allowDbNull)
+        {
+            try
+            {
+                if (sourceValue == DBNull.Value)
+                    return allowDbNull
+                        ? DBNull.Value // Only set DBNull if the column allows it
+                        : GetDefaultValueForType(dataType); // For non-nullable columns, provide a default value
+
+                var convertedValue = CastValueAsType(sourceValue, dataType, allowDbNull);
+
+                // If conversion returned DBNull but the column doesn't allow nulls, use default
+                return convertedValue != DBNull.Value || allowDbNull
+                    ? convertedValue
+                    : GetDefaultValueForType(dataType);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to convert value '{sourceValue}' in column '{columnName}' " +
+                    $"to type {dataType.Name}: {ex.Message}", ex);
+            }
+        }
     }
 
     /// <summary>
@@ -147,7 +140,7 @@ public class TableNormalizer : ITableNormalizer
     /// <exception cref="FormatException">Thrown if the value cannot be converted to the target type due to format issues.</exception>
     /// <exception cref="InvalidCastException">Thrown if the value cannot be cast to the target type.</exception>
     /// <exception cref="ArgumentNullException">Thrown if a null or invalid parameter is provided when null values are not allowed.</exception>
-    private static object ConvertValueToType(object value, Type targetType, bool allowNull)
+    private static object CastValueAsType(object value, Type targetType, bool allowNull)
     {
         // Handle nullable types
         var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
@@ -196,13 +189,13 @@ public class TableNormalizer : ITableNormalizer
         {
             return TimeOnly.FromDateTime(dateTime);
         }
-        
+
         // Second try: Parse directly as TimeOnly (for time-only strings like "14:30:15")
         if (TimeOnly.TryParse(stringValue, out var timeOnly))
         {
             return timeOnly;
         }
-        
+
         // Third try: Extract time part manually for formats like "2025/05/07 9:10:04"
         try
         {
@@ -212,7 +205,7 @@ public class TableNormalizer : ITableNormalizer
             {
                 return TimeOnly.Parse(parts[1]);
             }
-        
+
             // If only one part, assume it's time
             return TimeOnly.Parse(stringValue);
         }
@@ -233,13 +226,13 @@ public class TableNormalizer : ITableNormalizer
         {
             return DateOnly.FromDateTime(dateTime);
         }
-        
+
         // Second try: Parse directly as DateOnly (for date-only strings)
         if (DateOnly.TryParse(stringValue, out var dateOnly))
         {
             return dateOnly;
         }
-        
+
         // Third try: Extract date part manually for formats like "2025/05/07 9:10:04"
         try
         {
