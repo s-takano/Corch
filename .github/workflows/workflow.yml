@@ -1,0 +1,45 @@
+﻿# .github/workflows/func-linux-iso.yml
+name: Build & deploy Azure Function (.NET 8 isolated, Linux)
+
+on:
+  push:
+    branches: [main]          # adjust if needed
+  workflow_dispatch:
+
+permissions:
+  id-token: write            
+  contents: read
+
+env:
+  FUNC_APP: 'corch-edges'            
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      # ---------- Build ----------
+      - run: dotnet restore
+      - run: dotnet build -c Release --no-restore
+      - run: dotnet publish -c Release -o ./publish
+      
+      # ---------- Azure auth via OIDC ----------
+      - uses: azure/login@v2
+        with:
+          client-id:        ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:        ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      # ---------- Deploy ----------
+      - uses: Azure/functions-action@v1
+        with:
+          app-name:   ${{ env.FUNC_APP }}
+          package:    ./publish
+          # slot-name: 'production'   # default

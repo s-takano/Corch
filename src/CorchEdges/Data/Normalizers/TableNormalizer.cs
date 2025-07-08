@@ -143,36 +143,40 @@ public class TableNormalizer : ITableNormalizer
     private static object CastValueAsType(object value, Type targetType, bool allowNull)
     {
         // Handle nullable types
-        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        var underlyingTargetType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
-        // If value is already the correct type, return as-is
-        if (value.GetType() == underlyingType)
+        
+        return value.GetType() == underlyingTargetType ? 
+            value // If value is already the correct type, return as-is 
+            : // Otherwise, convert string values to appropriate types
+            ConvertValueBasedOnType(value.ToString()?.Trim() ?? string.Empty, underlyingTargetType); 
+
+
+        object ConvertValueBasedOnType(string stringValue, Type conversionType)
         {
-            return value;
+            if (string.IsNullOrEmpty(stringValue))
+            {
+                // If column allows null, return DBNull, otherwise return default value
+                return allowNull ? DBNull.Value : GetDefaultValueForType(targetType);
+            }
+
+            object? castValueAsType = conversionType.Name switch
+            {
+                nameof(String) => stringValue,
+                nameof(Int32) => int.Parse(stringValue),
+                nameof(Int64) => long.Parse(stringValue),
+                nameof(Decimal) => decimal.Parse(stringValue),
+                nameof(Double) => double.Parse(stringValue),
+                nameof(Boolean) => ParseBoolean(stringValue),
+                nameof(DateTime) => DateTime.Parse(stringValue),
+                nameof(DateOnly) => ParseDateOnly(stringValue),
+                nameof(TimeOnly) => ParseTimeOnly(stringValue),
+                _ => null // only this path returns null
+            };
+            
+            // when there's no explicit conversion path found, try a general converter
+            return castValueAsType ?? Convert.ChangeType(value, conversionType);
         }
-
-        // Convert string values to appropriate types
-        var stringValue = value.ToString()?.Trim();
-
-        if (string.IsNullOrEmpty(stringValue))
-        {
-            // If column allows null, return DBNull, otherwise return default value
-            return allowNull ? DBNull.Value : GetDefaultValueForType(targetType);
-        }
-
-        return underlyingType.Name switch
-        {
-            nameof(String) => stringValue,
-            nameof(Int32) => int.Parse(stringValue),
-            nameof(Int64) => long.Parse(stringValue),
-            nameof(Decimal) => decimal.Parse(stringValue),
-            nameof(Double) => double.Parse(stringValue),
-            nameof(Boolean) => ParseBoolean(stringValue),
-            nameof(DateTime) => DateTime.Parse(stringValue),
-            nameof(DateOnly) => ParseDateOnly(stringValue),
-            nameof(TimeOnly) => ParseTimeOnly(stringValue), // ✅ Add custom parser
-            _ => Convert.ChangeType(value, underlyingType)
-        };
     }
 
     // Add this helper method
