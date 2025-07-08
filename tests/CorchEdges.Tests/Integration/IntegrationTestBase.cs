@@ -37,9 +37,9 @@ public abstract class IntegrationTestBase : IClassFixture<IntegrationTestFixture
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
     }
 
-    public virtual Task InitializeAsync()
+    public virtual async Task InitializeAsync()
     {
-        return Task.CompletedTask;
+        await Task.CompletedTask;
     }
 
     public virtual async Task DisposeAsync()

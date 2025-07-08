@@ -221,7 +221,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         // Check the specific subscription details
         var subscriptionInfo = status.GetByCallbackUrl(callbackUrl);
         subscriptionInfo.Should().NotBeNull();
-        subscriptionInfo!.SubscriptionId.Should().Be(subscription.Id);
+        subscriptionInfo.SubscriptionId.Should().Be(subscription.Id);
         subscriptionInfo.CallbackUrl.Should().Be(callbackUrl);
         subscriptionInfo.ExpirationDate.Should().NotBeNull();
     }
@@ -432,14 +432,15 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         }
     }
 
-    public Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
+        await base.InitializeAsync();
         _logger.LogInformation("Starting WebhookRegistration integration tests");
-        return Task.CompletedTask;
     }
 
-    public async Task DisposeAsync()
+    public override async Task DisposeAsync()
     {
+        await base.DisposeAsync();
         // Cleanup any subscriptions that weren't explicitly deleted in tests
         foreach (var subscriptionId in _createdSubscriptionIds)
         {

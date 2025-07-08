@@ -1,5 +1,4 @@
-﻿using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
+﻿using Microsoft.Azure.Functions.Worker.Http;
 using System.Net;
 using System.Text.Json;
 using System.Web;
@@ -135,7 +134,7 @@ public class SharePointSetupWebhook(
             
             // Get configuration values
             var config = GetWebhookConfiguration(requestData);
-
+            
             if (!ValidateConfiguration(config, out var validationError))
             {
                 _logger.LogError("Configuration validation failed: {Error}", validationError);
@@ -143,7 +142,7 @@ public class SharePointSetupWebhook(
             }
 
             // Check if a webhook already exists
-            if (await _webhookRegistration.IsListMonitoredByWebhookAsync(config.SiteId, config.ListId))
+            if (await _webhookRegistration.IsListMonitoredByWebhookAsync(config.SiteId!, config.ListId!))
             {
                 _logger.LogInformation("Webhook already registered for site {SiteId}, list {ListId}",
                     config.SiteId, config.ListId);
@@ -159,9 +158,9 @@ public class SharePointSetupWebhook(
 
             // Register new webhook
             var subscription = await _webhookRegistration.RegisterWebhookAsync(
-                config.SiteId,
-                config.ListId,
-                config.CallbackUrl);
+                config.SiteId!,
+                config.ListId!,
+                config.CallbackUrl!);
 
             _logger.LogInformation("Webhook registered successfully. Subscription ID: {SubscriptionId}",
                 subscription.Id);
@@ -170,7 +169,7 @@ public class SharePointSetupWebhook(
                 "Webhook registered successfully",
                 subscription.Id ?? string.Empty,
                 subscription.ExpirationDateTime,
-                config.CallbackUrl,
+                config.CallbackUrl!,
                 subscription.Resource ?? string.Empty,
                 subscription.ChangeType ?? string.Empty,
                 subscription.ClientState ?? string.Empty);
@@ -462,7 +461,7 @@ public class SharePointSetupWebhook(
                     deletionResults.Add(new
                     {
                         SubscriptionId = subscription.Id,
-                        ClientState = subscription.ClientState,
+                        subscription.ClientState,
                         Success = success,
                         Error = (string?)null
                     });
@@ -472,7 +471,7 @@ public class SharePointSetupWebhook(
                     deletionResults.Add(new
                     {
                         SubscriptionId = subscription.Id,
-                        ClientState = subscription.ClientState,
+                        subscription.ClientState,
                         Success = false,
                         Error = ex.Message
                     });
@@ -728,7 +727,7 @@ public class SharePointSetupWebhook(
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
             return false;
 
-        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var query = HttpUtility.ParseQueryString(uri.Query);
         return !string.IsNullOrEmpty(query["code"]);
     }
 }

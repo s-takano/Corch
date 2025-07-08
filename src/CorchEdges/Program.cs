@@ -21,12 +21,11 @@ Console.WriteLine("[Bootstrap] CorchEdges Functions starting…");
 var host = Host.CreateDefaultBuilder(args)
 
 // ───────────────────────────────────────── Functions runtime
-    .ConfigureFunctionsWorkerDefaults(worker =>
-    {
-        // Emit early log (console) – ILogger not ready yet
-        Console.WriteLine("[Bootstrap] Configuring Functions worker defaults");
-        worker.Services.Configure<WorkerOptions>(o => o.EnableUserCodeException = true);
-    })
+    // .ConfigureFunctionsWorkerDefaults(worker =>
+    // {
+    //     // Emit early log (console) – ILogger not ready yet
+    //     Console.WriteLine("[Bootstrap] Configuring Functions worker defaults");
+    // })
 
 // ───────────────────────────────────────── Configuration
     .ConfigureAppConfiguration((ctx, cfg) =>

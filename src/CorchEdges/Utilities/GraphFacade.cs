@@ -114,7 +114,7 @@ public sealed class GraphFacade(GraphServiceClient graphServiceClient) : IGraphF
             .Delta;
 
         var itemIds = new List<string>();
-        string? hop = null; // next URL to request
+        string? hop; // next URL to request
         string? mark = null; // final @odata.deltaLink
 
         // ── 1) Bootstrap or incremental kick-off ──────────────────────────
@@ -128,6 +128,9 @@ public sealed class GraphFacade(GraphServiceClient graphServiceClient) : IGraphF
             var seed = await deltaBuilder
                 .WithUrl(bootstrapUrl)
                 .GetAsDeltaGetResponseAsync();
+            
+            if( seed is null )
+                throw new InvalidOperationException("Graph returned null seed.");
 
             mark = seed.OdataDeltaLink; // bookmark “now”
             hop = seed.OdataNextLink; // almost always null
@@ -144,6 +147,9 @@ public sealed class GraphFacade(GraphServiceClient graphServiceClient) : IGraphF
                 .WithUrl(hop) // nextLink OR deltaLink
                 .GetAsDeltaGetResponseAsync();
 
+            if (page is null)
+                throw new InvalidOperationException("Graph returned null page.");
+            
             if (page.Value?.Count > 0)
                 itemIds.AddRange(page.Value.Select(i => i.Id)!);
 

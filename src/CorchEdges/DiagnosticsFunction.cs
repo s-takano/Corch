@@ -42,7 +42,7 @@ public class DiagnosticsFunction
             ConnectionStrings = GetConnectionStrings(),
             DatabaseConnection = GetDatabaseConnectionStatus(),
             AppSettings = GetAppSettings(),
-            ServiceRegistrations = await GetServiceRegistrationStatus(),
+            ServiceRegistrations = GetServiceRegistrationStatus(),
             EnvironmentVariables = GetRelevantEnvironmentVariables()
         };
 
@@ -85,13 +85,11 @@ public class DiagnosticsFunction
             using var reader = command.ExecuteReader();
 
             string? versionInfo = null;
-            string? currentDb = null;
             string? currentUser = null;
 
             if (reader.Read())
             {
                 versionInfo = reader.GetString(0);
-                currentDb = reader.GetString(1);
                 currentUser = reader.GetString(2);
             }
 
@@ -177,7 +175,7 @@ public class DiagnosticsFunction
         };
     }
 
-    private async Task<object> GetServiceRegistrationStatus()
+    private IDictionary<string, string> GetServiceRegistrationStatus()
     {
         var services = new Dictionary<string, string>();
 

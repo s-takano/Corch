@@ -55,11 +55,17 @@ public record ListWebhookStatus(
 /// This class typically contains details about the webhook endpoint,
 /// subscription status, and other metadata related to the subscription process.
 /// </summary>
+/// 
+#pragma warning disable CS0414 // Field is assigned but its value is never used
+#pragma warning disable CS0169 // Field is never used
 public record WebhookSubscriptionInfo(
     string SubscriptionId,
     string CallbackUrl,
     DateTimeOffset? ExpirationDate,
     string? ClientState = null);
+#pragma warning restore CS0414
+#pragma warning restore CS0169
+
 
 /// <summary>
 /// Represents the registration details for a webhook integration.
@@ -241,6 +247,9 @@ public class WebhookRegistration(
         // ---- 1) first (and possibly only) page ---------------------------
         var page = await _graphClient.Subscriptions.GetAsync(
             cancellationToken: cancellationToken);
+        
+        if(page is null)
+            throw new InvalidOperationException("Graph returned null page.");
 
         // ---- 2) iterate all pages & filter locally -----------------------
         var iterator = PageIterator<Subscription, SubscriptionCollectionResponse>
@@ -405,6 +414,8 @@ public class WebhookRegistration(
 
         // 1) first request – NO query options
         var page = await _graphClient.Subscriptions.GetAsync(cancellationToken: cancellationToken);
+        if(page is null)
+            throw new InvalidOperationException("Graph returned null page.");
 
         // 2) walk every page (if Graph gives a nextLink)
         var iterator = PageIterator<Subscription, SubscriptionCollectionResponse>
@@ -465,6 +476,9 @@ public class WebhookRegistration(
             var page = await _graphClient.Subscriptions.GetAsync(
                 cancellationToken: cancellationToken);
 
+            if(page is null)
+                throw new InvalidOperationException("Graph returned null page.");
+            
             // ---- iterate all pages ------------------------------------------
             var iterator = PageIterator<Subscription, SubscriptionCollectionResponse>
                 .CreatePageIterator(
@@ -613,7 +627,6 @@ public class WebhookRegistration(
     /// Use this method to remove a subscription and stop receiving notifications.
     /// </summary>
     /// <param name="subscriptionId">The unique identifier of the subscription to delete. This parameter is required.</param>
-    /// <param name="cancellationToken">A cancellation token that can be used to propagate notification that the operation should be canceled.</param>
     /// <returns>
     /// A task representing the asynchronous operation. The task result indicates whether the deletion was successful.
     /// </returns>
@@ -678,6 +691,9 @@ public class WebhookRegistration(
             // ----- 1) first page — NO query options allowed --------------------
             var page = await _graphClient.Subscriptions.GetAsync(
                 cancellationToken: cancellation);
+            
+            if(page is null)
+                throw new InvalidOperationException("Graph returned null page.");
 
             // ----- 2) iterate all pages ---------------------------------------
             var iterator = PageIterator<Subscription, SubscriptionCollectionResponse>
@@ -789,6 +805,7 @@ public class WebhookRegistration(
     /// <param name="siteId">The identifier of the SharePoint site associated with the subscription.</param>
     /// <param name="listId">The identifier of the SharePoint list associated with the subscription.</param>
     /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+#pragma warning disable CS0168 // Variable is declared but never used
     private async Task StoreSubscriptionDetailsAsync(Subscription subscription, string siteId, string listId,
         CancellationToken cancellationToken)
     {
@@ -801,6 +818,7 @@ public class WebhookRegistration(
         // TODO: Implement persistent storage if needed
         await Task.CompletedTask;
     }
+#pragma warning restore CS0168
 
     /// <summary>
     /// Extracts a detailed error message from the provided exception, if available.

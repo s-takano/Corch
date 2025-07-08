@@ -162,7 +162,7 @@ namespace CorchEdges.Tests.Unit.Services
         [InlineData("")]
         [InlineData(null)]
         [InlineData("   ")]
-        public void Constructor_WithInvalidSiteId_ShouldThrowArgumentException(string invalidSiteId)
+        public void Constructor_WithInvalidSiteId_ShouldThrowArgumentException(string? invalidSiteId)
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() =>
@@ -174,7 +174,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockContext,
                     _mockProcessingLogRepository,
                     _mockDataSetConverter.Object,
-                    invalidSiteId,
+                    invalidSiteId!,
                     _testListId,
                     "/test/path"));
 
@@ -185,7 +185,7 @@ namespace CorchEdges.Tests.Unit.Services
         [InlineData("")]
         [InlineData(null)]
         [InlineData("   ")]
-        public void Constructor_WithInvalidListId_ShouldThrowArgumentException(string invalidListId)
+        public void Constructor_WithInvalidListId_ShouldThrowArgumentException(string? invalidListId)
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() =>
@@ -198,7 +198,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockProcessingLogRepository,
                     _mockDataSetConverter.Object,
                     _testSiteId,
-                    invalidListId,
+                    invalidListId!,
                     "/test/path"));
 
             exception.ParamName.Should().Be("listId");
@@ -208,7 +208,7 @@ namespace CorchEdges.Tests.Unit.Services
         [InlineData("")]
         [InlineData(null)]
         [InlineData("   ")]
-        public void Constructor_WithInvalidWatchedPath_ShouldThrowArgumentException(string invalidWatchedPath)
+        public void Constructor_WithInvalidWatchedPath_ShouldThrowArgumentException(string? invalidWatchedPath)
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() =>
@@ -222,7 +222,7 @@ namespace CorchEdges.Tests.Unit.Services
                     _mockDataSetConverter.Object,
                     _testSiteId,
                     _testListId,
-                    invalidWatchedPath));
+                    invalidWatchedPath!));
 
             exception.ParamName.Should().Be("watchedPath");
         }
