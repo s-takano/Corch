@@ -3,7 +3,7 @@ name: Build & deploy Azure Function (.NET 8 isolated, Linux)
 
 on:
   push:
-    branches: [main]          # adjust if needed
+    branches: [master] 
   workflow_dispatch:
 
 permissions:
