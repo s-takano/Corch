@@ -40,6 +40,5 @@ jobs:
       # ---------- Deploy ----------
       - uses: Azure/functions-action@v1
         with:
-          app-name:   ${{ env.FUNC_APP }}
+          app-name:   corch-edges
           package:    ./publish
-          # slot-name: 'production'   # default
