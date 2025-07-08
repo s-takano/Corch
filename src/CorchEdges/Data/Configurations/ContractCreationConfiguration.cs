@@ -16,8 +16,8 @@ public class ContractCreationConfiguration : BaseEntityConfiguration<ContractCre
 
     public override IEnumerable<ColumnMetaInfo> GetColumnMetadata()
     {
-        return new[]
-        {
+        return
+        [
             new ColumnMetaInfo(nameof(ContractCreation.Id), "id", "integer", true, true, true),
             new ColumnMetaInfo(nameof(ContractCreation.ContractId), "契約ID", "text", false),
             new ColumnMetaInfo(nameof(ContractCreation.PropertyNo), "物件No", "integer", false),
@@ -45,7 +45,7 @@ public class ContractCreationConfiguration : BaseEntityConfiguration<ContractCre
             new ColumnMetaInfo(nameof(ContractCreation.InternetApplicationFee), "インターネット申込金", "numeric(12,0)", false),
             new ColumnMetaInfo(nameof(ContractCreation.MaximumAmount), "極度額", "numeric(12,0)", false),
             new ColumnMetaInfo(nameof(ContractCreation.OutputDateTime), "出力日時", "timestamp without time zone", false)
-        };
+        ];
     }
 
 
