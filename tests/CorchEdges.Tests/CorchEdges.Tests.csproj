@@ -36,9 +36,9 @@
   
   <ItemGroup>
     <None Remove=".env" />
-    <Content Include=".env">
-      <CopyToOutputDirectory Condition="Exists('.env')">Always</CopyToOutputDirectory>
-    </Content>
+    <None Update=".env"
+          CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('.env')" />
     <None Remove="appsettings.test.json" />
     <Content Include="appsettings.test.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
