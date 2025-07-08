@@ -69,42 +69,37 @@ public abstract class BaseEntityConfiguration<TEntity> : IEntityTypeConfiguratio
     {
         // Configure table
         if (GetSchemaName() != null)
-        {
             builder.ToTable(GetTableName(), GetSchemaName());
-        }
         else
-        {
             builder.ToTable(GetTableName());
-        }
 
         var columnMetadata = GetColumnMetadata().ToList();
         
         // Configure keys
         var keyColumns = columnMetadata.Where(c => c.IsKey).ToList();
-        if (keyColumns.Count == 1)
+        switch (keyColumns.Count)
         {
-            var keyColumn = keyColumns.First();
-            ConfigureKey(builder, keyColumn.PropertyName);
-        }
-        else if (keyColumns.Count > 1)
-        {
-            // Composite key - use property names
-            var propertyNames = keyColumns.Select(c => c.PropertyName).ToArray();
-            builder.HasKey(propertyNames);
+            case 1:
+            {
+                var keyColumn = keyColumns.First();
+                ConfigureKey(builder, keyColumn.PropertyName);
+                break;
+            }
+            case > 1:
+            {
+                // Composite key - use property names
+                var propertyNames = keyColumns.Select(c => c.PropertyName).ToArray();
+                builder.HasKey(propertyNames);
+                break;
+            }
         }
 
         // Configure properties
-        foreach (var column in columnMetadata)
-        {
-            ConfigureProperty(builder, column);
-        }
+        foreach (var column in columnMetadata) ConfigureProperty(builder, column);
 
         // Configure indexes
         var indexColumns = columnMetadata.Where(c => c.HasIndex && !c.IsKey).ToList();
-        foreach (var indexColumn in indexColumns)
-        {
-            ConfigureIndex(builder, indexColumn.PropertyName);
-        }
+        foreach (var indexColumn in indexColumns) ConfigureIndex(builder, indexColumn.PropertyName);
     }
 
     /// <summary>
