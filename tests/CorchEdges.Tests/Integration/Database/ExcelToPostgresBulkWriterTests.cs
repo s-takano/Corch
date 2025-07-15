@@ -181,12 +181,12 @@ public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
                 table.Columns.Add("契約者名", typeof(string));
                 table.Columns.Add("契約日", typeof(DateTime));
                 table.Columns.Add("入居予定日", typeof(DateTime));
-                table.Columns.Add("礼金(家)", typeof(decimal));
+                table.Columns.Add("礼金_家", typeof(decimal));
                 break;
             case "contract_current":
                 table.Columns.Add("契約ID", typeof(string));
                 table.Columns.Add("契約者_名", typeof(string));
-                table.Columns.Add("契約の状態", typeof(string));
+                table.Columns.Add("契約状態", typeof(string));
                 table.Columns.Add("家賃", typeof(decimal));
                 break;
             case "contract_renewal":
@@ -213,13 +213,13 @@ public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
             case "contract_creation":
                 row["契約者名"] = "田中太郎";
                 row["入居予定日"] = DateTime.Now.AddDays(7);
-                row["礼金(家)"] = 300000m;
+                row["礼金_家"] = 300000m;
                 row["契約日"] = DateTime.Now.AddDays(-30);
                 break;
             case "contract_current":
                 row["契約ID"] = $"CNT_{tableType.ToUpper()}_001";
                 row["契約者_名"] = "田中太郎";
-                row["契約の状態"] = "有効";
+                row["契約状態"] = "有効";
                 row["家賃"] = 100000m;
                 break;
             case "contract_renewal":

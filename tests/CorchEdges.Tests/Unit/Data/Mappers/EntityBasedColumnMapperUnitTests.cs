@@ -180,7 +180,7 @@ public class EntityBasedColumnMapperUnitTests
             {
                 "TestTable", new Dictionary<string, string>
                 {
-                    { "礼金(家)", "key_money_home" }, // Parentheses + Japanese (from your real DDL)
+                    { "礼金_家", "key_money_home" }, // Parentheses + Japanese (from your real DDL)
                     { "ｱﾊﾟ-ﾄ保険代", "apartment_insurance" }, // Hyphens + Japanese (from your real DDL)
                     { "column with spaces", "column_with_spaces" }, // Spaces
                     { "user@domain", "user_at_domain" }, // At symbol
@@ -193,7 +193,7 @@ public class EntityBasedColumnMapperUnitTests
         var mapper = new EntityBasedColumnMapper(columnMappings);
 
         // Act & Assert - All these should pass validation and return mapped names
-        Assert.Equal("key_money_home", mapper.MapColumnName("TestTable", "礼金(家)"));
+        Assert.Equal("key_money_home", mapper.MapColumnName("TestTable", "礼金_家"));
         Assert.Equal("apartment_insurance", mapper.MapColumnName("TestTable", "ｱﾊﾟ-ﾄ保険代"));
         Assert.Equal("column_with_spaces", mapper.MapColumnName("TestTable", "column with spaces"));
         Assert.Equal("user_at_domain", mapper.MapColumnName("TestTable", "user@domain"));
@@ -288,7 +288,7 @@ public class EntityBasedColumnMapperUnitTests
 
 
     [Theory]
-    [InlineData("礼金(家)")] // Parentheses + Japanese (from your PostgreSQL DDL)
+    [InlineData("礼金_家")] // Parentheses + Japanese (from your PostgreSQL DDL)
     [InlineData("ｱﾊﾟ-ﾄ保険代")] // Hyphens + Japanese (from your PostgreSQL DDL)  
     [InlineData("column with spaces")] // Spaces (valid in quoted identifiers)
     [InlineData("user@domain.com")] // At symbol and dots

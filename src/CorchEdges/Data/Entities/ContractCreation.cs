@@ -15,7 +15,13 @@ public class ContractCreation
     public DateOnly? MoveInDate { get; set; }
     public DateOnly? KeyHandoverDate { get; set; }
     public DateOnly? ContractDate { get; set; }
+    
     public decimal? KeyMoney { get; set; }
+    public decimal? BrokerageCommission { get; set; }
+    public string? LeadSource { get; set; }
+    public string? LeadSourceDetail { get; set; }
+    public string? AccountManager { get; set; }
+    public DateOnly? SupervisorApprovalDate { get; set; }
     public decimal? SecurityDeposit { get; set; }
     public decimal? BrokerageFee { get; set; }
     public decimal? GuaranteeFee { get; set; }
