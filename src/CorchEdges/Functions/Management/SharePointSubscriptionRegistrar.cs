@@ -5,9 +5,12 @@ using CorchEdges.Models.Requests;
 using CorchEdges.Services;
 using CorchEdges.Utilities;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
+using Microsoft.OpenApi.Models;
 
 namespace CorchEdges.Functions.Management;
 
@@ -120,6 +123,32 @@ public class SharePointSubscriptionRegistrar(
     /// </code>
     /// </example>
     [Function("CreateSharePointSubscription")]
+    [OpenApiOperation(
+        operationId: "CreateSharePointSubscription", 
+        tags: new[] { "SharePoint Subscriptions" },
+        Summary = "Create SharePoint webhook subscription",
+        Description = "Creates a new webhook subscription to monitor changes in a SharePoint list")]
+    [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
+    [OpenApiRequestBody(
+        contentType: "application/json", 
+        bodyType: typeof(WebhookConfiguration),
+        Required = true,
+        Description = "Webhook configuration containing site ID, list ID, callback URL, and function app name")]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.Created, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Subscription created successfully")]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.BadRequest, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Invalid configuration or validation error")]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.InternalServerError, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Internal server error")]
     public async Task<HttpResponseData> CreateSharePointSubscriptionAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "sharepoint/subscriptions")]
         HttpRequestData req)
@@ -217,6 +246,22 @@ public class SharePointSubscriptionRegistrar(
     /// <returns>A response containing the status of active webhooks, including
     /// total active subscriptions, those expiring soon, and metadata for each subscription.</returns>
     [Function("GetSharePointSubscriptions")]
+    [OpenApiOperation(
+        operationId: "GetSharePointSubscriptions", 
+        tags: new[] { "SharePoint Subscriptions" },
+        Summary = "Get all SharePoint subscriptions",
+        Description = "Retrieves all active SharePoint webhook subscriptions for the configured site and list")]
+    [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(object[]), 
+        Description = "List of active subscriptions")]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.InternalServerError, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Internal server error")]
     public async Task<HttpResponseData> GetSharePointSubscriptionsAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "get", Route = "sharepoint/subscriptions")]
         HttpRequestData req)
@@ -276,6 +321,22 @@ public class SharePointSubscriptionRegistrar(
     /// <returns>A <see cref="HttpResponseData"/> object containing the results of the renewal process. The response includes
     /// details of the processed subscriptions, the number of successful and failed renewals, and the processing timestamp.</returns>
     [Function("RenewSharePointSubscriptions")]
+    [OpenApiOperation(
+        operationId: "RenewSharePointSubscriptions", 
+        tags: new[] { "SharePoint Subscriptions" },
+        Summary = "Renew SharePoint subscriptions",
+        Description = "Renews all existing SharePoint webhook subscriptions to extend their expiration date")]
+    [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Subscriptions renewed successfully")]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.InternalServerError, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Internal server error")]
     public async Task<HttpResponseData> RenewSharePointSubscriptionsAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "patch", Route = "sharepoint/subscriptions/renew")]
         HttpRequestData req)
@@ -369,6 +430,33 @@ public class SharePointSubscriptionRegistrar(
     /// <returns>An <see cref="HttpResponseData"/> indicating the result of the delete operation,
     /// including success or the error encountered during the process.</returns>
     [Function("DeleteSharePointSubscription")]
+    [OpenApiOperation(
+        operationId: "DeleteSharePointSubscription", 
+        tags: new[] { "SharePoint Subscriptions" },
+        Summary = "Delete SharePoint subscription",
+        Description = "Deletes a specific SharePoint webhook subscription by ID")]
+    [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
+    [OpenApiParameter(
+        name: "subscriptionId", 
+        In = ParameterLocation.Path, 
+        Required = true, 
+        Type = typeof(string),
+        Description = "The unique identifier of the subscription to delete")]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Subscription deleted successfully")]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.NotFound, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Subscription not found")]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.InternalServerError, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Internal server error")]
     public async Task<HttpResponseData> DeleteSubscriptionAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "sharepoint/subscriptions/{subscriptionId}")]
         HttpRequestData req,
@@ -429,7 +517,23 @@ public class SharePointSubscriptionRegistrar(
     /// An optional filter can be applied to further refine the selection of test subscriptions.
     /// <param name="req">The HTTP request data, which may include query parameters for filtering subscriptions, such as "testId".</param>
     /// <returns>An HTTP response containing the cleanup results, which includes the number of processed, successfully deleted, and failed test subscriptions.</returns>
-    [Function("CleanupTestSharePointSubscriptions")]
+    [Function("CleanupTestSubscriptions")]
+    [OpenApiOperation(
+        operationId: "CleanupTestSubscriptions", 
+        tags: new[] { "SharePoint Subscriptions" },
+        Summary = "Cleanup test subscriptions",
+        Description = "Removes all test or development SharePoint webhook subscriptions")]
+    [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Test subscriptions cleaned up successfully")]
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.InternalServerError, 
+        contentType: "application/json", 
+        bodyType: typeof(object), 
+        Description = "Internal server error")]
     public async Task<HttpResponseData> CleanupTestSubscriptionsAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "sharepoint/subscriptions/test")]
         HttpRequestData req)

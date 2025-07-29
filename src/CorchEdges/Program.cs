@@ -8,6 +8,7 @@ using CorchEdges.Data.Abstractions;
 using CorchEdges.Data.Repositories;
 using CorchEdges.Services;
 using CorchEdges.Utilities;
+using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -78,6 +79,7 @@ var host = Host.CreateDefaultBuilder(args)
         RegisterServiceBus(svcs, ctx.Configuration);
         RegisterBusiness(svcs, ctx.Configuration);
     })
+    .ConfigureOpenApi()
     .Build();
 
 // ───────────────────────────────────────── Lifetime diagnostics
