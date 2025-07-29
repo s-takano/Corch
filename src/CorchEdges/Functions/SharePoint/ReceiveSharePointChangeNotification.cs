@@ -73,9 +73,9 @@ public sealed class ReceiveSharePointChangeNotification(IWebhookProcessor svc, I
     /// All change notifications are enqueued to Service Bus for reliable asynchronous processing
     /// by the SharePointSyncFunction function.
     /// </remarks>
-    [Function(nameof(ReceiveSharePointChangeNotification))]
+    [Function("SharePointChangeNotifications")]
     public async Task<Out> Run(
-        [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "sharepoint/webhook")]
+        [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "sharepoint/notifications")]
         HttpRequestData req)
     {
         // Handle validation handshake during subscription creation
