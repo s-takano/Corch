@@ -3,6 +3,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using CorchEdges.Models;
 using CorchEdges.Services;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.Logging;
 
 namespace CorchEdges.Functions.SharePoint;
@@ -43,7 +44,7 @@ public sealed class SharePointSyncFunction
     /// This container holds message data for manual retry or analysis in cases where processing fails
     /// (e.g., connectivity issues, unhandled errors, etc.).
     /// </summary>
-    private readonly BlobContainerClient _failed;
+    private readonly BlobContainerClient _failedContainer;
 
     /// <summary>
     /// Represents an Azure Function for processing SharePoint change notifications
@@ -60,14 +61,14 @@ public sealed class SharePointSyncFunction
     {
         _log = log; 
         _processor = processor;
-        _failed = blobs.GetBlobContainerClient("failed-changes");
+        _failedContainer = blobs.GetBlobContainerClient("failed-changes");
         
         // Ensure the container exists (async fire-and-forget is fine for this)
         _ = Task.Run(async () => 
         {
             try 
             {
-                await _failed.CreateIfNotExistsAsync(PublicAccessType.None);
+                await _failedContainer.CreateIfNotExistsAsync(PublicAccessType.None);
             }
             catch (Exception ex)
             {
@@ -85,15 +86,34 @@ public sealed class SharePointSyncFunction
     /// <param name="msg">The serialized SharePoint change notification message received from Service Bus.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Function(nameof(SharePointSyncFunction))]
+    [OpenApiOperation(
+        operationId: "ProcessSharePointChanges", 
+        tags: new[] { "SharePoint Processing", "Internal" },
+        Summary = "Process SharePoint change notifications (Service Bus triggered)",
+        Description = "Internal function triggered by Service Bus messages from the 'sp-changes' queue. Processes SharePoint change notifications by downloading Excel files, parsing data, and storing in database.")]
+    [OpenApiRequestBody(
+        contentType: "application/json", 
+        bodyType: typeof(NotificationEnvelope),
+        Required = true,
+        Description = "Service Bus message containing serialized SharePoint change notification envelope")]
+    [OpenApiResponseWithBody(
+        statusCode: System.Net.HttpStatusCode.OK, 
+        contentType: "application/json", 
+        bodyType: typeof(SharePointSyncResult), 
+        Description = "Processing result indicating success/failure and retry status")]
+    [OpenApiResponseWithBody(
+        statusCode: System.Net.HttpStatusCode.InternalServerError, 
+        contentType: "application/json", 
+        bodyType: typeof(SharePointSyncResult), 
+        Description = "Processing failed - message may be retried by Service Bus")]
     public async Task<SharePointSyncResult> RunAsync([ServiceBusTrigger("sp-changes", Connection="ServiceBusConnection")] string msg)
     {
         try
         {
             // 🔍 Step 1: Verify Graph connection before processing
             _log.LogInformation("Verifying Graph API connection...");
-            
-            var connectionValid = await _processor.EnsureGraphConnectionAsync();
-            if (!connectionValid)
+
+            if (!await _processor.EnsureGraphConnectionAsync())
             {
                 _log.LogError("Graph API connection failed - aborting message processing");
                 
@@ -144,7 +164,7 @@ public sealed class SharePointSyncFunction
     {
         // Save the message to the failed blob for manual retry when the connection is restored
         var blob = blobClass + $"-{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}.json";
-        await _failed.UploadBlobAsync(blob, BinaryData.FromString(msg));
+        await _failedContainer.UploadBlobAsync(blob, BinaryData.FromString(msg));
         return blob;
     }
 }

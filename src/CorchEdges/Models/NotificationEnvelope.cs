@@ -1,4 +1,6 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 
 namespace CorchEdges.Models;
 
@@ -7,6 +9,8 @@ namespace CorchEdges.Models;
 /// </summary>
 public sealed class NotificationEnvelope
 {
+    [OpenApiProperty(Description = "Array of SharePoint change notifications")]
+    [Required]
     [JsonPropertyName("value")] public SharePointNotification[] Value { get; set; } = [];
 }
 
@@ -15,20 +19,31 @@ public sealed class NotificationEnvelope
 /// </summary>
 public class SharePointNotification
 {
-    [JsonPropertyName("subscriptionId")] public string SubscriptionId { get; set; } = string.Empty;
+    [OpenApiProperty(Description = "Unique identifier for this notification")]
+    [JsonPropertyName("subscriptionId")] 
+    public string SubscriptionId { get; set; } = string.Empty;
 
-    [JsonPropertyName("clientState")] public string ClientState { get; set; } = string.Empty;
+    [OpenApiProperty(Description = "Client state value for webhook validation")]
+    [JsonPropertyName("clientState")] 
+    public string ClientState { get; set; } = string.Empty;
 
-    [JsonPropertyName("resource")] public string Resource { get; set; } = string.Empty;
+    [OpenApiProperty(Description = "SharePoint resource that changed (e.g., 'sites/{siteId}/lists/{listId}/items/{itemId}')")]
+    [JsonPropertyName("resource")] 
+    public string Resource { get; set; } = string.Empty;
 
-    [JsonPropertyName("tenantId")] public string TenantId { get; set; } = string.Empty;
+    [OpenApiProperty(Description = "Tenant identifier")]
+    [JsonPropertyName("tenantId")] 
+    public string TenantId { get; set; } = string.Empty;
 
     [JsonPropertyName("resourceData")] public ResourceData ResourceData { get; set; } = new();
 
+    [OpenApiProperty(Description = "Expiration time of the subscription")]
     [JsonPropertyName("subscriptionExpirationDateTime")]
     public DateTimeOffset SubscriptionExpirationDateTime { get; set; }
 
-    [JsonPropertyName("changeType")] public string ChangeType { get; set; } = string.Empty;
+    [OpenApiProperty(Description = "Type of change that occurred (Created, Updated, Deleted)")]
+    [JsonPropertyName("changeType")] 
+    public string ChangeType { get; set; } = string.Empty;
 }
 
 /// <summary>

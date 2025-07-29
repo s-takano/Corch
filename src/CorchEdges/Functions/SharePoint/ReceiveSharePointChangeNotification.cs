@@ -1,7 +1,11 @@
 ﻿using System.Net;
 using CorchEdges.Abstractions;
+using CorchEdges.Models;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
 
 namespace CorchEdges.Functions.SharePoint;
 
@@ -74,6 +78,42 @@ public sealed class ReceiveSharePointChangeNotification(IWebhookProcessor svc, I
     /// by the SharePointSyncFunction function.
     /// </remarks>
     [Function("SharePointChangeNotifications")]
+    [OpenApiOperation(
+        operationId: "ReceiveSharePointChangeNotification", 
+        tags: new[] { "SharePoint Webhooks" },
+        Summary = "Receive SharePoint change notifications",
+        Description = "Webhook endpoint that receives SharePoint list change notifications. Handles both validation handshakes during subscription setup and actual change notifications. Change notifications are automatically enqueued to Service Bus for asynchronous processing.")]
+    [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
+    
+    // GET operation for validation handshake
+    [OpenApiParameter(
+        name: "validationToken", 
+        In = ParameterLocation.Query, 
+        Required = false, 
+        Type = typeof(string),
+        Description = "SharePoint validation token sent during subscription creation handshake")]
+    
+    // POST operation for change notifications
+    [OpenApiRequestBody(
+        contentType: "application/json", 
+        bodyType: typeof(NotificationEnvelope),
+        Required = false,
+        Description = "SharePoint change notification payload containing array of change notifications")]
+    
+    // Success responses
+    [OpenApiResponseWithBody(
+        statusCode: HttpStatusCode.OK, 
+        contentType: "text/plain", 
+        bodyType: typeof(string), 
+        Description = "Validation token echo (for handshake) or notification acknowledgment")]
+    
+    // Error responses
+    [OpenApiResponseWithoutBody(
+        statusCode: HttpStatusCode.BadRequest, 
+        Description = "Invalid request format or missing required parameters")]
+    [OpenApiResponseWithoutBody(
+        statusCode: HttpStatusCode.InternalServerError, 
+        Description = "Internal processing error - notification may be retried by SharePoint")]
     public async Task<Out> Run(
         [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "sharepoint/notifications")]
         HttpRequestData req)

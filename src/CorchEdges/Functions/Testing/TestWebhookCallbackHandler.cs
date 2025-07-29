@@ -2,7 +2,10 @@
 using System.Text.Json;
 using System.Web;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
 
 namespace CorchEdges.Functions.Testing;
 
@@ -44,6 +47,31 @@ public class TestWebhookCallback
     /// along with relevant response content.
     /// </returns>
     [Function("TestWebhookCallback")]
+    [OpenApiOperation(
+        operationId: "TestWebhookCallback",
+        tags: new[] { "Testing", "Webhooks" },
+        Summary = "Test webhook callback endpoint",
+        Description = @"Testing endpoint that simulates webhook callback behavior for development and testing purposes. 
+    This endpoint can be used to:
+    - Test webhook handshake validation
+    - Simulate SharePoint change notifications
+    - Validate webhook processing logic")]
+    [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
+    [OpenApiRequestBody(
+        contentType: "application/json",
+        bodyType: typeof(object),
+        Required = false,
+        Description = "Optional test payload - can be handshake validation token or change notification")]
+    [OpenApiResponseWithBody(
+        statusCode: System.Net.HttpStatusCode.OK,
+        contentType: "application/json",
+        bodyType: typeof(object),
+        Description = "Test response - may include validation token for handshake or acknowledgment for notifications")]
+    [OpenApiResponseWithBody(
+        statusCode: System.Net.HttpStatusCode.BadRequest,
+        contentType: "application/json",
+        bodyType: typeof(object),
+        Description = "Invalid test request")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "test/webhook")]
         HttpRequestData req)
