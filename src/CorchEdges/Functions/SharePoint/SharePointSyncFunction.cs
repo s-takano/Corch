@@ -86,26 +86,6 @@ public sealed class SharePointSyncFunction
     /// <param name="msg">The serialized SharePoint change notification message received from Service Bus.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Function(nameof(SharePointSyncFunction))]
-    [OpenApiOperation(
-        operationId: "ProcessSharePointChanges", 
-        tags: new[] { "SharePoint Processing", "Internal" },
-        Summary = "Process SharePoint change notifications (Service Bus triggered)",
-        Description = "Internal function triggered by Service Bus messages from the 'sp-changes' queue. Processes SharePoint change notifications by downloading Excel files, parsing data, and storing in database.")]
-    [OpenApiRequestBody(
-        contentType: "application/json", 
-        bodyType: typeof(NotificationEnvelope),
-        Required = true,
-        Description = "Service Bus message containing serialized SharePoint change notification envelope")]
-    [OpenApiResponseWithBody(
-        statusCode: System.Net.HttpStatusCode.OK, 
-        contentType: "application/json", 
-        bodyType: typeof(SharePointSyncResult), 
-        Description = "Processing result indicating success/failure and retry status")]
-    [OpenApiResponseWithBody(
-        statusCode: System.Net.HttpStatusCode.InternalServerError, 
-        contentType: "application/json", 
-        bodyType: typeof(SharePointSyncResult), 
-        Description = "Processing failed - message may be retried by Service Bus")]
     public async Task<SharePointSyncResult> RunAsync([ServiceBusTrigger("sp-changes", Connection="ServiceBusConnection")] string msg)
     {
         try
