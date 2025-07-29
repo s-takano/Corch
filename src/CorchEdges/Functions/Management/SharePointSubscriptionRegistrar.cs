@@ -119,7 +119,7 @@ public class SharePointSubscriptionRegistrar(
     /// }
     /// </code>
     /// </example>
-    [Function("SharePointSubscriptions")]
+    [Function("CreateSharePointSubscription")]
     public async Task<HttpResponseData> CreateSharePointSubscriptionAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "sharepoint/subscriptions")]
         HttpRequestData req)
@@ -216,7 +216,7 @@ public class SharePointSubscriptionRegistrar(
     /// <param name="req">The HTTP request data triggering this function.</param>
     /// <returns>A response containing the status of active webhooks, including
     /// total active subscriptions, those expiring soon, and metadata for each subscription.</returns>
-    [Function("SharePointSubscriptions")]
+    [Function("GetSharePointSubscriptions")]
     public async Task<HttpResponseData> GetSharePointSubscriptionsAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "get", Route = "sharepoint/subscriptions")]
         HttpRequestData req)
@@ -275,7 +275,7 @@ public class SharePointSubscriptionRegistrar(
     /// <param name="req">The HTTP request data that triggers the function.</param>
     /// <returns>A <see cref="HttpResponseData"/> object containing the results of the renewal process. The response includes
     /// details of the processed subscriptions, the number of successful and failed renewals, and the processing timestamp.</returns>
-    [Function("SharePointSubscriptions")]
+    [Function("RenewSharePointSubscriptions")]
     public async Task<HttpResponseData> RenewSharePointSubscriptionsAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "patch", Route = "sharepoint/subscriptions/renew")]
         HttpRequestData req)
@@ -368,7 +368,7 @@ public class SharePointSubscriptionRegistrar(
     /// <param name="subscriptionId">The ID of the webhook subscription to be deleted.</param>
     /// <returns>An <see cref="HttpResponseData"/> indicating the result of the delete operation,
     /// including success or the error encountered during the process.</returns>
-    [Function("SharePointSubscriptions")]
+    [Function("DeleteSharePointSubscription")]
     public async Task<HttpResponseData> DeleteSubscriptionAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "sharepoint/subscriptions/{subscriptionId}")]
         HttpRequestData req,
@@ -429,7 +429,7 @@ public class SharePointSubscriptionRegistrar(
     /// An optional filter can be applied to further refine the selection of test subscriptions.
     /// <param name="req">The HTTP request data, which may include query parameters for filtering subscriptions, such as "testId".</param>
     /// <returns>An HTTP response containing the cleanup results, which includes the number of processed, successfully deleted, and failed test subscriptions.</returns>
-    [Function("SharePointSubscriptions")]
+    [Function("CleanupTestSharePointSubscriptions")]
     public async Task<HttpResponseData> CleanupTestSubscriptionsAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "sharepoint/subscriptions/test")]
         HttpRequestData req)
