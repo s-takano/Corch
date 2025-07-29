@@ -1,15 +1,15 @@
-﻿using Microsoft.Azure.Functions.Worker.Http;
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using System.Web;
 using CorchEdges.Models.Requests;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using CorchEdges.Services;
 using CorchEdges.Utilities;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
 
-namespace CorchEdges.Functions;
+namespace CorchEdges.Functions.Management;
 
 /// <summary>
 /// Provides functionality for setting up and managing SharePoint webhooks.
@@ -19,26 +19,26 @@ namespace CorchEdges.Functions;
 /// retrieve webhook status, renew subscriptions, delete specific webhooks,
 /// and clean up test webhooks.
 /// </remarks>
-public class SharePointSetupWebhook(
-    WebhookRegistration webhookRegistration,
-    ILogger<SharePointSetupWebhook> logger,
+public class SharePointSubscriptionRegistrar(
+    WebhookRegistrar webhookRegistrar,
+    ILogger<SharePointSubscriptionRegistrar> logger,
     IConfiguration configuration)
 {
     /// <summary>
-    /// Represents an instance of <see cref="WebhookRegistration"/> used to interact with and manage
+    /// Represents an instance of <see cref="WebhookRegistrar"/> used to interact with and manage
     /// webhook subscriptions in a SharePoint integration context. This variable is utilized
     /// for operations such as checking the existence of webhooks, registering new webhooks,
     /// and managing active or expiring webhook subscriptions.
     /// </summary>
-    private readonly WebhookRegistration _webhookRegistration =
-        webhookRegistration ?? throw new ArgumentNullException(nameof(webhookRegistration));
+    private readonly WebhookRegistrar _webhookRegistrar =
+        webhookRegistrar ?? throw new ArgumentNullException(nameof(webhookRegistrar));
 
     /// <summary>
     /// Represents the logger instance used for logging information, warnings, errors, and debug messages
-    /// within the SharePointSetupWebhook class. It provides structured logging functionality
+    /// within the SharePointSubscriptionRegistrar class. It provides structured logging functionality
     /// to aid in diagnosing issues, tracking application workflows, or providing runtime diagnostics.
     /// </summary>
-    private readonly ILogger<SharePointSetupWebhook>
+    private readonly ILogger<SharePointSubscriptionRegistrar>
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>
@@ -119,12 +119,12 @@ public class SharePointSetupWebhook(
     /// }
     /// </code>
     /// </example>
-    [Function("SharePointSetupWebhook")]
-    public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "setup")]
+    [Function("SharePointSubscriptions")]
+    public async Task<HttpResponseData> CreateSharePointSubscriptionAsync(
+        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "sharepoint/subscriptions")]
         HttpRequestData req)
     {
-        _logger.LogInformation("SharePointSetupWebhook function triggered");
+        _logger.LogInformation("SharePointSubscriptions function triggered");
 
         try
         {
@@ -142,7 +142,7 @@ public class SharePointSetupWebhook(
             }
 
             // Check if a webhook already exists
-            if (await _webhookRegistration.IsListMonitoredByWebhookAsync(config.SiteId!, config.ListId!))
+            if (await _webhookRegistrar.IsListMonitoredByWebhookAsync(config.SiteId!, config.ListId!))
             {
                 _logger.LogInformation("Webhook already registered for site {SiteId}, list {ListId}",
                     config.SiteId, config.ListId);
@@ -157,7 +157,7 @@ public class SharePointSetupWebhook(
             }
 
             // Register new webhook
-            var subscription = await _webhookRegistration.RegisterWebhookAsync(
+            var subscription = await _webhookRegistrar.RegisterWebhookAsync(
                 config.SiteId!,
                 config.ListId!,
                 config.CallbackUrl!);
@@ -216,17 +216,17 @@ public class SharePointSetupWebhook(
     /// <param name="req">The HTTP request data triggering this function.</param>
     /// <returns>A response containing the status of active webhooks, including
     /// total active subscriptions, those expiring soon, and metadata for each subscription.</returns>
-    [Function("GetWebhookStatus")]
-    public async Task<HttpResponseData> GetStatus(
-        [HttpTrigger(AuthorizationLevel.Admin, "get", Route = "setup/status")]
+    [Function("SharePointSubscriptions")]
+    public async Task<HttpResponseData> GetSharePointSubscriptionsAsync(
+        [HttpTrigger(AuthorizationLevel.Admin, "get", Route = "sharepoint/subscriptions")]
         HttpRequestData req)
     {
-        _logger.LogInformation("GetWebhookStatus function triggered");
+        _logger.LogInformation("GetSharePointSubscriptionsAsync function triggered");
 
         try
         {
-            var activeSubscriptions = await _webhookRegistration.GetActiveSubscriptionsAsync();
-            var expiringSubscriptions = await _webhookRegistration.GetExpiringSubscriptionsAsync();
+            var activeSubscriptions = await _webhookRegistrar.GetActiveSubscriptionsAsync();
+            var expiringSubscriptions = await _webhookRegistrar.GetExpiringSubscriptionsAsync();
 
             var subscriptions = activeSubscriptions as Subscription[] ?? activeSubscriptions.ToArray();
             var expiring = expiringSubscriptions as Subscription[] ?? expiringSubscriptions.ToArray();
@@ -275,16 +275,16 @@ public class SharePointSetupWebhook(
     /// <param name="req">The HTTP request data that triggers the function.</param>
     /// <returns>A <see cref="HttpResponseData"/> object containing the results of the renewal process. The response includes
     /// details of the processed subscriptions, the number of successful and failed renewals, and the processing timestamp.</returns>
-    [Function("RenewWebhooks")]
-    public async Task<HttpResponseData> RenewWebhooks(
-        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "setup/renew")]
+    [Function("SharePointSubscriptions")]
+    public async Task<HttpResponseData> RenewSharePointSubscriptionsAsync(
+        [HttpTrigger(AuthorizationLevel.Admin, "patch", Route = "sharepoint/subscriptions/renew")]
         HttpRequestData req)
     {
-        _logger.LogInformation("RenewWebhooks function triggered");
+        _logger.LogInformation("RenewSharePointSubscriptionsAsync function triggered");
 
         try
         {
-            var expiringSubscriptions = await _webhookRegistration.GetExpiringSubscriptionsAsync();
+            var expiringSubscriptions = await _webhookRegistrar.GetExpiringSubscriptionsAsync();
             var renewalResults = new List<object>();
 
             foreach (var subscription in expiringSubscriptions)
@@ -297,7 +297,7 @@ public class SharePointSetupWebhook(
 
                 try
                 {
-                    var success = await _webhookRegistration.RenewSubscriptionAsync(subscription.Id);
+                    var success = await _webhookRegistrar.RenewSubscriptionAsync(subscription.Id);
                     renewalResults.Add(new
                     {
                         SubscriptionId = subscription.Id,
@@ -368,23 +368,23 @@ public class SharePointSetupWebhook(
     /// <param name="subscriptionId">The ID of the webhook subscription to be deleted.</param>
     /// <returns>An <see cref="HttpResponseData"/> indicating the result of the delete operation,
     /// including success or the error encountered during the process.</returns>
-    [Function("DeleteWebhook")]
-    public async Task<HttpResponseData> DeleteWebhook(
-        [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "setup/{subscriptionId}")]
+    [Function("SharePointSubscriptions")]
+    public async Task<HttpResponseData> DeleteSubscriptionAsync(
+        [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "sharepoint/subscriptions/{subscriptionId}")]
         HttpRequestData req,
         string subscriptionId)
     {
-        _logger.LogInformation("DeleteWebhook function triggered for subscription {SubscriptionId}", subscriptionId);
+        _logger.LogInformation("DeleteSubscriptionAsync function triggered for subscription {SubscriptionId}", subscriptionId);
 
         try
         {
             if (string.IsNullOrWhiteSpace(subscriptionId))
             {
-                _logger.LogWarning("DeleteWebhook called with null/empty subscription ID");
+                _logger.LogWarning("DeleteSubscriptionAsync called with null/empty subscription ID");
                 return await CreateErrorResponseAsync(req, HttpStatusCode.BadRequest, "Subscription ID is required");
             }
 
-            var success = await _webhookRegistration.DeleteSubscriptionAsync(subscriptionId);
+            var success = await _webhookRegistrar.DeleteSubscriptionAsync(subscriptionId);
 
             if (success)
             {
@@ -429,19 +429,19 @@ public class SharePointSetupWebhook(
     /// An optional filter can be applied to further refine the selection of test subscriptions.
     /// <param name="req">The HTTP request data, which may include query parameters for filtering subscriptions, such as "testId".</param>
     /// <returns>An HTTP response containing the cleanup results, which includes the number of processed, successfully deleted, and failed test subscriptions.</returns>
-    [Function("CleanupTestWebhooks")]
-    public async Task<HttpResponseData> CleanupTestWebhooks(
-        [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "setup/cleanup/test")]
+    [Function("SharePointSubscriptions")]
+    public async Task<HttpResponseData> CleanupTestSubscriptionsAsync(
+        [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "sharepoint/subscriptions/test")]
         HttpRequestData req)
     {
-        _logger.LogInformation("CleanupTestWebhooks function triggered");
+        _logger.LogInformation("CleanupTestSubscriptionsAsync function triggered");
 
         try
         {
             var queryParams = HttpUtility.ParseQueryString(req.Url.Query);
             var testIdFilter = queryParams["testId"]; // Optional filter
 
-            var activeSubscriptions = await _webhookRegistration.GetActiveSubscriptionsAsync();
+            var activeSubscriptions = await _webhookRegistrar.GetActiveSubscriptionsAsync();
 
             // Find test subscriptions
             var testSubscriptions = activeSubscriptions.Where(s =>
@@ -457,7 +457,7 @@ public class SharePointSetupWebhook(
 
                 try
                 {
-                    var success = await _webhookRegistration.DeleteSubscriptionAsync(subscription.Id);
+                    var success = await _webhookRegistrar.DeleteSubscriptionAsync(subscription.Id);
                     deletionResults.Add(new
                     {
                         SubscriptionId = subscription.Id,

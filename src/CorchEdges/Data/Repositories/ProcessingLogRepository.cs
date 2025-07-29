@@ -7,7 +7,7 @@ namespace CorchEdges.Data.Repositories;
 /// <summary>
 /// Repository for managing ProcessingLog entities with business logic.
 /// </summary>
-public sealed class ProcessingLogRepository(EdgesDbContext context)
+public class ProcessingLogRepository(EdgesDbContext context)
 {
     /// <summary>
     /// Gets the latest delta link for SharePoint synchronization.

@@ -2,7 +2,6 @@
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
-using CorchEdges.Data.Entities;
 using CorchEdges.Data.Repositories;
 using CorchEdges.Models;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +18,7 @@ namespace CorchEdges.Services;
 /// such as logging, Microsoft Graph interactions, database updates, and file parsing.
 /// This class ensures the seamless handling of SharePoint-related notifications.
 /// </summary>
-public sealed class SharePointChangeHandler
+public class SharePointSyncProcessor : ISharePointSyncProcessor
 {
     /// <summary>
     /// Represents the path of the watched folder in a SharePoint drive. This is used
@@ -39,7 +38,7 @@ public sealed class SharePointChangeHandler
     /// <remarks>
     /// This field is utilized to perform operations such as testing connection, retrieving list items,
     /// drive items, and downloading content from Microsoft Graph. It is critical for handling operations
-    /// against Microsoft Graph services in the <c>SharePointChangeHandler</c> class.
+    /// against Microsoft Graph services in the <c>SharePointSyncProcessor</c> class.
     /// </remarks>
     private readonly IGraphFacade _graph;
 
@@ -90,6 +89,11 @@ public sealed class SharePointChangeHandler
     /// </summary>
     private readonly string _listId;
 
+    public int SuccessfulItems { get; private set; }
+    public int FailedCount { get; private set; }
+    public bool HasErrors { get; private set; }
+    public string? LastError { get; private set; }
+
 
     /// Handles and orchestrates changes specific to a SharePoint list or document library,
     /// enabling modular and maintainable integration with services such as logging,
@@ -98,7 +102,7 @@ public sealed class SharePointChangeHandler
     /// The constructor validates and initializes the required dependencies, database context,
     /// and identifiers for the SharePoint site, list, and monitored folder while ensuring
     /// proper format and integrity of the provided input parameters.
-    public SharePointChangeHandler(
+    public SharePointSyncProcessor(
         ILogger log,
         IGraphFacade graph,
         IExcelParser parser,
@@ -110,6 +114,11 @@ public sealed class SharePointChangeHandler
         string listId,
         string watchedPath)
     {
+        SuccessfulItems = 0;
+        FailedCount = 0;
+        HasErrors = false;
+        LastError = null;
+
         // Validate interface dependencies
         _log = log ?? throw new ArgumentNullException(nameof(log));
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
@@ -225,135 +234,119 @@ public sealed class SharePointChangeHandler
         return true;
     }
 
-    /// <summary>
-    /// Asynchronously processes a SharePoint change notification to manage updates to relevant resources.
-    /// </summary>
-    /// <param name="notifications">a collection of the <see cref="SharePointNotification"/> object containing details about the resource and change metadata.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation, which resolves to a boolean indicating whether the operation succeeded.</returns>
-    public async Task HandleAsync(IEnumerable<SharePointNotification> notifications)
+    public async Task<SharePointSyncResult> FetchAndStoreDeltaAsync()
     {
-        var notificationList = notifications.ToList();
-        var successfulItems = 0;
-        var failedCount = 0;
-        var hasErrors = false;
-        string? lastError = null;
+        await using var transaction = await _context.Database.BeginTransactionAsync();
 
-        foreach (var notification in notificationList) await ProcessNotificationAsync(notification);
+        var lastDataLink = await _processingLogRepository.GetDeltaLinkForSyncAsync(_siteId, _listId);
 
-        return;
-
-        async Task ProcessNotificationAsync(SharePointNotification notification)
+        var connection = _context.Database.GetDbConnection();
+        try
         {
-            await using var transaction = await _context.Database.BeginTransactionAsync();
+            _log.LogDebug("Pulling items delta");
 
-            var lastDataLink = await _processingLogRepository.GetDeltaLinkForSyncAsync(_siteId, _listId);
+            var (deltaLink, itemIds) = await _graph.PullItemsDeltaAsync(_siteId, _listId, lastDataLink);
 
-            var connection = _context.Database.GetDbConnection();
-            try
+            foreach (var itemId in itemIds)
             {
-                _log.LogDebug("Processing change notification for resource: {resource}", notification.Resource);
-
-                var (deltaLink, itemIds) = await _graph.PullItemsDeltaAsync(_siteId, _listId, lastDataLink);
-
-                foreach (var itemId in itemIds)
+                try
                 {
-                    try
-                    {
-                        await ProcessItemAsync(itemId, connection, transaction);
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.LogError(ex, 
-                            "Fatal error processing notification for resource: {resource}, error item: {itemId}.",
-                            notification.Resource, itemId);
-                        throw;
-                    }
+                    await FetchAndStoreItemAsync(itemId, connection, transaction);
                 }
-
-                // Create a new processing log for each notification
-                await RecordProcessingLogAsync(successfulItems, failedCount, hasErrors, lastError, deltaLink);
-                
-                await transaction.CommitAsync();
-
-                _log.LogInformation("Successfully processed {count} notifications", successfulItems);
+                catch (Exception ex)
+                {
+                    _log.LogError(ex,
+                        "Fatal error processing an item, error item: {itemId}.",
+                        itemId);
+                    throw;
+                }
             }
-            catch (Exception e)
-            {
-                _log.LogWarning("Transaction failed: {EMessage}", e.Message);
-                await transaction.RollbackAsync();
-                throw;
-            }
+
+            // Create a new processing log for each notification
+            await RecordProcessingLogAsync(SuccessfulItems, FailedCount, HasErrors, LastError, deltaLink);
+
+            await transaction.CommitAsync();
+
+            _log.LogInformation("Successfully processed {count} notifications", SuccessfulItems);
+            
+            return SharePointSyncResult.Succeeded();
         }
-
-        async Task ProcessItemAsync(string itemId, DbConnection connection, IDbContextTransaction transaction)
+        catch (Exception e)
         {
-            var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
-            if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
-                !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
-            {
-                _log.LogInformation("Skipping {id}", itemId);
-                return;
-            }
-
-            var di = await _graph.GetDriveItemAsync(_siteId, _listId, itemId) ??
-                     throw new InvalidOperationException("drive item null");
-
-            // Filter by watched folder
-            var parentPathRaw = di.ParentReference?.Path;
-            if (parentPathRaw is null)
-            {
-                _log.LogWarning("DriveItem has no parent path. Id={id}", di.Id);
-                return;
-            }
-
-            var parentCanon = Canon(parentPathRaw);
-            var watchedCanon = Canon(_watchedPath);
-
-            if (parentCanon != watchedCanon)
-            {
-                _log.LogInformation("Skipping item outside watched folder: {p}", parentCanon);
-                return;
-            }
-
-            // Filter by file extension before downloading
-            if (!IsExcelFile(di.Name))
-            {
-                _log.LogInformation("Skipping non-Excel file: {fileName}", di.Name);
-                return;
-            }
-
-            await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
-            await using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms);
-            var bytes = ms.ToArray();
-
-            var (ds, err) = _parser.Parse(bytes);
-            if (!string.IsNullOrEmpty(err))
-            {
-                _log.LogError("Parser error: {error}", err);
-                hasErrors = true;
-                lastError = err;
-                failedCount++;
-                return;
-            }
-
-            if (ds == null)
-            {
-                _log.LogError("Parser returned null dataset");
-                hasErrors = true;
-                lastError = "Parser returned null dataset";
-                failedCount++;
-                return;
-            }
-
-            var preparedDataSet = _dataSetConverter.ConvertForDatabase(ds);
-
-            await _db.WriteAsync(preparedDataSet, _context, connection, transaction.GetDbTransaction());
-
-            successfulItems++;
+            _log.LogWarning("Transaction failed: {EMessage}", e.Message);
+            await transaction.RollbackAsync();
+            throw;
         }
     }
 
+
+    private async Task FetchAndStoreItemAsync(string itemId, DbConnection connection, IDbContextTransaction transaction)
+    {
+        var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
+        if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
+            !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            _log.LogInformation("Skipping {id}", itemId);
+            return;
+        }
+
+        var di = await _graph.GetDriveItemAsync(_siteId, _listId, itemId) ??
+                 throw new InvalidOperationException("drive item null");
+
+        // Filter by watched folder
+        var parentPathRaw = di.ParentReference?.Path;
+        if (parentPathRaw is null)
+        {
+            _log.LogWarning("DriveItem has no parent path. Id={id}", di.Id);
+            return;
+        }
+
+        var parentCanon = Canon(parentPathRaw);
+        var watchedCanon = Canon(_watchedPath);
+
+        if (parentCanon != watchedCanon)
+        {
+            _log.LogInformation("Skipping item outside watched folder: {p}", parentCanon);
+            return;
+        }
+
+        // Filter by file extension before downloading
+        if (!IsExcelFile(di.Name))
+        {
+            _log.LogInformation("Skipping non-Excel file: {fileName}", di.Name);
+            return;
+        }
+
+        await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
+        await using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var bytes = ms.ToArray();
+
+        var (ds, err) = _parser.Parse(bytes);
+        if (!string.IsNullOrEmpty(err))
+        {
+            _log.LogError("Parser error: {error}", err);
+            HasErrors = true;
+            LastError = err;
+            FailedCount++;
+            return;
+        }
+
+        if (ds == null)
+        {
+            _log.LogError("Parser returned null dataset");
+            HasErrors = true;
+            LastError = "Parser returned null dataset";
+            FailedCount++;
+            return;
+        }
+
+        var preparedDataSet = _dataSetConverter.ConvertForDatabase(ds);
+
+        await _db.WriteAsync(preparedDataSet, _context, connection, transaction.GetDbTransaction());
+
+        SuccessfulItems++;
+    }
 
     /// <summary>
     /// Creates a new processing log record in the database to track the processing results.
@@ -371,7 +364,7 @@ public sealed class SharePointChangeHandler
             await _processingLogRepository.RecordFailedSyncAsync(_siteId, _listId, lastError!, failedItems);
         else
             await _processingLogRepository.RecordSuccessfulSyncAsync(_siteId, _listId, dataLink, successfulItems);
-        
+
         _log.LogDebug("Processing log created successfully");
     }
 

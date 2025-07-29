@@ -23,22 +23,9 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" Version="5.17.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.16.4" />
 
-<!--    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.5" />-->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8" PrivateAssets="all" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.8" PrivateAssets="all" />
 
-<!--    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.5">-->
-<!--      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>-->
-<!--      <PrivateAssets>all</PrivateAssets>-->
-<!--    </PackageReference>-->
-<!--    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.5">-->
-<!--      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>-->
-<!--      <PrivateAssets>all</PrivateAssets>-->
-<!--    </PackageReference>-->
-    
-    <!-- This should provide the Builder namespace -->
-<!--    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" />-->
-<!--    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.5" />-->
 
     
     <!-- Excel reading -->
@@ -53,7 +40,6 @@
     <PackageReference Include="Azure.Identity" Version="1.14.0" />
     
     <!-- Database (PostgreSQL) -->
-<!--    <PackageReference Include="Npgsql" Version="9.0.3" />-->
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.8" />
     <PackageReference Include="NPOI" Version="2.7.3" />
   </ItemGroup>
@@ -83,6 +69,10 @@
     <None Update="appsettings.development.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CorchEdges.Tests" />
   </ItemGroup>
 
 </Project>

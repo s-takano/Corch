@@ -43,9 +43,9 @@ namespace CorchEdges.Tests.Unit.Services
 
 
 
-        private SharePointChangeHandler CreateHandler(string watchedPath = "/sites/test/Shared Documents/WatchedFolder")
+        private SharePointSyncProcessor CreateHandler(string watchedPath = "/sites/test/Shared Documents/WatchedFolder")
         {
-            return new SharePointChangeHandler(
+            return new SharePointSyncProcessor(
                 _mockLogger.Object,
                 _mockGraph.Object,
                 _mockParser.Object,
@@ -73,7 +73,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     null!,
                     _mockGraph.Object,
                     _mockParser.Object,
@@ -91,7 +91,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     _mockLogger.Object,
                     null!,
                     _mockParser.Object,
@@ -109,7 +109,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     _mockLogger.Object,
                     _mockGraph.Object,
                     null!,
@@ -127,7 +127,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     _mockLogger.Object,
                     _mockGraph.Object,
                     _mockParser.Object,
@@ -145,7 +145,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     _mockLogger.Object,
                     _mockGraph.Object,
                     _mockParser.Object,
@@ -166,7 +166,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     _mockLogger.Object,
                     _mockGraph.Object,
                     _mockParser.Object,
@@ -189,7 +189,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     _mockLogger.Object,
                     _mockGraph.Object,
                     _mockParser.Object,
@@ -212,7 +212,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     _mockLogger.Object,
                     _mockGraph.Object,
                     _mockParser.Object,
@@ -235,7 +235,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     _mockLogger.Object,
                     _mockGraph.Object,
                     _mockParser.Object,
@@ -258,7 +258,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             // Act & Assert
             var exception = Assert.Throws<ArgumentException>(() =>
-                new SharePointChangeHandler(
+                new SharePointSyncProcessor(
                     _mockLogger.Object,
                     _mockGraph.Object,
                     _mockParser.Object,
@@ -281,7 +281,7 @@ namespace CorchEdges.Tests.Unit.Services
                 "contoso.sharepoint.com,12345678-1234-1234-1234-123456789012,87654321-4321-4321-4321-210987654321";
 
             // Act & Assert
-            var handler = new SharePointChangeHandler(
+            var handler = new SharePointSyncProcessor(
                 _mockLogger.Object,
                 _mockGraph.Object,
                 _mockParser.Object,
@@ -338,7 +338,8 @@ namespace CorchEdges.Tests.Unit.Services
                 .ReturnsAsync(new MemoryStream());
 
             // Act
-            await handler.HandleAsync([changeNotification]);
+            var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+            foreach (var notification in notificationList) await handler.FetchAndStoreDeltaAsync();
 
             // Assert
             _mockGraph.Verify(g => g.GetListItemAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
@@ -381,7 +382,8 @@ namespace CorchEdges.Tests.Unit.Services
                 .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
             // Act
-            await handler.HandleAsync([changeNotification]);
+            var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+            foreach (var notification in notificationList) await handler.FetchAndStoreDeltaAsync();
 
             // Assert
             VerifyLogMessage("Skipping item outside watched folder", Times.Once());
@@ -451,7 +453,8 @@ namespace CorchEdges.Tests.Unit.Services
             }
 
             // Act
-            await handler.HandleAsync([changeNotification]);
+            var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+            foreach (var notification in notificationList) await handler.FetchAndStoreDeltaAsync();
 
             // Assert
             if (shouldProcess)
@@ -505,7 +508,8 @@ namespace CorchEdges.Tests.Unit.Services
                 .ReturnsAsync(new MemoryStream());
 
             // Act
-            await handler.HandleAsync([changeNotification]);
+            var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+            foreach (var notification in notificationList) await handler.FetchAndStoreDeltaAsync();
 
             // Assert
             VerifyLogMessage("Skipping item outside watched folder", Times.Never());
@@ -568,7 +572,8 @@ namespace CorchEdges.Tests.Unit.Services
                 .ReturnsAsync(new MemoryStream());
 
             // Act
-            await handler.HandleAsync([changeNotification]);
+            var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+            foreach (var notification in notificationList) await handler.FetchAndStoreDeltaAsync();
 
             // Assert
             var processingLogs = await _mockContext.ProcessingLogs.ToListAsync();
@@ -626,7 +631,8 @@ namespace CorchEdges.Tests.Unit.Services
             
 
             // Act
-            await handler.HandleAsync([changeNotification]);
+            var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+            foreach (var notification in notificationList) await handler.FetchAndStoreDeltaAsync();
 
             // Assert
             var processingLogs = await _mockContext.ProcessingLogs.ToListAsync();

@@ -3,7 +3,7 @@
 namespace CorchEdges.Data.Entities;
 
 /// <summary>
-/// Represents a processing log entry used by SharePointChangeHandler to track
+/// Represents a processing log entry used by SharePointSyncProcessor to track
 /// delta synchronization state and processing history for SharePoint lists.
 /// </summary>
 public class ProcessingLog

@@ -1,11 +1,10 @@
-﻿using Microsoft.Azure.Functions.Worker;
+﻿using System.Net;
+using System.Text.Json;
+using System.Web;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using System.Net;
-using System.Web;
-using System.Text.Json;
 
-namespace CorchEdges.Functions;
+namespace CorchEdges.Functions.Testing;
 
 /// <summary>
 /// A class that handles webhook callbacks for test purposes.
@@ -185,7 +184,7 @@ public class TestWebhookCallback
                 message = "Test notification received successfully",
                 requestId = requestId,
                 timestamp = DateTimeOffset.UtcNow,
-                bodyLength = requestBody?.Length ?? 0
+                bodyLength = requestBody.Length 
             });
 
             await response.WriteStringAsync(responsePayload);

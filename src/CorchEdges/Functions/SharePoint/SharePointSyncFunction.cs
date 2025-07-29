@@ -5,7 +5,7 @@ using CorchEdges.Models;
 using CorchEdges.Services;
 using Microsoft.Extensions.Logging;
 
-namespace CorchEdges.Functions;
+namespace CorchEdges.Functions.SharePoint;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Azure Function – thin, DI‑friendly wrapper
@@ -18,25 +18,25 @@ namespace CorchEdges.Functions;
 /// It verifies the Microsoft Graph API connection, processes the notification messages,
 /// and handles errors such as failures in processing or connectivity issues.
 /// </remarks>
-public sealed class ProcessSharePointChange
+public sealed class SharePointSyncFunction
 {
     /// <summary>
     /// A logger instance used for logging information, warnings, errors, and debug-level messages
-    /// within the <see cref="ProcessSharePointChange"/> class to provide detailed traceability
+    /// within the <see cref="SharePointSyncFunction"/> class to provide detailed traceability
     /// of the SharePoint change processing workflow.
     /// </summary>
     /// <remarks>
-    /// This logger is specifically implemented for the <see cref="ProcessSharePointChange"/> class,
+    /// This logger is specifically implemented for the <see cref="SharePointSyncFunction"/> class,
     /// and it facilitates monitoring and troubleshooting by recording critical processing steps,
     /// errors, and additional context regarding Azure Function execution and external system interactions.
     /// </remarks>
-    private readonly ILogger<ProcessSharePointChange> _log;
+    private readonly ILogger<SharePointSyncFunction> _log;
 
     /// <summary>
-    /// Represents a private instance of the <see cref="SharePointChangeHandler"/> class.
+    /// Represents a private instance of the <see cref="SharePointSyncProcessor"/> class.
     /// Responsible for handling changes and processing notifications related to SharePoint changes.
     /// </summary>
-    private readonly SharePointChangeHandler _handler;
+    private readonly ISharePointSyncProcessor _processor;
 
     /// <summary>
     /// Represents a BlobContainerClient instance used to store failed SharePoint change notifications.
@@ -56,10 +56,10 @@ public sealed class ProcessSharePointChange
     /// wrapper leveraging Azure functions for triggering operations. It integrates
     /// with supporting services to ensure robust handling of SharePoint change events.
     /// </remarks>
-    public ProcessSharePointChange(ILogger<ProcessSharePointChange> log, SharePointChangeHandler handler, BlobServiceClient blobs)
+    internal SharePointSyncFunction(ILogger<SharePointSyncFunction> log, ISharePointSyncProcessor processor, BlobServiceClient blobs)
     {
         _log = log; 
-        _handler = handler; 
+        _processor = processor;
         _failed = blobs.GetBlobContainerClient("failed-changes");
         
         // Ensure the container exists (async fire-and-forget is fine for this)
@@ -84,49 +84,67 @@ public sealed class ProcessSharePointChange
     /// </summary>
     /// <param name="msg">The serialized SharePoint change notification message received from Service Bus.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    [Function(nameof(ProcessSharePointChange))]
-    public async Task RunAsync([ServiceBusTrigger("sp-changes", Connection="ServiceBusConnection")] string msg)
+    [Function(nameof(SharePointSyncFunction))]
+    public async Task<SharePointSyncResult> RunAsync([ServiceBusTrigger("sp-changes", Connection="ServiceBusConnection")] string msg)
     {
         try
         {
             // 🔍 Step 1: Verify Graph connection before processing
             _log.LogInformation("Verifying Graph API connection...");
             
-            var connectionValid = await _handler.EnsureGraphConnectionAsync();
+            var connectionValid = await _processor.EnsureGraphConnectionAsync();
             if (!connectionValid)
             {
                 _log.LogError("Graph API connection failed - aborting message processing");
                 
-                // Save the message to the failed blob for manual retry when the connection is restored
-                var blob = $"graph-connection-failed-{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}.json";
-                await _failed.UploadBlobAsync(blob, BinaryData.FromString(msg));
+                var blob = await SaveFailedMessageToBlob("graph-connection-failed", msg);
                 _log.LogWarning("Message saved to {blob} for retry when Graph connection is restored", blob);
                 
                 // Don't throw - this prevents infinite retries for credential issues
                 // The message is safely stored in blob storage for manual processing
-                return;
+                return SharePointSyncResult.Failed("Can't connect to Graph API");
             }
 
-            // 📨 Step 2: Process the notification message
-            _log.LogInformation("Processing SharePoint change notification...");
+            // 📨 Process the notification message
+            _log.LogInformation("Deserializing SharePoint change notification...");
             
             var env = JsonSerializer.Deserialize<NotificationEnvelope>(msg, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
             
             _log.LogInformation("Processing {count} change notifications", env.Value.Length);
-            
-            await _handler.HandleAsync(env.Value);
-            
+
+            foreach (var notification in env.Value.ToList())
+            {
+                _log.LogDebug("Processing change notification for resource: {resource}", notification.Resource);
+                var result = await _processor.FetchAndStoreDeltaAsync();
+                if (!result.Success)
+                {
+                    var blog = await SaveFailedMessageToBlob("processing-error", msg);
+                    _log.LogError("Error processing change notification: {error}, {blob}", result.ErrorReason, blog);
+                    break;
+                }
+                _log.LogInformation("Successfully processed {count} notifications", _processor.SuccessfulItems);
+            }
+
             _log.LogInformation("Successfully processed all change notifications");
+            
+            return SharePointSyncResult.Succeeded();
         }
         catch (Exception ex)
         {
             // 💾 Save failed message for analysis and potential retry
-            string blob = $"processing-error-{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}.json";
-            await _failed.UploadBlobAsync(blob, BinaryData.FromString(msg));
+            var blob = await SaveFailedMessageToBlob("processing-error", msg);
             _log.LogError(ex, "Unhandled error during message processing - saved to {blob}", blob);
             
             // Re-throw to trigger Service Bus retry logic
             throw;
         }
+    }
+
+    private async Task<string> SaveFailedMessageToBlob(string blobClass, string msg)
+    {
+        // Save the message to the failed blob for manual retry when the connection is restored
+        var blob = blobClass + $"-{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}.json";
+        await _failed.UploadBlobAsync(blob, BinaryData.FromString(msg));
+        return blob;
     }
 }

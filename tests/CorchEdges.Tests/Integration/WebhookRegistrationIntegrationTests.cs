@@ -12,14 +12,14 @@ namespace CorchEdges.Tests.Integration;
 [Collection("Integration")]
 public class WebhookRegistrationIntegrationTests : IntegrationTestBase
 {
-    private WebhookRegistration _webhookRegistration;
+    private WebhookRegistrar _webhookRegistrar;
     private readonly ILogger<WebhookRegistrationIntegrationTests> _logger;
     private readonly List<string> _createdSubscriptionIds = new();
 
     public WebhookRegistrationIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
         : base(fixture, output)
     {
-        _webhookRegistration = Services.GetRequiredService<WebhookRegistration>();
+        _webhookRegistrar = Services.GetRequiredService<WebhookRegistrar>();
         _logger = Services.GetRequiredService<ILogger<WebhookRegistrationIntegrationTests>>();
     }
 
@@ -27,7 +27,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
     {
         base.ConfigureServices(services);
         services.AddScoped<GraphServiceClient>(_ => new GraphServiceClient(new DefaultAzureCredential()));
-        services.AddScoped<WebhookRegistration>();
+        services.AddScoped<WebhookRegistrar>();
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         
         
         // Act
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId,
             listId,
             callbackUrl,
@@ -72,7 +72,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var firstSubscription = await _webhookRegistration.RegisterWebhookAsync(
+        var firstSubscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -80,7 +80,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         _createdSubscriptionIds.Add(firstSubscription.Id!);
 
         // Act - Register again with same URL
-        var secondSubscription = await _webhookRegistration.RegisterWebhookAsync(
+        var secondSubscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -102,7 +102,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await _webhookRegistration.RegisterWebhookAsync(siteId, listId, invalidCallbackUrl));
+            await _webhookRegistrar.RegisterWebhookAsync(siteId, listId, invalidCallbackUrl));
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -126,7 +126,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Act
-        var isMonitored = await _webhookRegistration.IsListMonitoredByWebhookAsync(siteId, listId);
+        var isMonitored = await _webhookRegistrar.IsListMonitoredByWebhookAsync(siteId, listId);
 
         // Assert
         isMonitored.Should().BeTrue();
@@ -140,7 +140,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var nonExistentListId = Guid.NewGuid().ToString();
 
         // Act
-        var isMonitored = await _webhookRegistration.IsListMonitoredByWebhookAsync(siteId, nonExistentListId);
+        var isMonitored = await _webhookRegistrar.IsListMonitoredByWebhookAsync(siteId, nonExistentListId);
 
         // Assert
         isMonitored.Should().BeFalse();
@@ -158,7 +158,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -167,7 +167,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Act
-        var isRegistered = await _webhookRegistration.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl);
+        var isRegistered = await _webhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl);
 
         // Assert
         isRegistered.Should().BeTrue();
@@ -181,7 +181,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var emptyListId = "test-empty-list";
 
         // Act
-        var status = await _webhookRegistration.GetListWebhookStatusAsync(emptySiteId, emptyListId);
+        var status = await _webhookRegistrar.GetListWebhookStatusAsync(emptySiteId, emptyListId);
 
         // Assert
         status.HasWebhooks.Should().BeFalse();
@@ -201,7 +201,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -210,7 +210,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Get status
-        var status = await _webhookRegistration.GetListWebhookStatusAsync(siteId, listId);
+        var status = await _webhookRegistrar.GetListWebhookStatusAsync(siteId, listId);
 
         // Assert
         status.HasWebhooks.Should().BeTrue();
@@ -238,7 +238,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -247,7 +247,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Check monitoring status
-        var isMonitored = await _webhookRegistration.IsListMonitoredByWebhookAsync(siteId, listId);
+        var isMonitored = await _webhookRegistrar.IsListMonitoredByWebhookAsync(siteId, listId);
 
         // Assert
         isMonitored.Should().BeTrue();
@@ -264,7 +264,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -273,8 +273,8 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Check specific registration
-        var isRegistered = await _webhookRegistration.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl);
-        var isNotRegistered = await _webhookRegistration.IsSpecificWebhookRegisteredAsync(siteId, listId, "https://different.com/webhook");
+        var isRegistered = await _webhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl);
+        var isNotRegistered = await _webhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, "https://different.com/webhook");
 
         // Assert
         isRegistered.Should().BeTrue();
@@ -292,7 +292,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -301,7 +301,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Act
-        var activeSubscriptions = await _webhookRegistration.GetActiveSubscriptionsAsync();
+        var activeSubscriptions = await _webhookRegistrar.GetActiveSubscriptionsAsync();
 
         // Assert
         var subscriptions = activeSubscriptions as Subscription[] ?? activeSubscriptions.ToArray();
@@ -321,7 +321,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -330,7 +330,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Act
-        var renewResult = await _webhookRegistration.RenewSubscriptionAsync(subscription.Id!, 2);
+        var renewResult = await _webhookRegistrar.RenewSubscriptionAsync(subscription.Id!, 2);
 
         // Assert
         renewResult.Should().BeTrue();
@@ -346,7 +346,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
@@ -356,7 +356,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await _webhookRegistration.RenewSubscriptionAsync(subscription.Id!, 5)); // More than 3 days
+            await _webhookRegistrar.RenewSubscriptionAsync(subscription.Id!, 5)); // More than 3 days
     }
 
     [Fact]
@@ -366,7 +366,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var invalidSubscriptionId = Guid.NewGuid().ToString();
 
         // Act
-        var renewResult = await _webhookRegistration.RenewSubscriptionAsync(invalidSubscriptionId);
+        var renewResult = await _webhookRegistrar.RenewSubscriptionAsync(invalidSubscriptionId);
 
         // Assert
         renewResult.Should().BeFalse();
@@ -383,20 +383,20 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistration.RegisterWebhookAsync(
+        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
             clientState: $"test-{testId}");
 
         // Act
-        var deleteResult = await _webhookRegistration.DeleteSubscriptionAsync(subscription.Id!);
+        var deleteResult = await _webhookRegistrar.DeleteSubscriptionAsync(subscription.Id!);
 
         // Assert
         deleteResult.Should().BeTrue();
         
         // Verify it's actually deleted by checking if the specific webhook is still registered
-        var isStillRegistered = await _webhookRegistration.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl);
+        var isStillRegistered = await _webhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl);
         isStillRegistered.Should().BeFalse();
     }
 
@@ -407,7 +407,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var invalidSubscriptionId = Guid.NewGuid().ToString();
 
         // Act
-        var deleteResult = await _webhookRegistration.DeleteSubscriptionAsync(invalidSubscriptionId);
+        var deleteResult = await _webhookRegistrar.DeleteSubscriptionAsync(invalidSubscriptionId);
 
         // Assert
         deleteResult.Should().BeFalse();
@@ -420,7 +420,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var timeWindow = TimeSpan.FromDays(30); // Look for subscriptions expiring in 30 days
 
         // Act
-        var expiringSubscriptions = await _webhookRegistration.GetExpiringSubscriptionsAsync(timeWindow);
+        var expiringSubscriptions = await _webhookRegistrar.GetExpiringSubscriptionsAsync(timeWindow);
 
         // Assert
         var subscriptions = expiringSubscriptions as Subscription[] ?? expiringSubscriptions.ToArray();
@@ -435,7 +435,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
     public override async Task InitializeAsync()
     {
         await base.InitializeAsync();
-        _logger.LogInformation("Starting WebhookRegistration integration tests");
+        _logger.LogInformation("Starting WebhookRegistrar integration tests");
     }
 
     public override async Task DisposeAsync()
@@ -446,7 +446,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         {
             try
             {
-                await _webhookRegistration.DeleteSubscriptionAsync(subscriptionId);
+                await _webhookRegistrar.DeleteSubscriptionAsync(subscriptionId);
                 _logger.LogInformation("Cleaned up subscription {SubscriptionId}", subscriptionId);
             }
             catch (Exception ex)
