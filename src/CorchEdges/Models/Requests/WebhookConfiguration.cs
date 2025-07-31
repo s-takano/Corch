@@ -1,37 +1,47 @@
-﻿namespace CorchEdges.Models.Requests;
+﻿using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 
+namespace CorchEdges.Models.Requests;
+
+/// <summary>
 /// Represents the configuration details required to set up a SharePoint webhook.
 /// This class is used to encapsulate the essential data needed for webhook registration and operation.
+/// </summary>
 public class WebhookConfiguration(string? siteId, string? listId, string? callbackUrl, string? functionAppName)
 {
     /// <summary>
-    /// Gets the unique identifier for the SharePoint site associated with
-    /// the webhook configuration. This property is essential to specify
-    /// the target SharePoint site where the webhook will be set up or managed.
+    /// The SharePoint site ID (GUID format). If not provided, will use the configured default site ID.
     /// </summary>
-    public string? SiteId { get; init; } = siteId;
-
-    /// Gets or sets the identifier of the SharePoint list for which the webhook is being set up.
-    /// This property is used to uniquely identify the list within a SharePoint site and is required
-    /// for registering or checking the existence of a webhook associated with the list.
-    public string? ListId { get; init; } = listId;
+    /// <example>12345678-1234-1234-1234-123456789012</example>
+    [OpenApiProperty(Description = "SharePoint site ID in GUID format. Optional if configured in app settings.")]
+    public string? SiteId { get; } = siteId;
 
     /// <summary>
-    /// Gets or sets the callback URL where the webhook notifications will be sent.
+    /// The SharePoint list ID (GUID format). If not provided, will use the configured default list ID.
     /// </summary>
-    /// <remarks>
-    /// The callback URL must be a valid HTTPS endpoint and must include any necessary authentication parameters.
-    /// It is used during webhook registration to specify the destination for notification events.
-    /// Proper validation of this URL is crucial to ensure secure and reliable communication.
-    /// </remarks>
-    public string? CallbackUrl { get; init; } = callbackUrl;
+    /// <example>87654321-4321-4321-4321-210987654321</example>
+    [OpenApiProperty(Description = "SharePoint list ID in GUID format. Optional if configured in app settings.")]
+    public string? ListId { get; } = listId;
 
     /// <summary>
-    /// Gets the name of the Azure Function App associated with the webhook.
+    /// The webhook callback URL. Must be an HTTPS URL with authentication parameter (?code=function-key).
+    /// If not provided, will be auto-generated using the function app name and function key.
     /// </summary>
-    /// <remarks>
-    /// This property is used to store or retrieve the name of the Azure Function App
-    /// that is responsible for handling webhook callback requests.
-    /// </remarks>
+    /// <example>https://your-app.azurewebsites.net/sharepoint/webhook?code=your-function-key</example>
+    [OpenApiProperty(Description = "HTTPS callback URL with authentication. Auto-generated if not provided.")]
+    public string? CallbackUrl { get; } = callbackUrl;
+
+    /// <summary>
+    /// The Azure Function App name used for auto-generating callback URLs. 
+    /// Typically populated automatically from WEBSITE_SITE_NAME environment variable.
+    /// </summary>
+    /// <example>my-function-app</example>
+    [OpenApiProperty(Description = "Function app name for URL generation. Usually auto-detected.")]
     public string? FunctionAppName { get; init; } = functionAppName;
+
+    /// <summary>
+    /// The function key used for webhook authentication. Should be provided in request body for security.
+    /// </summary>
+    /// <example>abc123def456ghi789jkl012mno345pqr678stu901vwx234yz==</example>
+    [OpenApiProperty(Description = "Function authorization key for webhook security. Required for webhook setup.")]
+    public string? FunctionKey { get; init; }
 }
