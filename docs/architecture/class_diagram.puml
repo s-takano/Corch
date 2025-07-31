@@ -1,4 +1,4 @@
-@startuml component     ' tell PlantUML “start in component-mode”
+@startuml component     ' tell PlantUML "start in component-mode"
 allow_mixing           
 
 !define AZURE_COLOR      #0078D4
@@ -14,40 +14,66 @@ cloud "Microsoft Graph API"     as GraphAPI      AZURE_COLOR
 cloud "Azure Blob Storage"      as BlobStorage   AZURE_COLOR
 
 package "CorchEdges.Functions" FUNCTION_COLOR {
-    class SharePointWebhookCallback {
-        - IWebhookProcessor svc
-        + Run(HttpRequestData req): Task<(HttpResponseData,string?)>
+    class ReceiveSharePointChangeNotification {
+        - ISharePointWebhookProcessor svc
+        - ILogger<ReceiveSharePointChangeNotification> logger
+        + record Out(string? BusMessage, HttpResponseData HttpResponse)
+        + Run(HttpRequestData req): Task<Out>
     }
 
-    class ProcessSharePointChange {
-        - ILogger<ProcessSharePointChange> _log
-        - SharePointChangeHandler _handler
+    class SharePointSyncFunction {
+        - ILogger<SharePointSyncFunction> _log
+        - SharePointSyncProcessor _processor
         - BlobContainerClient _failed
         + RunAsync(string msg): Task
+    }
+
+    class SharePointSubscriptionRegistrar {
+        - WebhookRegistrar _webhookRegistrar
+        - ILogger<SharePointSubscriptionRegistrar> _logger
+        - IConfiguration _configuration
+        + CreateSharePointSubscriptionAsync(HttpRequestData req): Task<HttpResponseData>
+        + GetSharePointSubscriptionsAsync(HttpRequestData req): Task<HttpResponseData>
+        + RenewSharePointSubscriptionsAsync(HttpRequestData req): Task<HttpResponseData>
+        + DeleteSubscriptionAsync(HttpRequestData req, string subscriptionId): Task<HttpResponseData>
     }
 }
 
 package "CorchEdges.Services" SERVICE_COLOR {
-    class DefaultWebhookProcessor {
+    class DefaultSharePointWebhookProcessor {
         + TryHandshake(HttpRequestData req): HttpResponseData?
         + BuildEnqueueAsync(HttpRequestData req): Task<(HttpResponseData,string?)>
     }
 
-    class SharePointChangeHandler {
+    class SharePointSyncProcessor {
         - ILogger _log
-        - IGraphFacade _graph
+        - IGraphApiClient _graphApiClient
         - IExcelParser _parser
         - IDatabaseWriter _db
         - EdgesDbContext _context
         - string _siteId
         - string _listId
         + EnsureGraphConnectionAsync(): Task<bool>
-        + HandleAsync(ChangeNotification change): Task
+        + FetchAndStoreDeltaAsync(): Task
     }
+    
+    class WebhookRegistrar {
+        + RegisterWebhookAsync(): Task<Subscription>
+        + IsListMonitoredByWebhookAsync(): Task<bool>
+        + GetListWebhookStatusAsync: Task<ListWebhookStatus>
+        + IsSpecificWebhookRegisteredAsync(): Task<bool>
+        + GetSubscriptionsForListAsync(): Task<IReadOnlyList<Subscription>>
+        + GetActiveSubscriptionsAsync(): Task<IReadOnlyList<Subscription>>
+        + RenewSubscriptionAsync(): Task<bool>
+        + DeleteSubscriptionAsync(string subscriptionId): Task<bool>
+        + GetExpiringSubscriptionsAsync(): Task<IReadOnlyList<Subscription>>
+        + GetTestSubscriptionsAsync(string? testIdFilter = null): Task<IEnumerable<Subscription>>
+        + CleanupTestSubscriptionsAsync(string? testIdFilter = null): Task<int>
+    } 
 }
 
 package "CorchEdges.Abstractions" INTERFACE_COLOR {
-    interface IWebhookProcessor {
+    interface ISharePointWebhookProcessor {
         + TryHandshake(HttpRequestData req): HttpResponseData?
         + BuildEnqueueAsync(HttpRequestData req): Task<(HttpResponseData,string?)>
     }
@@ -56,7 +82,7 @@ package "CorchEdges.Abstractions" INTERFACE_COLOR {
         + Parse(byte[] bytes): (DataSet?,string?)
     }
 
-    interface IGraphFacade {
+    interface IGraphApiClient {
         + TestConnectionAsync(): Task<GraphResult>
         + GetListItemAsync(string siteId,string listId,string itemId): Task<ListItem?>
         + GetDriveItemAsync(string siteId,string listId,string itemId): Task<DriveItem?>
@@ -80,21 +106,23 @@ package "CorchEdges.Models" {
     }
 }
 
-SharePointWebhookCallback --> IWebhookProcessor
-DefaultWebhookProcessor  ..|> IWebhookProcessor
-ProcessSharePointChange  --> SharePointChangeHandler
-ProcessSharePointChange  --> NotificationEnvelope
-SharePointChangeHandler  --> IGraphFacade
-SharePointChangeHandler  --> IExcelParser
-SharePointChangeHandler  --> IDatabaseWriter
-SharePointChangeHandler  --> ChangeNotification
+ReceiveSharePointChangeNotification --> ISharePointWebhookProcessor
+DefaultSharePointWebhookProcessor  ..|> ISharePointWebhookProcessor
+SharePointSyncFunction  --> SharePointSyncProcessor
+SharePointSyncFunction  --> NotificationEnvelope
+SharePointSyncProcessor  --> IGraphApiClient
+SharePointSyncProcessor  --> IExcelParser
+SharePointSyncProcessor  --> IDatabaseWriter
+SharePointSyncProcessor  --> ChangeNotification
+SharePointSubscriptionRegistrar --> WebhookRegistrar
 NotificationEnvelope     --> ChangeNotification
 
-AzureFunction            --> SharePointWebhookCallback : HTTP Trigger
-AzureFunction            --> ProcessSharePointChange   : ServiceBus Trigger
-ServiceBus               --> ProcessSharePointChange
-SharePointWebhookCallback --> ServiceBus               : enqueues
-SharePointChangeHandler  --> GraphAPI                  : calls
-ProcessSharePointChange  --> BlobStorage               : logs failed
+AzureFunction            --> ReceiveSharePointChangeNotification : HTTP Trigger
+AzureFunction            --> SharePointSyncFunction   : ServiceBus Trigger
+AzureFunction            --> SharePointSubscriptionRegistrar : HTTP Trigger
+ServiceBus               --> SharePointSyncFunction
+ReceiveSharePointChangeNotification --> ServiceBus               : enqueues
+SharePointSyncProcessor  --> GraphAPI                  : calls
+SharePointSyncFunction  --> BlobStorage               : logs failed
 
 @enduml

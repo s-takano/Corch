@@ -28,7 +28,7 @@ public sealed record ConnectionTestResult(
 /// such as retrieving SharePoint list items, accessing drive items,
 /// downloading files, and testing connectivity to Microsoft Graph.
 /// </summary>
-public interface IGraphFacade
+public interface IGraphApiClient
 {
     /// Retrieves a specific list item from a SharePoint site using its site ID, list ID, and item ID.
     /// <param name="siteId">The unique identifier of the SharePoint site containing the list.</param>

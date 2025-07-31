@@ -14,7 +14,7 @@ namespace CorchEdges.Tests.Unit.Core
             byte[] validExcelBytes = LoadTestFile("TestData/valid-data.xlsx");
 
             // Act
-            var (dataSet, error) = _parser.Parse(validExcelBytes);
+            var (dataSet, error) = _parser.Parse(new MemoryStream(validExcelBytes));
 
             // Assert
             Assert.NotNull(dataSet);
@@ -29,7 +29,7 @@ namespace CorchEdges.Tests.Unit.Core
             var validExcelBytes = LoadTestFile("TestData/valid-data.xlsx");
 
             // Act
-            var (dataSet, error) = _parser.Parse(validExcelBytes);
+            var (dataSet, error) = _parser.Parse(new MemoryStream(validExcelBytes));
 
             // Assert
             Assert.NotNull(dataSet);
@@ -45,7 +45,7 @@ namespace CorchEdges.Tests.Unit.Core
             byte[] validExcelBytes = LoadTestFile("TestData/valid-data.xlsx");
 
             // Act
-            var (dataSet, error) = _parser.Parse(validExcelBytes);
+            var (dataSet, error) = _parser.Parse(new MemoryStream(validExcelBytes));
 
             // Assert
             Assert.NotNull(dataSet);
@@ -68,7 +68,7 @@ namespace CorchEdges.Tests.Unit.Core
             byte[] emptyBytes = Array.Empty<byte>();
 
             // Act
-            var (dataSet, error) = _parser.Parse(emptyBytes);
+            var (dataSet, error) = _parser.Parse(new MemoryStream(emptyBytes));;
 
             // Assert
             Assert.Null(dataSet);
@@ -83,7 +83,7 @@ namespace CorchEdges.Tests.Unit.Core
             byte[] invalidBytes = "This is not an Excel file"u8.ToArray();
 
             // Act
-            var (dataSet, error) = _parser.Parse(invalidBytes);
+            var (dataSet, error) = _parser.Parse(new MemoryStream(invalidBytes));;
 
             // Assert
             Assert.Null(dataSet);
@@ -99,7 +99,7 @@ namespace CorchEdges.Tests.Unit.Core
             Random.Shared.NextBytes(corruptedBytes);
 
             // Act
-            var (dataSet, error) = _parser.Parse(corruptedBytes);
+            var (dataSet, error) = _parser.Parse(new MemoryStream(corruptedBytes));;;
 
             // Assert
             Assert.Null(dataSet);
@@ -115,7 +115,7 @@ namespace CorchEdges.Tests.Unit.Core
             byte[] fileBytes = LoadTestFile(fileName);
 
             // Act
-            var (dataSet, error) = _parser.Parse(fileBytes);
+            var (dataSet, error) = _parser.Parse(new MemoryStream(fileBytes));;
 
             // Assert
             Assert.NotNull(dataSet);
@@ -129,7 +129,7 @@ namespace CorchEdges.Tests.Unit.Core
             byte[] validExcelBytes = LoadTestFile("TestData/valid-data.xlsx");
 
             // Act
-            var (dataSet, error) = _parser.Parse(validExcelBytes);
+            var (dataSet, error) = _parser.Parse(new MemoryStream(validExcelBytes));;
 
             // Assert
             Assert.NotNull(dataSet);
@@ -163,7 +163,7 @@ namespace CorchEdges.Tests.Unit.Core
             byte[] excelBytes = File.ReadAllBytes(excelFilePath);
 
             // Act
-            var (dataSet, error) = parser.Parse(excelBytes);
+            var (dataSet, error) = parser.Parse(new MemoryStream(excelBytes));
 
             // Assert
             Assert.Null(error);

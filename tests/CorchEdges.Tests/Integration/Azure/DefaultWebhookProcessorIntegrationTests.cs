@@ -10,12 +10,12 @@ namespace CorchEdges.Tests.Integration.Azure;
 [Trait("Component", "WebhookProcessor")]
 public class DefaultWebhookProcessorIntegrationTests
 {
-    private readonly DefaultWebhookProcessor _processor;
+    private readonly DefaultSharePointWebhookProcessor _processor;
 
     public DefaultWebhookProcessorIntegrationTests()
     {
-        var mockLogger = new Mock<ILogger<DefaultWebhookProcessor>>();
-        _processor = new DefaultWebhookProcessor(mockLogger.Object);
+        var mockLogger = new Mock<ILogger<DefaultSharePointWebhookProcessor>>();
+        _processor = new DefaultSharePointWebhookProcessor(mockLogger.Object);
     }
 
     [Fact]
@@ -30,17 +30,17 @@ public class DefaultWebhookProcessorIntegrationTests
     [Trait("Architecture", "Interface")]
     public void DefaultWebhookProcessor_ImplementsIWebhookProcessor()
     {
-        // Verify that DefaultWebhookProcessor implements the expected interface
-        Assert.IsAssignableFrom<IWebhookProcessor>(_processor);
+        // Verify that DefaultSharePointWebhookProcessor implements the expected interface
+        Assert.IsAssignableFrom<ISharePointWebhookProcessor>(_processor);
     }
 
     [Fact]
     [Trait("Documentation", "TestingStrategy")]
     public void DefaultWebhookProcessor_TestingApproach_Documented()
     {
-        // Document the testing approach for DefaultWebhookProcessor:
+        // Document the testing approach for DefaultSharePointWebhookProcessor:
         //
-        // 1. Unit Tests (DefaultWebhookProcessorTests):
+        // 1. Unit Tests (DefaultSharePointWebhookProcessorTests):
         //    - Query string parsing logic (extracted from TryHandshake)
         //    - String validation logic (extracted from BuildEnqueueAsync)
         //    - Constructor and dependency validation
@@ -63,7 +63,7 @@ public class DefaultWebhookProcessorIntegrationTests
         // This approach avoids the complexity of mocking Azure Function types
         // while ensuring comprehensive test coverage.
         
-        Assert.True(true, "Testing strategy documented for DefaultWebhookProcessor");
+        Assert.True(true, "Testing strategy documented for DefaultSharePointWebhookProcessor");
     }
 
     [Fact]
@@ -74,8 +74,8 @@ public class DefaultWebhookProcessorIntegrationTests
         // The actual logging behavior is tested through end-to-end tests
         // where we can verify log messages in the test output
         
-        var loggerMock = new Mock<ILogger<DefaultWebhookProcessor>>();
-        var processor = new DefaultWebhookProcessor(loggerMock.Object);
+        var loggerMock = new Mock<ILogger<DefaultSharePointWebhookProcessor>>();
+        var processor = new DefaultSharePointWebhookProcessor(loggerMock.Object);
         
         Assert.NotNull(processor);
         // Logger usage is verified in SharePointWebhookCallbackIntegrationTests

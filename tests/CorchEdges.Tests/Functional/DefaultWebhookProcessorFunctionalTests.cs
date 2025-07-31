@@ -11,7 +11,7 @@ namespace CorchEdges.Tests.Functional;
 [Trait("Component", "WebhookProcessor")]
 public class DefaultWebhookProcessorFunctionalTests
 {
-    private readonly Mock<ILogger<DefaultWebhookProcessor>> _mockLogger = new();
+    private readonly Mock<ILogger<DefaultSharePointWebhookProcessor>> _mockLogger = new();
 
     [Fact]
     [Trait("Business Logic", "QueryStringValidation")]
@@ -19,7 +19,7 @@ public class DefaultWebhookProcessorFunctionalTests
     {
         // Test the core business logic used in TryHandshake without Azure Function dependencies
         
-        // This is the exact logic from DefaultWebhookProcessor.TryHandshake
+        // This is the exact logic from DefaultSharePointWebhookProcessor.TryHandshake
         var testCases = new[]
         {
             ("https://example.com?validationtoken=abc123", true, "abc123"),
@@ -101,15 +101,15 @@ public class DefaultWebhookProcessorFunctionalTests
     {
         // Functional test: Verify the processor is stateless and thread-safe
         
-        var processor1 = new DefaultWebhookProcessor(_mockLogger.Object);
-        var processor2 = new DefaultWebhookProcessor(_mockLogger.Object);
+        var processor1 = new DefaultSharePointWebhookProcessor(_mockLogger.Object);
+        var processor2 = new DefaultSharePointWebhookProcessor(_mockLogger.Object);
         
         // Processors should be independent instances
         Assert.NotSame(processor1, processor2);
         
         // No mutable state should be shared between instances
         // (except the logger, which is injected and should be thread-safe)
-        Assert.True(true, "DefaultWebhookProcessor is stateless by design");
+        Assert.True(true, "DefaultSharePointWebhookProcessor is stateless by design");
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class DefaultWebhookProcessorFunctionalTests
     {
         // Functional test: Verify the processor has a small memory footprint
         
-        var processor = new DefaultWebhookProcessor(_mockLogger.Object);
+        var processor = new DefaultSharePointWebhookProcessor(_mockLogger.Object);
         
         // Should only hold a reference to the logger
         // No large data structures or caches
@@ -133,6 +133,6 @@ public class DefaultWebhookProcessorFunctionalTests
         
         // Object should be eligible for collection when no longer referenced
         // (This test documents the expected memory behavior)
-        Assert.True(true, "DefaultWebhookProcessor has minimal memory footprint");
+        Assert.True(true, "DefaultSharePointWebhookProcessor has minimal memory footprint");
     }
 }

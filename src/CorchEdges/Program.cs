@@ -72,7 +72,7 @@ var host = Host.CreateDefaultBuilder(args)
             return new BlobServiceClient(new Uri(blobServiceUri), credential);
         });
 
-        svcs.AddScoped<IWebhookProcessor, DefaultWebhookProcessor>();
+        svcs.AddScoped<ISharePointWebhookProcessor, DefaultSharePointWebhookProcessor>();
 
         RegisterDatabaseServices(svcs, ctx.Configuration);
         RegisterGraph(svcs);
@@ -164,7 +164,7 @@ static void RegisterGraph(IServiceCollection svcs)
         return new GraphServiceClient(credential, scopes);
     });
 
-    svcs.AddTransient<IGraphFacade, GraphFacade>();
+    svcs.AddTransient<IGraphApiClient, GraphApiClient>();
 
     Console.WriteLine("✓ Graph services registration completed.");
 }
@@ -206,7 +206,7 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
 
     svcs.AddScoped<SharePointSyncProcessor>(p => new SharePointSyncProcessor(
         p.GetRequiredService<ILogger<SharePointSyncProcessor>>(),
-        p.GetRequiredService<IGraphFacade>(),
+        p.GetRequiredService<IGraphApiClient>(),
         p.GetRequiredService<IExcelParser>(),
         p.GetRequiredService<IDatabaseWriter>(),
         p.GetRequiredService<EdgesDbContext>(),

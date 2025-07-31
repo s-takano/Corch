@@ -2,6 +2,7 @@
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Functions.SharePoint;
 using CorchEdges.Models;

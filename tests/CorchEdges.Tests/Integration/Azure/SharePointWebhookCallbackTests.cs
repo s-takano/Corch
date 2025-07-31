@@ -17,13 +17,13 @@ namespace CorchEdges.Tests.Integration.Azure;
 [Trait("Service", "SharePointWebhook")]
 public class SharePointWebhookCallbackIntegrationTests
 {
-    private readonly Mock<IWebhookProcessor> _mockProcessor;
+    private readonly Mock<ISharePointWebhookProcessor> _mockProcessor;
     private readonly ReceiveSharePointChangeNotification _function;
     private readonly Mock<ILogger<ReceiveSharePointChangeNotification>> _mockLogger;
 
     public SharePointWebhookCallbackIntegrationTests()
     {
-        _mockProcessor = new Mock<IWebhookProcessor>();
+        _mockProcessor = new Mock<ISharePointWebhookProcessor>();
         _mockLogger = new Mock<ILogger<ReceiveSharePointChangeNotification>>();
         _function = new ReceiveSharePointChangeNotification(_mockProcessor.Object, _mockLogger.Object);
     }
@@ -150,7 +150,7 @@ public class SharePointWebhookCallbackIntegrationTests
     public void SharePointWebhookCallback_Constructor_AcceptsIWebhookProcessor()
     {
         // Test that the Azure Function properly accepts the abstraction
-        var mockProcessor = new Mock<IWebhookProcessor>();
+        var mockProcessor = new Mock<ISharePointWebhookProcessor>();
         var function = new ReceiveSharePointChangeNotification(mockProcessor.Object, Mock.Of<ILogger<ReceiveSharePointChangeNotification>>());
         
         Assert.NotNull(function);

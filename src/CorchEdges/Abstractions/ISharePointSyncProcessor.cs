@@ -1,6 +1,6 @@
 ﻿using CorchEdges.Models;
 
-namespace CorchEdges.Services;
+namespace CorchEdges.Abstractions;
 
 public interface ISharePointSyncProcessor
 {

@@ -25,8 +25,8 @@ public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
         var excelFilePath = Path.Combine("TestData", "valid-data.xlsx");
         Assert.True(File.Exists(excelFilePath), $"Test file not found: {excelFilePath}");
 
-        byte[] excelBytes = await File.ReadAllBytesAsync(excelFilePath);
-        var (sourceDataSet, _) = _excelParser.Parse(excelBytes);
+        var excelBytes = await File.ReadAllBytesAsync(excelFilePath);
+        var (sourceDataSet, _) = _excelParser.Parse(new MemoryStream(excelBytes));
 
         Assert.NotNull(sourceDataSet);
         Assert.True(sourceDataSet.Tables.Count > 0, "Excel file should contain at least one table");
@@ -60,7 +60,7 @@ public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
         // Arrange
         var excelFilePath = Path.Combine("TestData", "valid-data.xlsx");
         byte[] excelBytes = await File.ReadAllBytesAsync(excelFilePath);
-        var (sourceDataSet, _) = _excelParser.Parse(excelBytes);
+        var (sourceDataSet, _) = _excelParser.Parse(new MemoryStream(excelBytes));
 
         var preparedDataSet = _dataSetConverter.ConvertForDatabase(sourceDataSet!);
         var sourceTable = preparedDataSet.Tables.Cast<DataTable>().First(t => t.Rows.Count > 0);

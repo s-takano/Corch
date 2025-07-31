@@ -17,19 +17,19 @@ namespace CorchEdges.Services;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// A default implementation of the <see cref="IWebhookProcessor"/> interface used to handle webhook requests.
+/// A default implementation of the <see cref="ISharePointWebhookProcessor"/> interface used to handle webhook requests.
 /// </summary>
 /// <remarks>
-/// The <c>DefaultWebhookProcessor</c> class provides two main functionalities:
+/// The <c>DefaultSharePointWebhookProcessor</c> class provides two main functionalities:
 /// - Handling and responding to validation handshake requests.
 /// - Building and queuing notification payloads.
 /// This class relies on an <see cref="ILogger{TCategoryName}"/> for logging important information during the execution.
 /// </remarks>
-public sealed class DefaultWebhookProcessor(ILogger<DefaultWebhookProcessor> log) : IWebhookProcessor
+public sealed class DefaultSharePointWebhookProcessor(ILogger<DefaultSharePointWebhookProcessor> log) : ISharePointWebhookProcessor
 {
     /// <summary>
     /// Represents the logger instance used for logging information, warnings, errors, and other messages
-    /// within the <see cref="DefaultWebhookProcessor"/> class. This instance facilitates structured logging.
+    /// within the <see cref="DefaultSharePointWebhookProcessor"/> class. This instance facilitates structured logging.
     /// </summary>
     private readonly ILogger _log = log ?? throw new ArgumentNullException(nameof(log));
 

@@ -12,11 +12,11 @@ namespace CorchEdges.Abstractions;
 /// </remarks>
 public interface IExcelParser {
     /// Parses an Excel file represented as a byte array, extracting its contents into a DataSet, or returns an error message if parsing fails.
-    /// <param name="bytes">The byte array representing the Excel file to be parsed.</param>
+    /// <param name="stream"></param>
     /// <returns>
     /// A tuple containing:
     /// - A DataSet object containing tables for each valid worksheet in the Excel file, or null if parsing fails.
     /// - A string containing an error message if parsing fails, or null if parsing is successful.
     /// </returns>
-    (DataSet?, string?) Parse(byte[] bytes); 
+    (DataSet?, string?) Parse(Stream stream); 
 }

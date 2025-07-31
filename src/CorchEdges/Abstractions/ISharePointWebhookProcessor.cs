@@ -6,7 +6,7 @@ namespace CorchEdges.Abstractions;
 /// Represents a processor that handles incoming webhook requests
 /// and performs handshake verifications or enqueue operations.
 /// </summary>
-public interface IWebhookProcessor
+public interface ISharePointWebhookProcessor
 {
     /// <summary>
     /// Returns a handshake response or <c>null</c> when the request is not a handshake.

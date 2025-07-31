@@ -12,16 +12,16 @@ namespace CorchEdges.Tests.Unit.Core;
 
 [Trait("Category", "Unit")]
 [Trait("Component", "WebhookProcessor")]
-public class DefaultWebhookProcessorTests
+public class DefaultSharePointWebhookProcessorTests
 {
-    private readonly Mock<ILogger<DefaultWebhookProcessor>> _mockLogger;
-    private readonly DefaultWebhookProcessor _processor;
+    private readonly Mock<ILogger<DefaultSharePointWebhookProcessor>> _mockLogger;
+    private readonly DefaultSharePointWebhookProcessor _processor;
     private readonly TestFunctionContext _functionContext;
 
-    public DefaultWebhookProcessorTests()
+    public DefaultSharePointWebhookProcessorTests()
     {
-        _mockLogger = new Mock<ILogger<DefaultWebhookProcessor>>();
-        _processor = new DefaultWebhookProcessor(_mockLogger.Object);
+        _mockLogger = new Mock<ILogger<DefaultSharePointWebhookProcessor>>();
+        _processor = new DefaultSharePointWebhookProcessor(_mockLogger.Object);
         _functionContext = new TestFunctionContext();
     }
 

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using CorchEdges.Abstractions;
 using CorchEdges.Models;
 using CorchEdges.Services;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;

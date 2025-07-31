@@ -14,7 +14,7 @@ namespace CorchEdges.Utilities;
 /// and testing connectivity. It provides a simplified interface for making
 /// requests and handling responses from the Microsoft Graph API.
 /// </remarks>
-public sealed class GraphFacade(GraphServiceClient graphServiceClient) : IGraphFacade
+public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGraphApiClient
 {
     /// <summary>
     /// Retrieves a list item from a specific SharePoint list within a specified site.

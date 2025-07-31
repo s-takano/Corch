@@ -13,21 +13,21 @@ namespace CorchEdges.Tests.Contract;
 [Trait("Component", "WebhookProcessor")]
 public class WebhookProcessorContractTests
 {
-    private readonly Mock<ILogger<DefaultWebhookProcessor>> _mockLogger;
-    private readonly DefaultWebhookProcessor _processor;
+    private readonly Mock<ILogger<DefaultSharePointWebhookProcessor>> _mockLogger;
+    private readonly DefaultSharePointWebhookProcessor _processor;
 
     public WebhookProcessorContractTests()
     {
-        _mockLogger = new Mock<ILogger<DefaultWebhookProcessor>>();
-        _processor = new DefaultWebhookProcessor(_mockLogger.Object);
+        _mockLogger = new Mock<ILogger<DefaultSharePointWebhookProcessor>>();
+        _processor = new DefaultSharePointWebhookProcessor(_mockLogger.Object);
     }
 
     [Fact]
     [Trait("Contract", "Interface")]
     public void DefaultWebhookProcessor_ImplementsIWebhookProcessor()
     {
-        // Contract test: Verify that DefaultWebhookProcessor implements the expected interface
-        Assert.IsAssignableFrom<IWebhookProcessor>(_processor);
+        // Contract test: Verify that DefaultSharePointWebhookProcessor implements the expected interface
+        Assert.IsAssignableFrom<ISharePointWebhookProcessor>(_processor);
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public class WebhookProcessorContractTests
     public void TryHandshake_Method_HasCorrectSignature()
     {
         // Contract test: Verify method signature matches interface
-        var method = typeof(DefaultWebhookProcessor).GetMethod("TryHandshake");
+        var method = typeof(DefaultSharePointWebhookProcessor).GetMethod("TryHandshake");
         Assert.NotNull(method);
         
         // Should take Azure Functions HttpRequestData and return HttpResponseData?
@@ -50,7 +50,7 @@ public class WebhookProcessorContractTests
     public void BuildEnqueueAsync_Method_HasCorrectSignature()
     {
         // Contract test: Verify method signature matches interface
-        var method = typeof(DefaultWebhookProcessor).GetMethod("BuildEnqueueAsync");
+        var method = typeof(DefaultSharePointWebhookProcessor).GetMethod("BuildEnqueueAsync");
         Assert.NotNull(method);
         
         // Should take Azure Functions HttpRequestData and return Task<(HttpResponseData, string?)>
@@ -80,7 +80,7 @@ public class WebhookProcessorContractTests
         // Contract test: Verify that the interface uses the correct Azure Function types
         // This helps catch namespace confusion issues
         
-        var interfaceType = typeof(IWebhookProcessor);
+        var interfaceType = typeof(ISharePointWebhookProcessor);
         
         var tryHandshakeMethod = interfaceType.GetMethod("TryHandshake");
         Assert.NotNull(tryHandshakeMethod);
@@ -106,17 +106,17 @@ public class WebhookProcessorContractTests
     public void Constructor_AcceptsRequiredDependencies()
     {
         // Contract test: Verify constructor accepts the expected dependencies
-        var constructor = typeof(DefaultWebhookProcessor)
-            .GetConstructor(new[] { typeof(ILogger<DefaultWebhookProcessor>) });
+        var constructor = typeof(DefaultSharePointWebhookProcessor)
+            .GetConstructor(new[] { typeof(ILogger<DefaultSharePointWebhookProcessor>) });
         
         Assert.NotNull(constructor);
         
         // Should be able to create instance with logger
-        var logger = Mock.Of<ILogger<DefaultWebhookProcessor>>();
+        var logger = Mock.Of<ILogger<DefaultSharePointWebhookProcessor>>();
         var instance = constructor.Invoke(new object[] { logger });
         
         Assert.NotNull(instance);
-        Assert.IsType<DefaultWebhookProcessor>(instance);
+        Assert.IsType<DefaultSharePointWebhookProcessor>(instance);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class WebhookProcessorContractTests
     public void DefaultWebhookProcessor_RequiresLogger()
     {
         // Contract test: Verify that logger is required (not optional)
-        Assert.Throws<ArgumentNullException>(() => new DefaultWebhookProcessor(null!));
+        Assert.Throws<ArgumentNullException>(() => new DefaultSharePointWebhookProcessor(null!));
     }
 
     [Theory]

@@ -33,14 +33,14 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     private readonly ILogger _log;
 
     /// <summary>
-    /// Represents a private field of type <c>IGraphFacade</c> used to interact with the Microsoft Graph API.
+    /// Represents a private field of type <c>IGraphApiClient</c> used to interact with the Microsoft Graph API.
     /// </summary>
     /// <remarks>
     /// This field is utilized to perform operations such as testing connection, retrieving list items,
     /// drive items, and downloading content from Microsoft Graph. It is critical for handling operations
     /// against Microsoft Graph services in the <c>SharePointSyncProcessor</c> class.
     /// </remarks>
-    private readonly IGraphFacade _graph;
+    private readonly IGraphApiClient _graph;
 
     /// <summary>
     /// Represents the parser used for converting Excel file byte data into
@@ -104,7 +104,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     /// proper format and integrity of the provided input parameters.
     public SharePointSyncProcessor(
         ILogger log,
-        IGraphFacade graph,
+        IGraphApiClient graph,
         IExcelParser parser,
         IDatabaseWriter db,
         EdgesDbContext context,
@@ -322,7 +322,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         await stream.CopyToAsync(ms);
         var bytes = ms.ToArray();
 
-        var (ds, err) = _parser.Parse(bytes);
+        var (ds, err) = _parser.Parse(ms);
         if (!string.IsNullOrEmpty(err))
         {
             _log.LogError("Parser error: {error}", err);

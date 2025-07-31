@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using CorchEdges.Abstractions;
 using CorchEdges.Models;
+using CorchEdges.Models.Response;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
@@ -35,27 +36,8 @@ namespace CorchEdges.Functions.SharePoint;
 /// The router would examine the notification resource type and route to appropriate specialized processors,
 /// allowing this function to become a generic entry point while maintaining separation of concerns.
 /// </remarks>
-public sealed class ReceiveSharePointChangeNotification(IWebhookProcessor svc, ILogger<ReceiveSharePointChangeNotification> logger)
+public sealed class ReceiveSharePointChangeNotification(ISharePointWebhookProcessor svc, ILogger<ReceiveSharePointChangeNotification> logger)
 {
-    /// <summary>
-    /// Represents the output bindings for the SharePoint webhook function.
-    /// Combines both Service Bus message output and HTTP response in a single immutable record.
-    /// </summary>
-    /// <param name="BusMessage">
-    /// Optional JSON message to be sent to the "sp-changes" Service Bus queue.
-    /// Contains serialized notification data when a change notification is received.
-    /// Null during validation handshake or error scenarios.
-    /// </param>
-    /// <param name="HttpResponse">
-    /// HTTP response to be returned to SharePoint. Contains the validation token during handshake
-    /// or acknowledgment response for change notifications.
-    /// </param>
-    public record Out(
-        [property: ServiceBusOutput("sp-changes",
-            Connection = "ServiceBusConnection")]
-        string? BusMessage,
-        HttpResponseData HttpResponse);
-
     /// <summary>
     /// Processes incoming SharePoint webhook requests for list change notifications.
     /// Handles both validation handshakes during subscription creation and actual change notifications.
@@ -114,7 +96,7 @@ public sealed class ReceiveSharePointChangeNotification(IWebhookProcessor svc, I
     [OpenApiResponseWithoutBody(
         statusCode: HttpStatusCode.InternalServerError, 
         Description = "Internal processing error - notification may be retried by SharePoint")]
-    public async Task<Out> Run(
+    public async Task<SharePointChangeNotificationResponse> Run(
         [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "sharepoint/notifications")]
         HttpRequestData req)
     {
@@ -125,7 +107,7 @@ public sealed class ReceiveSharePointChangeNotification(IWebhookProcessor svc, I
         {
             logger.LogInformation("Handshake successful - returning validation response");
             logger.LogDebug("Handshake response status: {StatusCode}", hs.StatusCode);
-            return new Out(null, hs);
+            return new SharePointChangeNotificationResponse(null, hs);
         }
 
         logger.LogInformation("No handshake detected - processing as notification");
@@ -162,7 +144,7 @@ public sealed class ReceiveSharePointChangeNotification(IWebhookProcessor svc, I
             }
 
             logger.LogInformation("Webhook processing completed successfully");
-            return new Out(msg, resp);
+            return new SharePointChangeNotificationResponse(msg, resp);
         }
         catch (Exception ex)
         {
@@ -172,7 +154,7 @@ public sealed class ReceiveSharePointChangeNotification(IWebhookProcessor svc, I
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             logger.LogWarning("Created error response due to exception");
             
-            return new Out(null, errorResponse);
+            return new SharePointChangeNotificationResponse(null, errorResponse);
         }
     }
 }

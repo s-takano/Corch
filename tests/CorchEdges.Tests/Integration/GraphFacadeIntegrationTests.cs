@@ -14,14 +14,14 @@ namespace CorchEdges.Tests.Integration;
 [Collection("Integration")]
 public class GraphFacadeIntegrationTests : IntegrationTestBase
 {
-    private readonly IGraphFacade _graphFacade;
+    private readonly IGraphApiClient _graphApiClient;
     private readonly ITestOutputHelper _output;
     private const string TestItemId = "5"; // Pre-created test item with specific permissions setup
 
     protected override void ConfigureServices(IServiceCollection services)
     {
         base.ConfigureServices(services);
-        services.AddScoped<IGraphFacade, GraphFacade>();
+        services.AddScoped<IGraphApiClient, GraphApiClient>();
         services.AddSingleton<GraphServiceClient>(provider =>
         {
             var credential = provider.GetRequiredService<TokenCredential>();
@@ -32,7 +32,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     public GraphFacadeIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
         : base(fixture, output)
     {
-        _graphFacade = fixture.Services.GetRequiredService<IGraphFacade>();
+        _graphApiClient = fixture.Services.GetRequiredService<IGraphApiClient>();
         _output = output;
         
         
@@ -45,7 +45,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     public async Task TestConnectionAsync_WithValidCredentials_ReturnsSuccess()
     {
         // Act
-        var result = await _graphFacade.TestConnectionAsync();
+        var result = await _graphApiClient.TestConnectionAsync();
 
         // Assert
         Assert.True(result.IsSuccess, $"Graph connection failed: {result.ErrorReason} (Code: {result.ErrorCode})");
@@ -69,7 +69,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         // This test would need mock setup or invalid credentials
         // Just showing how to use the enhanced result
 
-        var result = await _graphFacade.TestConnectionAsync();
+        var result = await _graphApiClient.TestConnectionAsync();
 
         if (!result.IsSuccess)
         {
@@ -91,7 +91,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         if (ShouldSkipTest()) return;
 
         // Act
-        var result = await _graphFacade.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var result = await _graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
 
         // Assert
         Assert.NotNull(result);
@@ -119,7 +119,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         const string invalidItemId = "999999";
 
         // Act & Assert
-        await Assert.ThrowsAsync<ODataError>(async ()=> await _graphFacade.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
+        await Assert.ThrowsAsync<ODataError>(async ()=> await _graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
 
         _output.WriteLine("✅ Invalid item ID correctly returned null");
     }
@@ -132,7 +132,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         if (ShouldSkipTest()) return;
 
         // Act
-        var result = await _graphFacade.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var result = await _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
 
         // Assert
         Assert.NotNull(result);
@@ -157,7 +157,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         const string invalidItemId = "999999";
 
         // Act & Assert
-        await Assert.ThrowsAsync<ODataError>(()=> _graphFacade.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
+        await Assert.ThrowsAsync<ODataError>(()=> _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
         _output.WriteLine("✅ Invalid drive item ID correctly returned null");
     }
 
@@ -169,13 +169,13 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         if (ShouldSkipTest()) return;
         
         // First get the drive item to get the drive ID
-        var driveItem = await _graphFacade.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var driveItem = await _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
         Assert.NotNull(driveItem);
         Assert.NotNull(driveItem.ParentReference?.DriveId);
         Assert.NotNull(driveItem.Id);
 
         // Act
-        await using var stream = await _graphFacade.DownloadAsync(
+        await using var stream = await _graphApiClient.DownloadAsync(
             driveItem.ParentReference.DriveId, 
             driveItem.Id);
 
@@ -216,7 +216,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         // Act & Assert
         await Assert.ThrowsAsync<ODataError>(async () =>
         {
-            await using var stream = await _graphFacade.DownloadAsync(invalidDriveId, invalidItemId);
+            await using var stream = await _graphApiClient.DownloadAsync(invalidDriveId, invalidItemId);
         });
         
         _output.WriteLine("✅ Invalid drive/item IDs correctly threw ServiceException");
@@ -233,23 +233,23 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         _output.WriteLine("🔄 Starting complete integration workflow...");
 
         // Step 1: Test connection
-        var connectionResult = await _graphFacade.TestConnectionAsync();
+        var connectionResult = await _graphApiClient.TestConnectionAsync();
         Assert.True(connectionResult.IsSuccess);
         _output.WriteLine("   ✅ Step 1: Connection verified");
 
         // Step 2: Get list item
-        var listItem = await _graphFacade.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var listItem = await _graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
         Assert.NotNull(listItem);
         _output.WriteLine($"   ✅ Step 2: List item retrieved (ID: {listItem.Id})");
 
         // Step 3: Get drive item
-        var driveItem = await _graphFacade.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var driveItem = await _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
         Assert.NotNull(driveItem);
         Assert.NotNull(driveItem.ParentReference?.DriveId);
         _output.WriteLine($"   ✅ Step 3: Drive item retrieved (Name: {driveItem.Name})");
 
         // Step 4: Download content
-        await using var stream = await _graphFacade.DownloadAsync(
+        await using var stream = await _graphApiClient.DownloadAsync(
             driveItem.ParentReference.DriveId, 
             driveItem.Id!);
         Assert.NotNull(stream);
@@ -278,7 +278,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         
         for (var i = 0; i < concurrentRequests; i++)
         {
-            tasks.Add(_graphFacade.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId));
+            tasks.Add(_graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId));
         }
 
         var results = await Task.WhenAll(tasks);
@@ -304,7 +304,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         if (ShouldSkipTest()) return;
 
         // Act
-        var (deltaLink, itemIds) = await _graphFacade.PullItemsDeltaAsync(
+        var (deltaLink, itemIds) = await _graphApiClient.PullItemsDeltaAsync(
             Fixture.GetTestSiteId(),
             Fixture.GetTestListId(),
             "latest");
@@ -337,7 +337,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         if (ShouldSkipTest()) return;
 
         // First, get the initial delta to obtain a delta link
-        var (initialDeltaLink, initialItems) = await _graphFacade.PullItemsDeltaAsync(
+        var (initialDeltaLink, initialItems) = await _graphApiClient.PullItemsDeltaAsync(
             Fixture.GetTestSiteId(),
             Fixture.GetTestListId(),
             "latest");
@@ -349,7 +349,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         await Task.Delay(1000);
 
         // Act - Use the delta link from the previous call
-        var (subsequentDeltaLink, subsequentItems) = await _graphFacade.PullItemsDeltaAsync(
+        var (subsequentDeltaLink, subsequentItems) = await _graphApiClient.PullItemsDeltaAsync(
             Fixture.GetTestSiteId(),
             Fixture.GetTestListId(),
             initialDeltaLink);
@@ -379,7 +379,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         // Act & Assert
         await Assert.ThrowsAsync<ODataError>(async () =>
         {
-            await _graphFacade.PullItemsDeltaAsync(invalidSiteId, Fixture.GetTestListId(), "latest");
+            await _graphApiClient.PullItemsDeltaAsync(invalidSiteId, Fixture.GetTestListId(), "latest");
         });
 
         _output.WriteLine("✅ Invalid site ID correctly threw ODataError");
@@ -396,7 +396,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         // Act & Assert
         await Assert.ThrowsAsync<ODataError>(async () =>
         {
-            await _graphFacade.PullItemsDeltaAsync(Fixture.GetTestSiteId(), invalidListId, "latest");
+            await _graphApiClient.PullItemsDeltaAsync(Fixture.GetTestSiteId(), invalidListId, "latest");
         });
 
         _output.WriteLine("✅ Invalid list ID correctly threw ODataError");
@@ -413,7 +413,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         // Act & Assert
         await Assert.ThrowsAsync<UriFormatException>(async () =>
         {
-            await _graphFacade.PullItemsDeltaAsync(
+            await _graphApiClient.PullItemsDeltaAsync(
                 Fixture.GetTestSiteId(),
                 Fixture.GetTestListId(),
                 invalidDeltaToken);
@@ -429,16 +429,16 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         // Arrange & Act & Assert
         await Assert.ThrowsAsync<ODataError>(async () =>
         {
-            await _graphFacade.PullItemsDeltaAsync("", Fixture.GetTestListId(), "latest");
+            await _graphApiClient.PullItemsDeltaAsync("", Fixture.GetTestListId(), "latest");
         });
 
         await Assert.ThrowsAsync<ODataError>(async () =>
         {
-            await _graphFacade.PullItemsDeltaAsync(Fixture.GetTestSiteId(), "", "latest");
+            await _graphApiClient.PullItemsDeltaAsync(Fixture.GetTestSiteId(), "", "latest");
         });
 
         // empty cursor is okay
-        await _graphFacade.PullItemsDeltaAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), "");
+        await _graphApiClient.PullItemsDeltaAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), "");
 
         _output.WriteLine("✅ Empty parameters correctly threw ArgumentException");
     }
@@ -451,7 +451,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         if (ShouldSkipTest()) return;
 
         // Act
-        var (deltaLink, itemIds) = await _graphFacade.PullItemsDeltaAsync(
+        var (deltaLink, itemIds) = await _graphApiClient.PullItemsDeltaAsync(
             Fixture.GetTestSiteId(),
             Fixture.GetTestListId(),
             "latest");
@@ -492,7 +492,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         // Act
-        var (deltaLink, items) = await _graphFacade.PullItemsDeltaAsync(
+        var (deltaLink, items) = await _graphApiClient.PullItemsDeltaAsync(
             Fixture.GetTestSiteId(),
             Fixture.GetTestListId(),
             "latest");

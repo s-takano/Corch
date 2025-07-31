@@ -21,7 +21,7 @@ namespace CorchEdges.Tests.Unit.Services
     public class SharePointChangeHandlerUnitTests : IDisposable
     {
         private readonly Mock<ILogger> _mockLogger;
-        private readonly Mock<IGraphFacade> _mockGraph;
+        private readonly Mock<IGraphApiClient> _mockGraph;
         private readonly Mock<IExcelParser> _mockParser;
         private readonly Mock<IDatabaseWriter> _mockDb;
         private readonly EdgesDbContext _mockContext;
@@ -33,7 +33,7 @@ namespace CorchEdges.Tests.Unit.Services
         public SharePointChangeHandlerUnitTests()
         {
             _mockLogger = new Mock<ILogger>();
-            _mockGraph = new Mock<IGraphFacade>();
+            _mockGraph = new Mock<IGraphApiClient>();
             _mockParser = new Mock<IExcelParser>();
             _mockDb = new Mock<IDatabaseWriter>();
             _mockContext = MemoryDatabaseTestBase.CreateInMemoryDbContext();
@@ -331,7 +331,7 @@ namespace CorchEdges.Tests.Unit.Services
             _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
-            _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
+            _mockParser.Setup(p => p.Parse(It.IsAny<Stream>()))
                 .Returns((new DataSet(), string.Empty));
 
             _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
@@ -387,7 +387,7 @@ namespace CorchEdges.Tests.Unit.Services
 
             // Assert
             VerifyLogMessage("Skipping item outside watched folder", Times.Once());
-            _mockParser.Verify(p => p.Parse(It.IsAny<byte[]>()), Times.Never);
+            _mockParser.Verify(p => p.Parse(It.IsAny<Stream>()), Times.Never);
             _mockDb.Verify(db => db.WriteAsync(
                 It.IsAny<DataSet>(),
                 It.IsAny<EdgesDbContext>(),
@@ -446,7 +446,7 @@ namespace CorchEdges.Tests.Unit.Services
 
             if (shouldProcess)
             {
-                _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
+                _mockParser.Setup(p => p.Parse(It.IsAny<Stream>()))
                     .Returns((new DataSet(), string.Empty));
                 _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
                     .ReturnsAsync(new MemoryStream());
@@ -464,7 +464,7 @@ namespace CorchEdges.Tests.Unit.Services
             else
             {
                 VerifyLogMessage("Skipping item outside watched folder", Times.Once());
-                _mockParser.Verify(p => p.Parse(It.IsAny<byte[]>()), Times.Never);
+                _mockParser.Verify(p => p.Parse(It.IsAny<Stream>()), Times.Never);
             }
         }
 
@@ -502,7 +502,7 @@ namespace CorchEdges.Tests.Unit.Services
             _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
-            _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
+            _mockParser.Setup(p => p.Parse(It.IsAny<Stream>()))
                 .Returns((new DataSet(), string.Empty));
             _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(new MemoryStream());
@@ -565,7 +565,7 @@ namespace CorchEdges.Tests.Unit.Services
             _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
-            _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
+            _mockParser.Setup(p => p.Parse(It.IsAny<Stream>()))
                 .Returns((new DataSet(), string.Empty));
 
             _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
@@ -626,7 +626,7 @@ namespace CorchEdges.Tests.Unit.Services
             _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
             
-            _mockParser.Setup(p => p.Parse(It.IsAny<byte[]>()))
+            _mockParser.Setup(p => p.Parse(It.IsAny<Stream>()))
                 .Returns((null, "Test parsing error"));
             
 

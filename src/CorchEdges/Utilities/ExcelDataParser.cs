@@ -20,19 +20,18 @@ public sealed class ExcelDataParser : IExcelParser
 {
     /// Parses an Excel file given as a byte array into a DataSet containing tables for each valid worksheet.
     /// In case of failure, an error message is returned.
-    /// <param name="bytes">The byte array representing the Excel file to be parsed.</param>
+    /// <param name="stream"></param>
     /// <returns>
     /// A tuple containing:
     /// 1. A DataSet object with tables corresponding to the valid worksheets in the Excel file, or null if parsing fails.
     /// 2. A string with an error message if parsing fails, or null if parsing is successful.
     /// </returns>
-    public (DataSet?, string?) Parse(byte[] bytes)
+    public (DataSet?, string?) Parse(Stream stream)
     {
         try
         {
             var dataSet = new DataSet();
 
-            using var stream = new MemoryStream(bytes);
             using var workbook = new XSSFWorkbook(stream);
 
             for (int sheetIndex = 0; sheetIndex < workbook.NumberOfSheets; sheetIndex++)
