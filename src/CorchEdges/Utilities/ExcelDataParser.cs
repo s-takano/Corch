@@ -16,7 +16,7 @@ namespace CorchEdges.Utilities;
 /// as a DataSet. Each worksheet from the Excel file is processed into a DataTable, and only sheets with valid
 /// data and meaningful column headers are included in the resulting DataSet.
 /// </remarks>
-public sealed class ExcelDataParser : IExcelParser
+public sealed class ExcelDataParser : ITabularDataParser
 {
     /// Parses an Excel file given as a byte array into a DataSet containing tables for each valid worksheet.
     /// In case of failure, an error message is returned.

@@ -1,5 +1,5 @@
-﻿using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
+﻿using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -191,12 +191,12 @@ public class DiagnosticsFunction
 
         try
         {
-            var excelParser = _serviceProvider.GetService<IExcelParser>();
-            services["IExcelParser"] = excelParser != null ? "✓ REGISTERED" : "✗ NOT REGISTERED";
+            var parser = _serviceProvider.GetService<ITabularDataParser>();
+            services["ITabularDataParser"] = parser != null ? "✓ REGISTERED" : "✗ NOT REGISTERED";
         }
         catch (Exception ex)
         {
-            services["IExcelParser"] = $"✗ ERROR: {ex.Message}";
+            services["ITabularDataParser"] = $"✗ ERROR: {ex.Message}";
         }
 
         try

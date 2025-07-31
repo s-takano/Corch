@@ -52,7 +52,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     /// external systems, ensuring accurate and reliable data parsing for further
     /// operations.
     /// </remarks>
-    private readonly IExcelParser _parser;
+    private readonly ITabularDataParser _parser;
 
     /// <summary>
     /// Provides access to a database writer for handling data persistence operations.
@@ -105,7 +105,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     public SharePointSyncProcessor(
         ILogger log,
         IGraphApiClient graph,
-        IExcelParser parser,
+        ITabularDataParser parser,
         IDatabaseWriter db,
         EdgesDbContext context,
         ProcessingLogRepository processingLogRepository,
@@ -318,11 +318,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         }
 
         await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
-        await using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms);
-        var bytes = ms.ToArray();
-
-        var (ds, err) = _parser.Parse(ms);
+        var (ds, err) = _parser.Parse(stream);
         if (!string.IsNullOrEmpty(err))
         {
             _log.LogError("Parser error: {error}", err);

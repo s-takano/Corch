@@ -197,7 +197,7 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
 {
     Console.WriteLine("Starting Business services registration...");
 
-    svcs.AddTransient<IExcelParser, ExcelDataParser>();
+    svcs.AddTransient<ITabularDataParser, ExcelDataParser>();
     svcs.AddTransient<IDatabaseWriter, ExcelDatasetWriter>();
     svcs.AddTransient<IDataSetConverter, ExcelToDatabaseConverter>();
 
@@ -207,7 +207,7 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
     svcs.AddScoped<SharePointSyncProcessor>(p => new SharePointSyncProcessor(
         p.GetRequiredService<ILogger<SharePointSyncProcessor>>(),
         p.GetRequiredService<IGraphApiClient>(),
-        p.GetRequiredService<IExcelParser>(),
+        p.GetRequiredService<ITabularDataParser>(),
         p.GetRequiredService<IDatabaseWriter>(),
         p.GetRequiredService<EdgesDbContext>(),
         p.GetRequiredService<ProcessingLogRepository>(),

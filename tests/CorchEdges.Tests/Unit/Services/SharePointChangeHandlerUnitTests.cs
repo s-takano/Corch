@@ -22,7 +22,7 @@ namespace CorchEdges.Tests.Unit.Services
     {
         private readonly Mock<ILogger> _mockLogger;
         private readonly Mock<IGraphApiClient> _mockGraph;
-        private readonly Mock<IExcelParser> _mockParser;
+        private readonly Mock<ITabularDataParser> _mockParser;
         private readonly Mock<IDatabaseWriter> _mockDb;
         private readonly EdgesDbContext _mockContext;
         private readonly ProcessingLogRepository _mockProcessingLogRepository;
@@ -34,7 +34,7 @@ namespace CorchEdges.Tests.Unit.Services
         {
             _mockLogger = new Mock<ILogger>();
             _mockGraph = new Mock<IGraphApiClient>();
-            _mockParser = new Mock<IExcelParser>();
+            _mockParser = new Mock<ITabularDataParser>();
             _mockDb = new Mock<IDatabaseWriter>();
             _mockContext = MemoryDatabaseTestBase.CreateInMemoryDbContext();
             _mockProcessingLogRepository = new ProcessingLogRepository(_mockContext);
