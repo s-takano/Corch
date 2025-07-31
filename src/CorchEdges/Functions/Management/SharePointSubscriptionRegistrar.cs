@@ -734,7 +734,7 @@ public class SharePointSubscriptionRegistrar(
             if (string.IsNullOrEmpty(callbackUrl))
                 throw new ArgumentException("CallbackUrl cannot be null or empty", nameof(callbackUrl));
 
-            return new WebhookConfiguration(siteId, listId, callbackUrl, functionAppName);
+            return new WebhookConfiguration(siteId, listId, callbackUrl, functionAppName, null);
         }
         catch (Exception ex)
         {
