@@ -48,7 +48,7 @@ package "CorchEdges.Services" SERVICE_COLOR {
     class SharePointSyncProcessor {
         - ILogger _log
         - IGraphApiClient _graphApiClient
-        - IExcelParser _parser
+        - ITabularDataParser _parser
         - IDatabaseWriter _db
         - EdgesDbContext _context
         - string _siteId
@@ -78,8 +78,8 @@ package "CorchEdges.Abstractions" INTERFACE_COLOR {
         + BuildEnqueueAsync(HttpRequestData req): Task<(HttpResponseData,string?)>
     }
 
-    interface IExcelParser {
-        + Parse(byte[] bytes): (DataSet?,string?)
+    interface ITabularDataParser {
+        + Parse(stream: Stream): (DataSet?,string?)
     }
 
     interface IGraphApiClient {

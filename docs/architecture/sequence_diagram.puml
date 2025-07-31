@@ -7,98 +7,98 @@ title SharePoint Change Processing - Message Flow
 
 actor "SharePoint" as SP
 participant "SharePoint\nWebhook\nCallback" as Webhook FUNCTION_COLOR
-participant "Default\nWebhook\nProcessor" as Processor SERVICE_COLOR
+participant "Default\nSharePointWebhook\nProcessor" as WebhookProcessor SERVICE_COLOR
 participant "Azure\nService Bus" as SB AZURE_COLOR
-participant "Process\nSharePoint\nChange" as ProcessFunc FUNCTION_COLOR
-participant "SharePoint\nChange\nHandler" as Handler SERVICE_COLOR
-participant "Graph\nFacade" as Graph SERVICE_COLOR
+participant "SharePointSync\nFunction" as SyncFunc FUNCTION_COLOR
+participant "SharePoint\nSync\nProcessor" as SyncProcessor SERVICE_COLOR
+participant "GraphApi\nClient" as Graph SERVICE_COLOR
 participant "Excel\nParser" as Parser SERVICE_COLOR
 participant "Database\nWriter" as DB SERVICE_COLOR
 participant "Blob\nStorage" as Blob AZURE_COLOR
 
 == Webhook Reception ==
-SP -> Webhook: POST /api/SharePointWebhookCallback
+SP -> Webhook: POST /sharepoint/notifications
 activate Webhook
 
 alt Handshake Request
-    Webhook -> Processor: TryHandshake(req)
-    activate Processor
-    Processor -> Webhook: HttpResponseData (validation token)
-    deactivate Processor
+    Webhook -> WebhookProcessor: TryHandshake(req)
+    activate WebhookProcessor
+    WebhookProcessor -> Webhook: HttpResponseData (validation token)
+    deactivate WebhookProcessor
     Webhook -> SP: HTTP 200 + validation token
 else Change Notification
-    Webhook -> Processor: BuildEnqueueAsync(req)
-    activate Processor
-    Processor -> Processor: Build notification payload
-    Processor -> Webhook: (HttpResponseData, queueBody)
-    deactivate Processor
+    Webhook -> WebhookProcessor: BuildEnqueueAsync(req)
+    activate WebhookProcessor
+    WebhookProcessor -> WebhookProcessor: Build notification payload
+    WebhookProcessor -> Webhook: (HttpResponseData, queueBody)
+    deactivate WebhookProcessor
     Webhook -> SB: Enqueue message
     Webhook -> SP: HTTP 200 (accepted)
 end
 deactivate Webhook
 
 == Message Processing ==
-SB -> ProcessFunc: ServiceBus Trigger (msg)
-activate ProcessFunc
+SB -> SyncFunc: ServiceBus Trigger (msg)
+activate SyncFunc
 
-ProcessFunc -> Handler: EnsureGraphConnectionAsync()
-activate Handler
-Handler -> Graph: TestConnectionAsync()
+SyncFunc -> SyncProcessor: EnsureGraphConnectionAsync()
+activate SyncProcessor
+SyncProcessor -> Graph: TestConnectionAsync()
 activate Graph
-Graph -> Handler: ConnectionResult
+Graph -> SyncProcessor: ConnectionResult
 deactivate Graph
 
 alt Connection Failed
-    Handler -> ProcessFunc: false
-    deactivate Handler
-    ProcessFunc -> Blob: Save failed message
-    ProcessFunc -> ProcessFunc: Log error & return
+    SyncProcessor -> SyncFunc: false
+    deactivate SyncProcessor
+    SyncFunc -> Blob: Save failed message
+    SyncFunc -> SyncFunc: Log error & return
 else Connection Success
-    Handler -> ProcessFunc: true
-    deactivate Handler
+    SyncProcessor -> SyncFunc: true
+    deactivate SyncProcessor
     
-    ProcessFunc -> ProcessFunc: Deserialize<NotificationEnvelope>(msg)
+    SyncFunc -> SyncFunc: Deserialize<NotificationEnvelope>(msg)
     
     loop For each ChangeNotification
-        ProcessFunc -> Handler: HandleAsync(change)
-        activate Handler
+        SyncFunc -> SyncProcessor: FetchAndStoreDeltaAsync()
+        activate SyncProcessor
         
-        Handler -> Handler: Begin Transaction & Extract itemId
-        Handler -> Graph: GetListItemAsync() & GetDriveItemAsync()
+        SyncProcessor -> SyncProcessor: Begin Transaction & Extract itemId
+        SyncProcessor -> Graph: GetListItemAsync() & GetDriveItemAsync()
         activate Graph
-        Graph -> Handler: ListItem & DriveItem
+        Graph -> SyncProcessor: ListItem & DriveItem
         deactivate Graph
         
         opt ProcessFlag == "Yes"
-            Handler -> Graph: DownloadAsync(driveId, itemId)
+            SyncProcessor -> Graph: DownloadAsync(driveId, itemId)
             activate Graph
-            Graph -> Handler: Excel file stream
+            Graph -> SyncProcessor: Excel file stream
             deactivate Graph
             
-            Handler -> Parser: Parse(bytes)
+            SyncProcessor -> Parser: Parse(stream)
             activate Parser
-            Parser -> Handler: DataSet or error
+            Parser -> SyncProcessor: DataSet or error
             deactivate Parser
             
             opt Parse Success
-                Handler -> DB: WriteAsync(dataSet)
+                SyncProcessor -> DB: WriteAsync(dataSet)
                 activate DB
-                DB -> Handler: Success
+                DB -> SyncProcessor: Success
                 deactivate DB
-                Handler -> Handler: Commit Transaction
+                SyncProcessor -> SyncProcessor: Commit Transaction
             end
         end
-        deactivate Handler
+        deactivate SyncProcessor
     end
 end
 
-deactivate ProcessFunc
+deactivate SyncFunc
 
 == Error Handling ==
 alt Unhandled Exception
-    ProcessFunc -> Blob: Save failed message
-    ProcessFunc -> ProcessFunc: Log error
-    ProcessFunc -> SB: Throw (trigger retry)
+    SyncFunc -> Blob: Save failed message
+    SyncFunc -> SyncFunc: Log error
+    SyncFunc -> SB: Throw (trigger retry)
 end
 
 @enduml
