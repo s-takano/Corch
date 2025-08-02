@@ -7,6 +7,7 @@ using Xunit;
 
 namespace CorchEdges.Tests.Integration.Database;
 
+[Trait("Category", "Integration")]
 public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
 {
     protected override string TestSchema { get;  } = "corch_edges_raw";

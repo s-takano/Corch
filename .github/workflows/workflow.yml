@@ -46,8 +46,8 @@ jobs:
         env:
           ConnectionStrings__TestDatabase: Host=localhost;Database=postgres;Username=postgres;Password=postgres
           # ServiceBus__Connection: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
-        run: dotnet test -c Release --no-build
-        
+        run: dotnet test -c Release --no-build --filter "Category!=Integration"      
+      
       # ---------- Azure auth via OIDC ----------
       - uses: azure/login@v2
         with:

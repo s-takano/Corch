@@ -10,13 +10,13 @@ using AzureFunctionsHttpResponseData = Microsoft.Azure.Functions.Worker.Http.Htt
 namespace CorchEdges.Tests.Contract;
 
 [Trait("Category", "Contract")]
-[Trait("Component", "WebhookProcessor")]
-public class WebhookProcessorContractTests
+[Trait("Component", "SharePointWebhookProcessor")]
+public class SharePointWebhookProcessorContractTests
 {
     private readonly Mock<ILogger<DefaultSharePointWebhookProcessor>> _mockLogger;
     private readonly DefaultSharePointWebhookProcessor _processor;
 
-    public WebhookProcessorContractTests()
+    public SharePointWebhookProcessorContractTests()
     {
         _mockLogger = new Mock<ILogger<DefaultSharePointWebhookProcessor>>();
         _processor = new DefaultSharePointWebhookProcessor(_mockLogger.Object);
@@ -24,7 +24,7 @@ public class WebhookProcessorContractTests
 
     [Fact]
     [Trait("Contract", "Interface")]
-    public void DefaultWebhookProcessor_ImplementsIWebhookProcessor()
+    public void SharePointWebhookProcessor_ImplementsIWebhookProcessor()
     {
         // Contract test: Verify that DefaultSharePointWebhookProcessor implements the expected interface
         Assert.IsAssignableFrom<ISharePointWebhookProcessor>(_processor);
@@ -75,7 +75,7 @@ public class WebhookProcessorContractTests
 
     [Fact]
     [Trait("Contract", "AzureFunctionTypes")]
-    public void IWebhookProcessor_UsesCorrectAzureFunctionTypes()
+    public void ISharePointWebhookProcessor_UsesCorrectAzureFunctionTypes()
     {
         // Contract test: Verify that the interface uses the correct Azure Function types
         // This helps catch namespace confusion issues
@@ -121,7 +121,7 @@ public class WebhookProcessorContractTests
 
     [Fact]
     [Trait("Contract", "Logging")]
-    public void DefaultWebhookProcessor_RequiresLogger()
+    public void DefaultSharePointWebhookProcessor_RequiresLogger()
     {
         // Contract test: Verify that logger is required (not optional)
         Assert.Throws<ArgumentNullException>(() => new DefaultSharePointWebhookProcessor(null!));

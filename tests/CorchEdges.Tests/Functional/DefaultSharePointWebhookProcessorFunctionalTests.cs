@@ -8,8 +8,8 @@ using Xunit;
 namespace CorchEdges.Tests.Functional;
 
 [Trait("Category", "Functional")]
-[Trait("Component", "WebhookProcessor")]
-public class DefaultWebhookProcessorFunctionalTests
+[Trait("Component", "SharePointWebhookProcessor")]
+public class DefaultSharePointWebhookProcessorFunctionalTests
 {
     private readonly Mock<ILogger<DefaultSharePointWebhookProcessor>> _mockLogger = new();
 
@@ -97,7 +97,7 @@ public class DefaultWebhookProcessorFunctionalTests
 
     [Fact]
     [Trait("Architecture", "StatelessDesign")]
-    public void DefaultWebhookProcessor_IsStateless_CanBeUsedConcurrently()
+    public void DefaultSharePointWebhookProcessor_IsStateless_CanBeUsedConcurrently()
     {
         // Functional test: Verify the processor is stateless and thread-safe
         
@@ -114,7 +114,7 @@ public class DefaultWebhookProcessorFunctionalTests
 
     [Fact]
     [Trait("Performance", "MemoryUsage")]
-    public void DefaultWebhookProcessor_HasMinimalMemoryFootprint()
+    public void DefaultSharePointWebhookProcessor_HasMinimalMemoryFootprint()
     {
         // Functional test: Verify the processor has a small memory footprint
         

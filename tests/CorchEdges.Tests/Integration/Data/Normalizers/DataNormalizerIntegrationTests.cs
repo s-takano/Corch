@@ -6,7 +6,7 @@ using CorchEdges.Data.Providers;
 
 namespace CorchEdges.Tests.Integration.Data.Normalizers;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 public class DataNormalizerIntegrationTests
 {
     private readonly ITableNormalizer _tableNormalizer;

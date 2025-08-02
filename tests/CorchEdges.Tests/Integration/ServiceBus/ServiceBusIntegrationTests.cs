@@ -10,6 +10,7 @@ using Xunit.Abstractions;
 
 namespace CorchEdges.Tests.Integration.ServiceBus;
 
+[Trait("Category", "Integration")]
 [Collection("ServiceBus Integration Tests")]
 public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
 {

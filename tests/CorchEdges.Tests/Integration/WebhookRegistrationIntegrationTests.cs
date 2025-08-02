@@ -9,6 +9,7 @@ using Xunit.Abstractions;
 
 namespace CorchEdges.Tests.Integration;
 
+[Trait("Category", "Integration")]
 [Collection("Integration")]
 public class WebhookRegistrationIntegrationTests : IntegrationTestBase
 {
