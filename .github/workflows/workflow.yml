@@ -41,7 +41,13 @@ jobs:
       - run: dotnet restore
       - run: dotnet build -c Release --no-restore
       - run: dotnet publish -c Release -o ./publish
-      
+
+      - name: Run tests
+        env:
+          ConnectionStrings__TestDatabase: Host=localhost;Database=postgres;Username=postgres;Password=postgres
+          # ServiceBus__Connection: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
+        run: dotnet test -c Release --no-build
+        
       # ---------- Azure auth via OIDC ----------
       - uses: azure/login@v2
         with:
