@@ -6,7 +6,8 @@ using Xunit;
 namespace CorchEdges.Tests.Integration.Data.Providers;
 
 [Trait("Category", "Integration")]
-[Trait("Component", "ReflectionEntityMetadataProvider")]
+[Trait("Component", "Data")]
+[Trait("Target", "ReflectionEntityMetadataProvider")]
 public class ReflectionEntityMetadataProviderIntegrationTests : MemoryDatabaseTestBase
 {
     private readonly ReflectionEntityMetadataProvider _metadataProvider;

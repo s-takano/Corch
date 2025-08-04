@@ -7,7 +7,8 @@ using Xunit;
 namespace CorchEdges.Tests.Integration.Azure;
 
 [Trait("Category", "Integration")]
-[Trait("Component", "SharePointWebhookProcessor")]
+[Trait("Component", "Service")]
+[Trait("Target", "SharePointWebhookProcessor")]
 public class DefaultSharePointWebhookProcessorIntegrationTests
 {
     private readonly DefaultSharePointWebhookProcessor _processor;

@@ -9,7 +9,8 @@ using Xunit;
 namespace CorchEdges.Tests.Integration.Data;
 
 [Trait("Category", "Integration")]
-[Trait("Component", "ExcelToDatabaseConverter")]
+[Trait("Component", "Data")]
+[Trait("Target", "ExcelToDatabaseConverter")]
 public class ExcelToMemoryDatabaseConverterIntegrationTests : MemoryDatabaseTestBase
 {
     private readonly IDataSetConverter _dataSetConverter = new ExcelToDatabaseConverter();

@@ -14,7 +14,7 @@ namespace CorchEdges.Tests.Integration.Azure;
 
 [Trait("Category", "Integration")]
 [Trait("Component", "AzureFunction")]
-[Trait("Service", "SharePointWebhook")]
+[Trait("Target", "ReceiveSharePointChangeNotification")]
 public class SharePointWebhookCallbackIntegrationTests
 {
     private readonly Mock<ISharePointWebhookProcessor> _mockProcessor;

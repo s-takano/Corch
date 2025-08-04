@@ -7,6 +7,8 @@ using Xunit;
 namespace CorchEdges.Tests.Integration.Database;
 
 [Trait("Category", "Integration")]
+[Trait("Component", "Database")]
+[Trait("Target", "PostgresTableWriter")]
 public class PostgresTableWriterTests : PostgresDatabaseTestBase
 {
     protected override string TestSchema { get;  } = "corch_edges_raw";

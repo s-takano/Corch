@@ -11,6 +11,7 @@ using Xunit.Abstractions;
 namespace CorchEdges.Tests.Integration.ServiceBus;
 
 [Trait("Category", "Integration")]
+[Trait("Component", "ServiceBus")]
 [Collection("ServiceBus Integration Tests")]
 public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
 {
