@@ -202,7 +202,7 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
     svcs.AddTransient<IDataSetConverter, ExcelToDatabaseConverter>();
 
     // Add WebhookRegistrationService service
-    svcs.AddTransient<WebhookRegistrar>();
+    svcs.AddTransient<SharePointWebhookRegistrar>();
 
     svcs.AddScoped<SharePointSyncProcessor>(p => new SharePointSyncProcessor(
         p.GetRequiredService<ILogger<SharePointSyncProcessor>>(),

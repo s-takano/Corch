@@ -114,8 +114,7 @@ public class ReflectionEntityMetadataProvider : IEntityMetadataProvider
     {
         // Find the configuration class that implements IEntityTypeMetaInfo for this entity type
         var configurationInterface = typeof(IEntityTypeConfiguration<>).MakeGenericType(entityType);
-        var configurationType = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(a => a.GetTypes())
+        var configurationType = GetAllLoadableTypes()
             .FirstOrDefault(t =>
                 t.GetInterfaces().Any(i => i == configurationInterface) &&
                 t.GetInterfaces().Contains(typeof(IEntityTypeMetaInfo)));
@@ -123,6 +122,52 @@ public class ReflectionEntityMetadataProvider : IEntityMetadataProvider
         return configurationType == null
             ? null
             : Activator.CreateInstance(configurationType) as IEntityTypeMetaInfo;
+    }
+
+    /// <summary>
+    /// Safely gets all loadable types from all loaded assemblies, handling ReflectionTypeLoadException
+    /// </summary>
+    private static IEnumerable<Type> GetAllLoadableTypes()
+    {
+        var loadableTypes = new List<Type>();
+
+        var relevantAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(assembly => 
+            {
+                var name = assembly.FullName ?? string.Empty;
+                return name.StartsWith("CorchEdges", StringComparison.OrdinalIgnoreCase) ||
+                       name.Contains("EntityFramework", StringComparison.OrdinalIgnoreCase);
+            });
+
+        
+        foreach (var assembly in relevantAssemblies)
+        {
+            try
+            {
+                // Try to get all types from the assembly
+                loadableTypes.AddRange(assembly.GetTypes());
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                // If some types fail to load, add only the ones that loaded successfully
+                var loadedTypes = ex.Types.Where(t => t != null);
+                loadableTypes.AddRange(loadedTypes!);
+                
+                // Optional: Log the loader exceptions for debugging
+                System.Diagnostics.Debug.WriteLine($"Assembly {assembly.FullName} had type loading issues:");
+                foreach (var loaderException in ex.LoaderExceptions.Where(e => e != null))
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - {loaderException!.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle other potential exceptions when accessing assembly types
+                System.Diagnostics.Debug.WriteLine($"Failed to load types from assembly {assembly.FullName}: {ex.Message}");
+            }
+        }
+        
+        return loadableTypes;
     }
     
     public Dictionary<TKey, TResult> MapMetadata<TKey, TResult>(

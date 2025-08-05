@@ -23,18 +23,18 @@ namespace CorchEdges.Functions.Management;
 /// and clean up test webhooks.
 /// </remarks>
 public class SharePointSubscriptionRegistrar(
-    WebhookRegistrar webhookRegistrar,
+    SharePointWebhookRegistrar sharePointWebhookRegistrar,
     ILogger<SharePointSubscriptionRegistrar> logger,
     IConfiguration configuration)
 {
     /// <summary>
-    /// Represents an instance of <see cref="WebhookRegistrar"/> used to interact with and manage
+    /// Represents an instance of <see cref="SharePointWebhookRegistrar"/> used to interact with and manage
     /// webhook subscriptions in a SharePoint integration context. This variable is utilized
     /// for operations such as checking the existence of webhooks, registering new webhooks,
     /// and managing active or expiring webhook subscriptions.
     /// </summary>
-    private readonly WebhookRegistrar _webhookRegistrar =
-        webhookRegistrar ?? throw new ArgumentNullException(nameof(webhookRegistrar));
+    private readonly SharePointWebhookRegistrar _sharePointWebhookRegistrar =
+        sharePointWebhookRegistrar ?? throw new ArgumentNullException(nameof(sharePointWebhookRegistrar));
 
     /// <summary>
     /// Represents the logger instance used for logging information, warnings, errors, and debug messages
@@ -171,7 +171,7 @@ public class SharePointSubscriptionRegistrar(
             }
 
             // Check if a webhook already exists
-            if (await _webhookRegistrar.IsListMonitoredByWebhookAsync(config.SiteId!, config.ListId!))
+            if (await _sharePointWebhookRegistrar.IsListMonitoredByWebhookAsync(config.SiteId!, config.ListId!))
             {
                 _logger.LogInformation("Webhook already registered for site {SiteId}, list {ListId}",
                     config.SiteId, config.ListId);
@@ -186,7 +186,7 @@ public class SharePointSubscriptionRegistrar(
             }
 
             // Register new webhook
-            var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+            var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
                 config.SiteId!,
                 config.ListId!,
                 config.CallbackUrl!);
@@ -270,8 +270,8 @@ public class SharePointSubscriptionRegistrar(
 
         try
         {
-            var activeSubscriptions = await _webhookRegistrar.GetActiveSubscriptionsAsync();
-            var expiringSubscriptions = await _webhookRegistrar.GetExpiringSubscriptionsAsync();
+            var activeSubscriptions = await _sharePointWebhookRegistrar.GetActiveSubscriptionsAsync();
+            var expiringSubscriptions = await _sharePointWebhookRegistrar.GetExpiringSubscriptionsAsync();
 
             var subscriptions = activeSubscriptions as Subscription[] ?? activeSubscriptions.ToArray();
             var expiring = expiringSubscriptions as Subscription[] ?? expiringSubscriptions.ToArray();
@@ -345,7 +345,7 @@ public class SharePointSubscriptionRegistrar(
 
         try
         {
-            var expiringSubscriptions = await _webhookRegistrar.GetExpiringSubscriptionsAsync();
+            var expiringSubscriptions = await _sharePointWebhookRegistrar.GetExpiringSubscriptionsAsync();
             var renewalResults = new List<object>();
 
             foreach (var subscription in expiringSubscriptions)
@@ -358,7 +358,7 @@ public class SharePointSubscriptionRegistrar(
 
                 try
                 {
-                    var success = await _webhookRegistrar.RenewSubscriptionAsync(subscription.Id);
+                    var success = await _sharePointWebhookRegistrar.RenewSubscriptionAsync(subscription.Id);
                     renewalResults.Add(new
                     {
                         SubscriptionId = subscription.Id,
@@ -472,7 +472,7 @@ public class SharePointSubscriptionRegistrar(
                 return await CreateErrorResponseAsync(req, HttpStatusCode.BadRequest, "Subscription ID is required");
             }
 
-            var success = await _webhookRegistrar.DeleteSubscriptionAsync(subscriptionId);
+            var success = await _sharePointWebhookRegistrar.DeleteSubscriptionAsync(subscriptionId);
 
             if (success)
             {
@@ -545,7 +545,7 @@ public class SharePointSubscriptionRegistrar(
             var queryParams = HttpUtility.ParseQueryString(req.Url.Query);
             var testIdFilter = queryParams["testId"]; // Optional filter
 
-            var activeSubscriptions = await _webhookRegistrar.GetActiveSubscriptionsAsync();
+            var activeSubscriptions = await _sharePointWebhookRegistrar.GetActiveSubscriptionsAsync();
 
             // Find test subscriptions
             var testSubscriptions = activeSubscriptions.Where(s =>
@@ -561,7 +561,7 @@ public class SharePointSubscriptionRegistrar(
 
                 try
                 {
-                    var success = await _webhookRegistrar.DeleteSubscriptionAsync(subscription.Id);
+                    var success = await _sharePointWebhookRegistrar.DeleteSubscriptionAsync(subscription.Id);
                     deletionResults.Add(new
                     {
                         SubscriptionId = subscription.Id,

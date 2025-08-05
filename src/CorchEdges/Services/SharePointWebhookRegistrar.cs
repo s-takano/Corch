@@ -75,9 +75,9 @@ public record WebhookSubscriptionInfo(
 /// including endpoint, event type, and additional optional details.
 /// Webhooks enable real-time notifications of events via HTTP POST requests.
 /// </remarks>
-public class WebhookRegistrar(
+public class SharePointWebhookRegistrar(
     GraphServiceClient graphClient,
-    ILogger<WebhookRegistrar> logger)
+    ILogger<SharePointWebhookRegistrar> logger)
 {
     /// <summary>
     /// Represents an instance of a client used to interact with a graph-based API.
@@ -92,7 +92,7 @@ public class WebhookRegistrar(
     /// This variable facilitates centralized logging across the application, allowing for improved debugging
     /// and system monitoring.
     /// </summary>
-    private readonly ILogger<WebhookRegistrar> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly ILogger<SharePointWebhookRegistrar> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>
     /// Registers a webhook subscription for a specified SharePoint list.
