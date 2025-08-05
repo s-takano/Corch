@@ -1,34 +1,35 @@
 ﻿using Azure.Identity;
+using CorchEdges.Services;
+using CorchEdges.Tests.Infrastructure;
+using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph.Models;
-using CorchEdges.Services;
-using FluentAssertions;
 using Microsoft.Graph;
-using Xunit.Abstractions;
+using Microsoft.Graph.Models;
 
-namespace CorchEdges.Tests.Integration;
+namespace CorchEdges.Tests.Integration.Services;
 
-[Trait("Category", "Integration")]
+[Trait("Category", TestCategories.Integration)]
+[Trait("Requires", InfrastructureRequirements.AzureGraphApi)]
 [Collection("Integration")]
-public class WebhookRegistrationIntegrationTests : IntegrationTestBase
+public class SharePointWebhookRegistrationIntegrationTests : IntegrationTestBase
 {
-    private WebhookRegistrar _webhookRegistrar;
-    private readonly ILogger<WebhookRegistrationIntegrationTests> _logger;
+    private SharePointWebhookRegistrar _sharePointWebhookRegistrar;
+    private readonly ILogger<SharePointWebhookRegistrationIntegrationTests> _logger;
     private readonly List<string> _createdSubscriptionIds = new();
 
-    public WebhookRegistrationIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
+    public SharePointWebhookRegistrationIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
         : base(fixture, output)
     {
-        _webhookRegistrar = Services.GetRequiredService<WebhookRegistrar>();
-        _logger = Services.GetRequiredService<ILogger<WebhookRegistrationIntegrationTests>>();
+        _sharePointWebhookRegistrar = Services.GetRequiredService<SharePointWebhookRegistrar>();
+        _logger = Services.GetRequiredService<ILogger<SharePointWebhookRegistrationIntegrationTests>>();
     }
 
     protected override void ConfigureServices(IServiceCollection services)
     {
         base.ConfigureServices(services);
         services.AddScoped<GraphServiceClient>(_ => new GraphServiceClient(new DefaultAzureCredential()));
-        services.AddScoped<WebhookRegistrar>();
+        services.AddScoped<SharePointWebhookRegistrar>();
     }
 
     [Fact]
@@ -44,11 +45,12 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         
         
         // Act
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId,
             listId,
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
 
         // Assert
         subscription.Should().NotBeNull();
@@ -73,19 +75,21 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var firstSubscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var firstSubscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
         _createdSubscriptionIds.Add(firstSubscription.Id!);
 
         // Act - Register again with same URL
-        var secondSubscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var secondSubscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
 
         // Assert
         secondSubscription.Should().NotBeNull();
@@ -103,7 +107,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await _webhookRegistrar.RegisterWebhookAsync(siteId, listId, invalidCallbackUrl));
+            await _sharePointWebhookRegistrar.RegisterWebhookAsync(siteId, listId, invalidCallbackUrl, null, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -118,16 +122,17 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
 
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Act
-        var isMonitored = await _webhookRegistrar.IsListMonitoredByWebhookAsync(siteId, listId);
+        var isMonitored = await _sharePointWebhookRegistrar.IsListMonitoredByWebhookAsync(siteId, listId, 30, TestContext.Current.CancellationToken);
 
         // Assert
         isMonitored.Should().BeTrue();
@@ -141,7 +146,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var nonExistentListId = Guid.NewGuid().ToString();
 
         // Act
-        var isMonitored = await _webhookRegistrar.IsListMonitoredByWebhookAsync(siteId, nonExistentListId);
+        var isMonitored = await _sharePointWebhookRegistrar.IsListMonitoredByWebhookAsync(siteId, nonExistentListId, 30, TestContext.Current.CancellationToken);
 
         // Assert
         isMonitored.Should().BeFalse();
@@ -159,16 +164,17 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
 
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Act
-        var isRegistered = await _webhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl);
+        var isRegistered = await _sharePointWebhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl, TestContext.Current.CancellationToken);
 
         // Assert
         isRegistered.Should().BeTrue();
@@ -182,7 +188,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var emptyListId = "test-empty-list";
 
         // Act
-        var status = await _webhookRegistrar.GetListWebhookStatusAsync(emptySiteId, emptyListId);
+        var status = await _sharePointWebhookRegistrar.GetListWebhookStatusAsync(emptySiteId, emptyListId, 30, TestContext.Current.CancellationToken);
 
         // Assert
         status.HasWebhooks.Should().BeFalse();
@@ -202,16 +208,17 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
 
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Get status
-        var status = await _webhookRegistrar.GetListWebhookStatusAsync(siteId, listId);
+        var status = await _sharePointWebhookRegistrar.GetListWebhookStatusAsync(siteId, listId, 30, TestContext.Current.CancellationToken);
 
         // Assert
         status.HasWebhooks.Should().BeTrue();
@@ -239,16 +246,17 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
         
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Check monitoring status
-        var isMonitored = await _webhookRegistrar.IsListMonitoredByWebhookAsync(siteId, listId);
+        var isMonitored = await _sharePointWebhookRegistrar.IsListMonitoredByWebhookAsync(siteId, listId, 30, TestContext.Current.CancellationToken);
 
         // Assert
         isMonitored.Should().BeTrue();
@@ -265,17 +273,18 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
         // Act - Register webhook first
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
 
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Check specific registration
-        var isRegistered = await _webhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl);
-        var isNotRegistered = await _webhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, "https://different.com/webhook");
+        var isRegistered = await _sharePointWebhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl, TestContext.Current.CancellationToken);
+        var isNotRegistered = await _sharePointWebhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, "https://different.com/webhook", TestContext.Current.CancellationToken);
 
         // Assert
         isRegistered.Should().BeTrue();
@@ -293,16 +302,17 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
         
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Act
-        var activeSubscriptions = await _webhookRegistrar.GetActiveSubscriptionsAsync();
+        var activeSubscriptions = await _sharePointWebhookRegistrar.GetActiveSubscriptionsAsync(30, TestContext.Current.CancellationToken);
 
         // Assert
         var subscriptions = activeSubscriptions as Subscription[] ?? activeSubscriptions.ToArray();
@@ -322,16 +332,17 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}", 
+            TestContext.Current.CancellationToken);
         
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Act
-        var renewResult = await _webhookRegistrar.RenewSubscriptionAsync(subscription.Id!, 2);
+        var renewResult = await _sharePointWebhookRegistrar.RenewSubscriptionAsync(subscription.Id!, 2, TestContext.Current.CancellationToken);
 
         // Assert
         renewResult.Should().BeTrue();
@@ -347,17 +358,18 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
 
         _createdSubscriptionIds.Add(subscription.Id!);
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await _webhookRegistrar.RenewSubscriptionAsync(subscription.Id!, 5)); // More than 3 days
+            await _sharePointWebhookRegistrar.RenewSubscriptionAsync(subscription.Id!, 5, TestContext.Current.CancellationToken)); // More than 3 days
     }
 
     [Fact]
@@ -367,7 +379,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var invalidSubscriptionId = Guid.NewGuid().ToString();
 
         // Act
-        var renewResult = await _webhookRegistrar.RenewSubscriptionAsync(invalidSubscriptionId);
+        var renewResult = await _sharePointWebhookRegistrar.RenewSubscriptionAsync(invalidSubscriptionId,3, TestContext.Current.CancellationToken);
 
         // Assert
         renewResult.Should().BeFalse();
@@ -384,20 +396,21 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var functionKey = Environment.GetEnvironmentVariable("TEST_FUNCTION_KEY") ?? throw new Exception("TEST_FUNCTION_KEY environment variable not set");
         var callbackUrl = $"https://corch-edges.azurewebsites.net/test/webhook?code={functionKey}";
 
-        var subscription = await _webhookRegistrar.RegisterWebhookAsync(
+        var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
             siteId, 
             listId, 
             callbackUrl,
-            clientState: $"test-{testId}");
+            clientState: $"test-{testId}",
+            TestContext.Current.CancellationToken);
 
         // Act
-        var deleteResult = await _webhookRegistrar.DeleteSubscriptionAsync(subscription.Id!);
+        var deleteResult = await _sharePointWebhookRegistrar.DeleteSubscriptionAsync(subscription.Id!);
 
         // Assert
         deleteResult.Should().BeTrue();
         
         // Verify it's actually deleted by checking if the specific webhook is still registered
-        var isStillRegistered = await _webhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl);
+        var isStillRegistered = await _sharePointWebhookRegistrar.IsSpecificWebhookRegisteredAsync(siteId, listId, callbackUrl, TestContext.Current.CancellationToken);
         isStillRegistered.Should().BeFalse();
     }
 
@@ -408,7 +421,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var invalidSubscriptionId = Guid.NewGuid().ToString();
 
         // Act
-        var deleteResult = await _webhookRegistrar.DeleteSubscriptionAsync(invalidSubscriptionId);
+        var deleteResult = await _sharePointWebhookRegistrar.DeleteSubscriptionAsync(invalidSubscriptionId);
 
         // Assert
         deleteResult.Should().BeFalse();
@@ -421,7 +434,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         var timeWindow = TimeSpan.FromDays(30); // Look for subscriptions expiring in 30 days
 
         // Act
-        var expiringSubscriptions = await _webhookRegistrar.GetExpiringSubscriptionsAsync(timeWindow);
+        var expiringSubscriptions = await _sharePointWebhookRegistrar.GetExpiringSubscriptionsAsync(timeWindow, TestContext.Current.CancellationToken);
 
         // Assert
         var subscriptions = expiringSubscriptions as Subscription[] ?? expiringSubscriptions.ToArray();
@@ -433,13 +446,13 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         }
     }
 
-    public override async Task InitializeAsync()
+    public override async ValueTask InitializeAsync()
     {
         await base.InitializeAsync();
-        _logger.LogInformation("Starting WebhookRegistrar integration tests");
+        _logger.LogInformation("Starting SharePointWebhookRegistrar integration tests");
     }
 
-    public override async Task DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
         // Cleanup any subscriptions that weren't explicitly deleted in tests
@@ -447,7 +460,7 @@ public class WebhookRegistrationIntegrationTests : IntegrationTestBase
         {
             try
             {
-                await _webhookRegistrar.DeleteSubscriptionAsync(subscriptionId);
+                await _sharePointWebhookRegistrar.DeleteSubscriptionAsync(subscriptionId);
                 _logger.LogInformation("Cleaned up subscription {SubscriptionId}", subscriptionId);
             }
             catch (Exception ex)

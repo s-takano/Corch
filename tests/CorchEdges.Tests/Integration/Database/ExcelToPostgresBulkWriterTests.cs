@@ -2,33 +2,31 @@
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
 using CorchEdges.Tests.Helpers;
+using CorchEdges.Tests.Infrastructure;
 using CorchEdges.Utilities;
-using Xunit;
 
 namespace CorchEdges.Tests.Integration.Database;
 
-[Trait("Category", "Integration")]
-[Trait("Component", "Database")]
+[Trait("Category", TestCategories.Integration)]
 [Trait("Target", "PostgresTableWriter")]
+[Trait("Requires", InfrastructureRequirements.PostgreSql)]
 public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
 {
     protected override string TestSchema { get;  } = "corch_edges_raw";
     
     private readonly IPostgresTableWriter _writer = new PostgresTableWriter();
-    private readonly ExcelDataParser _excelParser = new ExcelDataParser();
+    private readonly ExcelDataParser _excelParser = new();
     private readonly IDataSetConverter _dataSetConverter = new ExcelToDatabaseConverter();
         
 
     [Fact]
-    [Trait("Category", "Integration")]
-    [Trait("Source", "Excel")]
     public async Task WriteAsync_FromValidExcelFile_InsertsDataSuccessfully()
     {
         // Arrange
         var excelFilePath = Path.Combine("TestData", "valid-data.xlsx");
         Assert.True(File.Exists(excelFilePath), $"Test file not found: {excelFilePath}");
 
-        var excelBytes = await File.ReadAllBytesAsync(excelFilePath);
+        var excelBytes = await File.ReadAllBytesAsync(excelFilePath, TestContext.Current.CancellationToken);
         var (sourceDataSet, _) = _excelParser.Parse(new MemoryStream(excelBytes));
 
         Assert.NotNull(sourceDataSet);
@@ -38,11 +36,11 @@ public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
         var preparedDataSet = _dataSetConverter.ConvertForDatabase(sourceDataSet);
         var createdTables = await CreateDatabaseTablesFromDataSet(preparedDataSet);
 
-        await using var transaction = await Connection.BeginTransactionAsync();
+        await using var transaction = await Connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         // Act
         await _writer.WriteAsync(preparedDataSet, Connection, transaction);
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
 
         // Assert
         foreach (var (originalName, mappedName, qualifiedName) in createdTables)
@@ -56,13 +54,11 @@ public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
-    [Trait("Source", "Excel")]
     public async Task WriteAsync_FromValidExcelFile_DataIntegrityCheck()
     {
         // Arrange
         var excelFilePath = Path.Combine("TestData", "valid-data.xlsx");
-        byte[] excelBytes = await File.ReadAllBytesAsync(excelFilePath);
+        byte[] excelBytes = await File.ReadAllBytesAsync(excelFilePath, TestContext.Current.CancellationToken);
         var (sourceDataSet, _) = _excelParser.Parse(new MemoryStream(excelBytes));
 
         var preparedDataSet = _dataSetConverter.ConvertForDatabase(sourceDataSet!);
@@ -79,13 +75,13 @@ public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
         var tableForDatabase = sourceTable.Copy();
         tableForDatabase.TableName = qualifiedTableName;
 
-        await using var transaction = await Connection.BeginTransactionAsync();
+        await using var transaction = await Connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         // Act
         var singleTableDataSet = new DataSet();
         singleTableDataSet.Tables.Add(tableForDatabase); // Now using a copy
         await _writer.WriteAsync(singleTableDataSet, Connection, transaction);
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var insertedData = await GetTableData(qualifiedTableName);
@@ -95,8 +91,6 @@ public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
-    [Trait("Source", "Excel")]
     public async Task WriteAsync_AllContractSheetsMapping_CreatesCorrectTables()
     {
         // Arrange
@@ -104,11 +98,11 @@ public class ExcelToPostgresBulkWriterTests : PostgresDatabaseTestBase
         var preparedDataSet = _dataSetConverter.ConvertForDatabase(testDataSet);
         var createdTables = await CreateDatabaseTablesFromDataSet(preparedDataSet);
 
-        await using var transaction = await Connection.BeginTransactionAsync();
+        await using var transaction = await Connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         // Act
         await _writer.WriteAsync(preparedDataSet, Connection, transaction);
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(4, createdTables.Count);

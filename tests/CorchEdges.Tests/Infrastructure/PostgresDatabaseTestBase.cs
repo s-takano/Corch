@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 
-namespace CorchEdges.Tests;
+namespace CorchEdges.Tests.Infrastructure;
 
 public abstract class PostgresDatabaseTestBase : IDisposable
 {

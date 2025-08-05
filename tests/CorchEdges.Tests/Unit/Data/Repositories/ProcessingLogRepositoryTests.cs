@@ -2,6 +2,7 @@
 using CorchEdges.Data.Entities;
 using CorchEdges.Data.Repositories;
 using CorchEdges.Data.Utilities;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorchEdges.Tests.Unit.Data.Repositories;
@@ -9,6 +10,7 @@ namespace CorchEdges.Tests.Unit.Data.Repositories;
 /// <summary>
 /// Unit tests for ProcessingLogRepository.
 /// </summary>
+[Trait("Category", TestCategories.Unit)]
 public class ProcessingLogRepositoryTests : IDisposable
 {
     private readonly EdgesDbContext _context;
@@ -63,7 +65,7 @@ public class ProcessingLogRepositoryTests : IDisposable
         };
 
         _context.ProcessingLogs.Add(existingLog);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _repository.GetDeltaLinkForSyncAsync(siteId, listId);
@@ -91,7 +93,7 @@ public class ProcessingLogRepositoryTests : IDisposable
         };
 
         _context.ProcessingLogs.Add(existingLog);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _repository.GetDeltaLinkForSyncAsync(siteId, listId);
@@ -130,7 +132,7 @@ public class ProcessingLogRepositoryTests : IDisposable
         };
 
         _context.ProcessingLogs.AddRange(oldLog, latestLog);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _repository.GetDeltaLinkForSyncAsync(siteId, listId);
@@ -159,7 +161,7 @@ public class ProcessingLogRepositoryTests : IDisposable
         };
 
         _context.ProcessingLogs.Add(differentLog);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _repository.GetDeltaLinkForSyncAsync(siteId, listId);
@@ -331,7 +333,7 @@ public class ProcessingLogRepositoryTests : IDisposable
         };
 
         _context.ProcessingLogs.AddRange(log1, log2, log3);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _repository.GetRecentProcessingHistoryAsync(siteId, listId);
@@ -366,7 +368,7 @@ public class ProcessingLogRepositoryTests : IDisposable
         }
 
         _context.ProcessingLogs.AddRange(logs);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _repository.GetRecentProcessingHistoryAsync(siteId, listId, requestedCount);
@@ -397,7 +399,7 @@ public class ProcessingLogRepositoryTests : IDisposable
         };
 
         _context.ProcessingLogs.Add(differentLog);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _repository.GetRecentProcessingHistoryAsync(siteId, listId);
@@ -428,7 +430,7 @@ public class ProcessingLogRepositoryTests : IDisposable
         }
 
         _context.ProcessingLogs.AddRange(logs);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _repository.GetRecentProcessingHistoryAsync(siteId, listId);

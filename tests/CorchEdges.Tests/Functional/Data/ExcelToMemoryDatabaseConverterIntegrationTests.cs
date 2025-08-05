@@ -3,13 +3,11 @@
 using System.Data;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
-using CorchEdges.Data.Entities;
-using Xunit;
+using CorchEdges.Tests.Infrastructure;
 
-namespace CorchEdges.Tests.Integration.Data;
+namespace CorchEdges.Tests.Functional.Data;
 
-[Trait("Category", "Integration")]
-[Trait("Component", "Data")]
+[Trait("Category", TestCategories.Integration)]
 [Trait("Target", "ExcelToDatabaseConverter")]
 public class ExcelToMemoryDatabaseConverterIntegrationTests : MemoryDatabaseTestBase
 {

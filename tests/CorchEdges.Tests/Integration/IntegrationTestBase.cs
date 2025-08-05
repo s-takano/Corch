@@ -2,7 +2,7 @@
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit.Abstractions;
+
 
 namespace CorchEdges.Tests.Integration;
 
@@ -37,12 +37,12 @@ public abstract class IntegrationTestBase : IClassFixture<IntegrationTestFixture
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
     }
 
-    public virtual async Task InitializeAsync()
+    public virtual async ValueTask InitializeAsync()
     {
-        await Task.CompletedTask;
+        await ValueTask.CompletedTask;
     }
 
-    public virtual async Task DisposeAsync()
+    public virtual async ValueTask DisposeAsync()
     {
         await Fixture.DisposeAsync();
     }

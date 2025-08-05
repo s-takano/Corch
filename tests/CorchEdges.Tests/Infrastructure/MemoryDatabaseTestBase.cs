@@ -1,13 +1,10 @@
-﻿using System.Data.Common;
-using CorchEdges.Data;
+﻿using CorchEdges.Data;
 using DotNetEnv;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Configuration;
-using Npgsql;
 
-namespace CorchEdges.Tests;
+namespace CorchEdges.Tests.Infrastructure;
 
 public abstract class MemoryDatabaseTestBase : IDisposable
 {

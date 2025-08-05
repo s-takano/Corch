@@ -6,12 +6,12 @@ using Azure.Messaging.ServiceBus.Administration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Graph.Models;
 using CorchEdges.Models;
-using Xunit.Abstractions;
+using CorchEdges.Tests.Infrastructure;
 
 namespace CorchEdges.Tests.Integration.ServiceBus;
 
-[Trait("Category", "Integration")]
-[Trait("Component", "ServiceBus")]
+[Trait("Category", TestCategories.Integration)]
+[Trait("Requires", InfrastructureRequirements.AzureServiceBus)]
 [Collection("ServiceBus Integration Tests")]
 public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
 {
@@ -71,11 +71,11 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         };
 
         // Act - Send message
-        await _sender.SendMessageAsync(message);
+        await _sender.SendMessageAsync(message, TestContext.Current.CancellationToken);
         _output.WriteLine($"Sent message with ID: {message.MessageId}");
 
         // Act - Receive message
-        var receivedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(30));
+        var receivedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
         Assert.NotNull(receivedMessage);
 
         var receivedBody = receivedMessage.Body.ToString();
@@ -94,7 +94,7 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         Assert.Equal(original.ChangeType, received.ChangeType);
 
         // Complete the message
-        await _receiver.CompleteMessageAsync(receivedMessage);
+        await _receiver.CompleteMessageAsync(receivedMessage, TestContext.Current.CancellationToken);
         _output.WriteLine($"Completed message with ID: {receivedMessage.MessageId}");
     }
 
@@ -111,14 +111,14 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         }).ToArray();
 
         // Act - Send all messages
-        await _sender.SendMessagesAsync(messages);
+        await _sender.SendMessagesAsync(messages,TestContext.Current.CancellationToken);
         _output.WriteLine($"Sent {messages.Length} messages");
 
         // Act - Receive all messages
         var receivedMessages = new List<ServiceBusReceivedMessage>();
         for (int i = 0; i < messages.Length; i++)
         {
-            var received = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(10));
+            var received = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             Assert.NotNull(received);
             receivedMessages.Add(received);
         }
@@ -133,7 +133,7 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
             Assert.NotNull(receivedNotification);
             
             // Complete each message
-            await _receiver.CompleteMessageAsync(receivedMessages[i]);
+            await _receiver.CompleteMessageAsync(receivedMessages[i], TestContext.Current.CancellationToken);
         }
 
         _output.WriteLine($"Successfully processed {receivedMessages.Count} messages");
@@ -163,8 +163,8 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         message.ApplicationProperties["RetryCount"] = 0;
 
         // Act
-        await _sender.SendMessageAsync(message);
-        var receivedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(30));
+        await _sender.SendMessageAsync(message, TestContext.Current.CancellationToken);
+        var receivedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(receivedMessage);
@@ -180,7 +180,7 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         Assert.Equal("High", receivedMessage.ApplicationProperties["Priority"]);
         Assert.Equal(0, receivedMessage.ApplicationProperties["RetryCount"]);
 
-        await _receiver.CompleteMessageAsync(receivedMessage);
+        await _receiver.CompleteMessageAsync(receivedMessage,TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -189,9 +189,9 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         // Arrange - Create a large notification with many change items
         var largeNotification = CreateLargeNotificationEnvelope(100);
         var messageBody = JsonSerializer.Serialize(largeNotification);
-        var messageSizeKB = Encoding.UTF8.GetByteCount(messageBody) / 1024;
+        var messageSizeKb = Encoding.UTF8.GetByteCount(messageBody) / 1024;
         
-        _output.WriteLine($"Large message size: {messageSizeKB} KB");
+        _output.WriteLine($"Large message size: {messageSizeKb} KB");
         
         var message = new ServiceBusMessage(messageBody)
         {
@@ -200,8 +200,8 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         };
 
         // Act
-        await _sender.SendMessageAsync(message);
-        var receivedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(30));
+        await _sender.SendMessageAsync(message, TestContext.Current.CancellationToken);
+        var receivedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(receivedMessage);
@@ -211,7 +211,7 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         Assert.NotNull(receivedNotification);
         Assert.Equal(100, receivedNotification.Value.Length);
 
-        await _receiver.CompleteMessageAsync(receivedMessage);
+        await _receiver.CompleteMessageAsync(receivedMessage, TestContext.Current.CancellationToken);
         _output.WriteLine("Large message processed successfully");
     }
 
@@ -228,16 +228,17 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         };
 
         // Act - Send message
-        await _sender.SendMessageAsync(message);
-        var receivedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(30));
+        await _sender.SendMessageAsync(message, TestContext.Current.CancellationToken);
+        var receivedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
         Assert.NotNull(receivedMessage);
 
         // Simulate processing failure - abandon the message multiple times
         await _receiver.AbandonMessageAsync(receivedMessage, new Dictionary<string, object>
-        {
-            ["FailureReason"] = "Simulated processing failure",
-            ["FailureTime"] = DateTimeOffset.UtcNow.ToString()
-        });
+            {
+                ["FailureReason"] = "Simulated processing failure",
+                ["FailureTime"] = DateTimeOffset.UtcNow.ToString()
+            },
+            TestContext.Current.CancellationToken);
 
         _output.WriteLine("Message abandoned - simulating processing failure");
 
@@ -245,14 +246,14 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         // In a real scenario, you'd check the dead letter queue, but for this test we'll verify the abandon worked
         
         // Try to receive again (should get the same message due to abandon)
-        var retriedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(10));
+        var retriedMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         if (retriedMessage != null)
         {
             Assert.Equal(receivedMessage.MessageId, retriedMessage.MessageId);
             Assert.True(retriedMessage.DeliveryCount > receivedMessage.DeliveryCount);
             
             // Complete it to clean up
-            await _receiver.CompleteMessageAsync(retriedMessage);
+            await _receiver.CompleteMessageAsync(retriedMessage, TestContext.Current.CancellationToken);
         }
     }
 
@@ -269,7 +270,7 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         }).ToArray();
 
         // Act - Send all messages
-        await _sender.SendMessagesAsync(messages);
+        await _sender.SendMessagesAsync(messages, TestContext.Current.CancellationToken);
 
         // Create multiple receivers to simulate concurrent processing
         var receiver1 = _serviceBusClient.CreateReceiver(_queueName);
@@ -313,17 +314,17 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
 
         // Act - Schedule message for future delivery
         var startTime = DateTimeOffset.UtcNow;
-        var sequenceNumber = await _sender.ScheduleMessageAsync(message, scheduleTime);
+        var sequenceNumber = await _sender.ScheduleMessageAsync(message, scheduleTime, TestContext.Current.CancellationToken);
         _output.WriteLine($"Scheduled message {sequenceNumber} for {scheduleTime:HH:mm:ss.fff}");
 
         // Try to receive immediately (should not get anything)
-        var immediateMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(2));
+        var immediateMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
         Assert.Null(immediateMessage);
 
         // Wait for scheduled time
-        await Task.Delay(TimeSpan.FromSeconds(delaySeconds + 2)); // Add buffer for processing
+        await Task.Delay(TimeSpan.FromSeconds(delaySeconds + 2), TestContext.Current.CancellationToken); // Add buffer for processing
 
-        var scheduledMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(5));
+        var scheduledMessage = await _receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         var actualDelay = DateTimeOffset.UtcNow.Subtract(startTime);
 
         // Assert
@@ -331,7 +332,7 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         Assert.Equal(message.MessageId, scheduledMessage.MessageId);
         _output.WriteLine($"Scheduled message delivered after {actualDelay.TotalSeconds:F1} seconds");
     
-        await _receiver.CompleteMessageAsync(scheduledMessage);
+        await _receiver.CompleteMessageAsync(scheduledMessage, TestContext.Current.CancellationToken);
     }
     
     private async Task ProcessMessagesAsync(
@@ -415,7 +416,7 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         return new NotificationEnvelope { Value = notifications };
     }
 
-    public override async Task InitializeAsync()
+    public override async ValueTask InitializeAsync()
     {
         await base.InitializeAsync();
         
@@ -438,7 +439,7 @@ public class SharePointChangeProcessingServiceBusTests : IntegrationTestBase
         await PurgeQueueAsync();
     }
 
-    public override async Task DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
         await _receiver.DisposeAsync();

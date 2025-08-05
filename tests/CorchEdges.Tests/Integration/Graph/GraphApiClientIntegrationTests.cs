@@ -1,19 +1,19 @@
 ﻿using Azure.Core;
-using Azure.Identity;
 using CorchEdges.Abstractions;
+using CorchEdges.Tests.Infrastructure;
 using CorchEdges.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ODataErrors;
-using Xunit;
-using Xunit.Abstractions;
 
-namespace CorchEdges.Tests.Integration;
 
-[Trait("Category", "Integration")]
+namespace CorchEdges.Tests.Integration.Graph;
+
+[Trait("Category", TestCategories.Integration)]
+[Trait("Requires", InfrastructureRequirements.AzureGraphApi)]
 [Collection("Integration")]
-public class GraphFacadeIntegrationTests : IntegrationTestBase
+public class GraphApiClientIntegrationTests : IntegrationTestBase
 {
     private readonly IGraphApiClient _graphApiClient;
     private readonly ITestOutputHelper _output;
@@ -30,7 +30,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         });
     }
 
-    public GraphFacadeIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
+    public GraphApiClientIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
         : base(fixture, output)
     {
         _graphApiClient = fixture.Services.GetRequiredService<IGraphApiClient>();
@@ -42,7 +42,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task TestConnectionAsync_WithValidCredentials_ReturnsSuccess()
     {
         // Act
@@ -64,7 +63,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task TestConnectionAsync_WithInvalidCredentials_ReturnsFailureWithReason()
     {
         // This test would need mock setup or invalid credentials
@@ -85,7 +83,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
 
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetListItemAsync_WithValidParameters_ReturnsListItem()
     {
         // Arrange
@@ -126,7 +123,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetDriveItemAsync_WithValidParameters_ReturnsDriveItem()
     {
         // Arrange
@@ -150,7 +146,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetDriveItemAsync_WithInvalidItemId_ReturnsNull()
     {
         // Arrange
@@ -163,7 +158,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task DownloadAsync_WithValidDriveItem_ReturnsStream()
     {
         // Arrange
@@ -186,7 +180,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         
         // Verify we can actually read content
         var buffer = new byte[1024];
-        var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+        var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, TestContext.Current.CancellationToken);
         Assert.True(bytesRead > 0, "Should be able to read data from the stream");
         
         _output.WriteLine($"✅ Successfully downloaded file stream");
@@ -207,7 +201,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task DownloadAsync_WithInvalidDriveId_ThrowsException()
     {
         // Arrange
@@ -224,7 +217,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task IntegrationWorkflow_CompleteProcess_WorksEndToEnd()
     {
         // Arrange
@@ -256,7 +248,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         Assert.NotNull(stream);
         
         var buffer = new byte[1024];
-        var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+        var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, TestContext.Current.CancellationToken);
         Assert.True(bytesRead > 0);
         _output.WriteLine($"   ✅ Step 4: File downloaded ({bytesRead} bytes read)");
 
@@ -264,7 +256,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     [Trait("Category", "Performance")]
     public async Task Performance_ConcurrentRequests_HandlesLoad()
     {
@@ -298,7 +289,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetItemsDeltaAsync_WithLatestToken_ReturnsInitialDelta()
     {
         // Arrange
@@ -331,7 +321,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetItemsDeltaAsync_WithPreviousDeltaLink_ReturnsSubsequentChanges()
     {
         // Arrange
@@ -347,7 +336,7 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
         Assert.NotNull(initialItems);
 
         // Wait a brief moment to ensure any subsequent changes are captured
-        await Task.Delay(1000);
+        await Task.Delay(1000, TestContext.Current.CancellationToken);
 
         // Act - Use the delta link from the previous call
         var (subsequentDeltaLink, subsequentItems) = await _graphApiClient.PullItemsDeltaAsync(
@@ -370,7 +359,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetItemsDeltaAsync_WithInvalidSiteId_ThrowsException()
     {
         // Arrange
@@ -387,7 +375,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetItemsDeltaAsync_WithInvalidListId_ThrowsException()
     {
         // Arrange
@@ -404,7 +391,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetItemsDeltaAsync_WithInvalidDeltaToken_ThrowsException()
     {
         // Arrange
@@ -424,7 +410,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetItemsDeltaAsync_WithEmptyParameters_ThrowsException()
     {
         // Arrange & Act & Assert
@@ -445,7 +430,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task GetItemsDeltaAsync_ReturnsConsistentDataStructure()
     {
         // Arrange
@@ -484,8 +468,6 @@ public class GraphFacadeIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
-    [Trait("Category", "Performance")]
     public async Task GetItemsDeltaAsync_Performance_CompletesWithinReasonableTime()
     {
         // Arrange

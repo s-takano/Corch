@@ -1,13 +1,12 @@
 ﻿using CorchEdges.Abstractions;
 using CorchEdges.Services;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
-namespace CorchEdges.Tests.Integration.Azure;
+namespace CorchEdges.Tests.Contract;
 
-[Trait("Category", "Integration")]
-[Trait("Component", "Service")]
+[Trait("Category", TestCategories.Contract)]
 [Trait("Target", "SharePointWebhookProcessor")]
 public class DefaultSharePointWebhookProcessorIntegrationTests
 {

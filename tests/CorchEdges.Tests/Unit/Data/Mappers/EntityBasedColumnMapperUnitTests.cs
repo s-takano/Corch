@@ -1,11 +1,12 @@
 ﻿// tests/CorchEdges.Tests/Unit/Data/Mappers/EntityBasedColumnMapperUnitTests.cs
 
 using CorchEdges.Data.Mappers;
+using CorchEdges.Tests.Infrastructure;
 using Xunit;
 
 namespace CorchEdges.Tests.Unit.Data.Mappers;
 
-[Trait("Category", "Unit")]
+[Trait("Category", TestCategories.Unit)]
 [Trait("Component", "EntityBasedColumnMapper")]
 public class EntityBasedColumnMapperUnitTests
 {

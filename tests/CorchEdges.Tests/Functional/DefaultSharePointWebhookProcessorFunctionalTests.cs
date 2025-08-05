@@ -1,13 +1,13 @@
 ﻿using CorchEdges.Services;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using Moq;
-using Xunit;
 
 namespace CorchEdges.Tests.Functional;
 
-[Trait("Category", "Functional")]
+[Trait("Category", TestCategories.Functional)]
 [Trait("Component", "SharePointWebhookProcessor")]
 public class DefaultSharePointWebhookProcessorFunctionalTests
 {

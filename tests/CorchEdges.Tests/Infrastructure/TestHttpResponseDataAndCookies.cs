@@ -1,12 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Immutable;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
 using System.Net;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 
-namespace CorchEdges.Tests;
+namespace CorchEdges.Tests.Infrastructure;
 
 public class TestHttpRequestData : HttpRequestData
 {

@@ -2,11 +2,12 @@
 
 using System.Data;
 using CorchEdges.Tests.Helpers;
+using CorchEdges.Tests.Infrastructure;
 using Xunit;
 
 namespace CorchEdges.Tests.Unit.Helpers;
 
-[Trait("Category", "Unit")]
+[Trait("Category", TestCategories.Unit)]
 [Trait("Component", "DatabaseTestHelper")]
 public class DatabaseTestHelperTests
 {

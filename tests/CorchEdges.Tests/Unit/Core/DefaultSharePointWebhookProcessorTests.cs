@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using CorchEdges.Services;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -10,7 +11,7 @@ using Xunit;
 
 namespace CorchEdges.Tests.Unit.Core;
 
-[Trait("Category", "Unit")]
+[Trait("Category", TestCategories.Unit)]
 [Trait("Component", "WebhookProcessor")]
 public class DefaultSharePointWebhookProcessorTests
 {

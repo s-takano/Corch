@@ -2,6 +2,7 @@ using Moq;
 
 namespace CorchEdges.Tests.Infrastructure;
 
+[Trait("Category", TestCategories.Unit)]
 public class MoqVerificationTest
 {
     [Fact]

@@ -1,31 +1,28 @@
 using System.Net;
 using CorchEdges.Abstractions;
-using CorchEdges.Functions;
 using CorchEdges.Functions.SharePoint;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 using AzureFunctionsHttpRequestData = Microsoft.Azure.Functions.Worker.Http.HttpRequestData;
 using AzureFunctionsHttpResponseData = Microsoft.Azure.Functions.Worker.Http.HttpResponseData;
 using AzureFunctionsHttpTriggerAttribute = Microsoft.Azure.Functions.Worker.HttpTriggerAttribute;
 
-namespace CorchEdges.Tests.Integration.Azure;
+namespace CorchEdges.Tests.Functional.Azure;
 
-[Trait("Category", "Integration")]
-[Trait("Component", "AzureFunction")]
+[Trait("Category", TestCategories.Integration)]
 [Trait("Target", "ReceiveSharePointChangeNotification")]
 public class SharePointWebhookCallbackIntegrationTests
 {
     private readonly Mock<ISharePointWebhookProcessor> _mockProcessor;
     private readonly ReceiveSharePointChangeNotification _function;
-    private readonly Mock<ILogger<ReceiveSharePointChangeNotification>> _mockLogger;
 
     public SharePointWebhookCallbackIntegrationTests()
     {
         _mockProcessor = new Mock<ISharePointWebhookProcessor>();
-        _mockLogger = new Mock<ILogger<ReceiveSharePointChangeNotification>>();
-        _function = new ReceiveSharePointChangeNotification(_mockProcessor.Object, _mockLogger.Object);
+        var mockLogger = new Mock<ILogger<ReceiveSharePointChangeNotification>>();
+        _function = new ReceiveSharePointChangeNotification(_mockProcessor.Object, mockLogger.Object);
     }
 
     [Fact]

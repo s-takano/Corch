@@ -1,10 +1,11 @@
 ﻿using CorchEdges.Data;
 using CorchEdges.Data.Entities;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorchEdges.Tests.Entities;
 
-[Trait("Category", "EntityCrud")]
+[Trait("Category", TestCategories.Entity)]
 [Trait("Entity", "ContractTermination")]
 public class ContractTerminationCrudTests : EntityCrudTestBase<ContractTermination>
 {

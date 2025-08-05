@@ -1,4 +1,5 @@
 ﻿using CorchEdges.Data;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorchEdges.Tests.Entities;
@@ -25,13 +26,13 @@ public abstract class EntityCrudTestBase<TEntity> : MemoryDatabaseTestBase
 
         // Act
         GetDbSet(dbContext).Add(entity);
-        var result = await dbContext.SaveChangesAsync();
+        var result = await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, result);
         
         // Verify entity was saved
-        var savedEntity = await GetDbSet(dbContext).FirstOrDefaultAsync();
+        var savedEntity = await GetDbSet(dbContext).FirstOrDefaultAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(savedEntity);
         
         // Transaction will rollback when disposed
@@ -48,10 +49,10 @@ public abstract class EntityCrudTestBase<TEntity> : MemoryDatabaseTestBase
         // Arrange
         var entity = CreateValidEntity();
         GetDbSet(dbContext).Add(entity);
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var retrievedEntity = await GetDbSet(dbContext).FirstOrDefaultAsync();
+        var retrievedEntity = await GetDbSet(dbContext).FirstOrDefaultAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrievedEntity);
@@ -69,17 +70,17 @@ public abstract class EntityCrudTestBase<TEntity> : MemoryDatabaseTestBase
         // Arrange
         var entity = CreateValidEntity();
         GetDbSet(dbContext).Add(entity);
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         ModifyEntity(entity);
-        var result = await dbContext.SaveChangesAsync();
+        var result = await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, result);
         
         // Verify changes were persisted
-        var updatedEntity = await GetDbSet(dbContext).FirstOrDefaultAsync();
+        var updatedEntity = await GetDbSet(dbContext).FirstOrDefaultAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(updatedEntity);
         AssertEntitiesEqual(entity, updatedEntity);
     }
@@ -95,17 +96,17 @@ public abstract class EntityCrudTestBase<TEntity> : MemoryDatabaseTestBase
         // Arrange
         var entity = CreateValidEntity();
         GetDbSet(dbContext).Add(entity);
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         GetDbSet(dbContext).Remove(entity);
-        var result = await dbContext.SaveChangesAsync();
+        var result = await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, result);
         
         // Verify entity was deleted
-        var deletedEntity = await GetDbSet(dbContext).FirstOrDefaultAsync();
+        var deletedEntity = await GetDbSet(dbContext).FirstOrDefaultAsync(TestContext.Current.CancellationToken);
         Assert.Null(deletedEntity);
     }
 
@@ -127,13 +128,13 @@ public abstract class EntityCrudTestBase<TEntity> : MemoryDatabaseTestBase
 
         // Act
         GetDbSet(dbContext).AddRange(entities);
-        var result = await dbContext.SaveChangesAsync();
+        var result = await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, result);
         
         // Verify all entities were saved
-        var count = await GetDbSet(dbContext).CountAsync();
+        var count = await GetDbSet(dbContext).CountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, count);
     }
     

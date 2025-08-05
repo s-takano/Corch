@@ -1,14 +1,13 @@
 ﻿using System.Data;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
-using Npgsql;
-using Xunit;
+using CorchEdges.Tests.Infrastructure;
 
 namespace CorchEdges.Tests.Integration.Database;
 
-[Trait("Category", "Integration")]
-[Trait("Component", "Database")]
+[Trait("Category", TestCategories.Integration)]
 [Trait("Target", "PostgresTableWriter")]
+[Trait("Requires", InfrastructureRequirements.PostgreSql)] 
 public class PostgresTableWriterTests : PostgresDatabaseTestBase
 {
     protected override string TestSchema { get;  } = "corch_edges_raw";
@@ -32,11 +31,11 @@ public class PostgresTableWriterTests : PostgresDatabaseTestBase
             
         dataSet.Tables[0].TableName = tableName;
             
-        await using var transaction = await Connection.BeginTransactionAsync();
+        await using var transaction = await Connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         // Act
         await _writer.WriteAsync(dataSet, Connection, transaction);
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var count = await GetTableRowCount(tableName);
@@ -50,7 +49,6 @@ public class PostgresTableWriterTests : PostgresDatabaseTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task WriteAsync_MultipleTablesWithMatchingSchema_InsertsAllTablesSuccessfully()
     {
         // Arrange
@@ -78,11 +76,11 @@ public class PostgresTableWriterTests : PostgresDatabaseTestBase
         dataSet.Tables["departments"]!.TableName = deptTableName;
         dataSet.Tables["employees"]!.TableName = empTableName;
             
-        await using var transaction = await Connection.BeginTransactionAsync();
+        await using var transaction = await Connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         // Act
         await _writer.WriteAsync(dataSet, Connection, transaction);
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var empCount = await GetTableRowCount(empTableName);
@@ -98,7 +96,6 @@ public class PostgresTableWriterTests : PostgresDatabaseTestBase
     }
 
     [Fact]
-    [Trait("Category", "Integration")]
     public async Task WriteAsync_EmptyDataSet_CompletesWithoutError()
     {
         // Arrange
@@ -108,11 +105,11 @@ public class PostgresTableWriterTests : PostgresDatabaseTestBase
             "name VARCHAR(50)");
             
         dataSet.Tables[0].TableName = tableName;
-        await using var transaction = await Connection.BeginTransactionAsync();
+        await using var transaction = await Connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert - Should not throw
         await _writer.WriteAsync(dataSet, Connection, transaction);
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
             
         var count = await GetTableRowCount(tableName);
         Assert.Equal(0, count);
@@ -126,7 +123,7 @@ public class PostgresTableWriterTests : PostgresDatabaseTestBase
         var dataSet = CreateTestDataSet();
         dataSet.Tables[0].TableName = ".table"; // Empty schema name (more realistic)
             
-        await using var transaction = await Connection.BeginTransactionAsync();
+        await using var transaction = await Connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
@@ -143,7 +140,7 @@ public class PostgresTableWriterTests : PostgresDatabaseTestBase
         var dataSet = CreateTestDataSet();
         dataSet.Tables[0].TableName = "schema."; // Empty table name (more realistic)
             
-        await using var transaction = await Connection.BeginTransactionAsync();
+        await using var transaction = await Connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => 

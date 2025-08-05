@@ -1,21 +1,14 @@
-﻿using CorchEdges.Data;
-using CorchEdges.Data.Entities;
+﻿using CorchEdges.Data.Entities;
 using CorchEdges.Data.Providers;
-using Xunit;
+using CorchEdges.Tests.Infrastructure;
 
-namespace CorchEdges.Tests.Integration.Data.Providers;
+namespace CorchEdges.Tests.Functional.Data.Providers;
 
-[Trait("Category", "Integration")]
-[Trait("Component", "Data")]
+[Trait("Category", TestCategories.Integration)]
 [Trait("Target", "ReflectionEntityMetadataProvider")]
 public class ReflectionEntityMetadataProviderIntegrationTests : MemoryDatabaseTestBase
 {
-    private readonly ReflectionEntityMetadataProvider _metadataProvider;
-
-    public ReflectionEntityMetadataProviderIntegrationTests()
-    {
-        _metadataProvider = new ReflectionEntityMetadataProvider();
-    }
+    private readonly ReflectionEntityMetadataProvider _metadataProvider = new();
 
     #region Real Entity Integration Tests - Mirroring ExcelToDatabaseConverterIntegrationTests
 

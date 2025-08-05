@@ -1,10 +1,11 @@
 ﻿using CorchEdges.Data;
 using CorchEdges.Data.Entities;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorchEdges.Tests.Entities;
 
-[Trait("Category", "EntityCrud")]
+[Trait("Category", TestCategories.Entity)]
 [Trait("Entity", "ContractCurrent")]
 public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
 {
@@ -93,12 +94,12 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
         entities[2].PropertyNo = 100;
 
         dbContext.ContractCurrents.AddRange(entities);
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var property100Contracts = await dbContext.ContractCurrents
             .Where(c => c.PropertyNo == 100)
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, property100Contracts.Count);
@@ -124,13 +125,13 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
         entities[2].Rent = 95000;
 
         dbContext.ContractCurrents.AddRange(entities);
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var affordableRents = await dbContext.ContractCurrents
             .Where(c => c.Rent <= 100000)
             .Select(contract => contract.Rent)
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, affordableRents.Count);
@@ -150,13 +151,13 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
 
         // Act
         dbContext.ContractCurrents.Add(entity);
-        var result = await dbContext.SaveChangesAsync();
+        var result = await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, result);
         
         var savedEntity = await dbContext.ContractCurrents
-            .FirstOrDefaultAsync(e => e.ContractId == entity.ContractId);
+            .FirstOrDefaultAsync(e => e.ContractId == entity.ContractId, TestContext.Current.CancellationToken);
         Assert.NotNull(savedEntity);
         Assert.Equal("解約予定", savedEntity.ContractStatus);
     }
@@ -180,12 +181,12 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
         entities[2].FixedTermLease = true;
 
         dbContext.ContractCurrents.AddRange(entities);
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var fixedTermContracts = await dbContext.ContractCurrents
             .Where(c => c.FixedTermLease == true)
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, fixedTermContracts.Count);

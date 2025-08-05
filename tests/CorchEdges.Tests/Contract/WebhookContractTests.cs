@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using CorchEdges.Abstractions;
 using CorchEdges.Services;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -9,7 +10,7 @@ using AzureFunctionsHttpResponseData = Microsoft.Azure.Functions.Worker.Http.Htt
 
 namespace CorchEdges.Tests.Contract;
 
-[Trait("Category", "Contract")]
+[Trait("Category", TestCategories.Contract)]
 [Trait("Component", "SharePointWebhookProcessor")]
 public class SharePointWebhookProcessorContractTests
 {

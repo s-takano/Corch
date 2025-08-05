@@ -1,10 +1,11 @@
 ﻿using CorchEdges.Data;
 using CorchEdges.Data.Entities;
+using CorchEdges.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorchEdges.Tests.Entities;
 
-[Trait("Category", "EntityCrud")]
+[Trait("Category", TestCategories.Entity)]
 [Trait("Entity", "ContractCreation")]
 public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
 {
@@ -67,13 +68,13 @@ public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
 
         // Act
         dbContext.ContractCreations.Add(entity);
-        var result = await dbContext.SaveChangesAsync();
+        var result = await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, result);
         
         var savedEntity = await dbContext.ContractCreations
-            .FirstOrDefaultAsync(e => e.ContractId == entity.ContractId);
+            .FirstOrDefaultAsync(e => e.ContractId == entity.ContractId, TestContext.Current.CancellationToken);
         Assert.NotNull(savedEntity);
         Assert.Equal(entity.ContractId, savedEntity.ContractId);
     }
@@ -97,12 +98,12 @@ public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
         entities[2].ProgressStatus = "進行中";
 
         dbContext.ContractCreations.AddRange(entities);
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var inProgressContracts = await dbContext.ContractCreations
             .Where(c => c.ProgressStatus == "進行中")
-            .ToListAsync();
+            .ToListAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, inProgressContracts.Count);

@@ -7,6 +7,7 @@ using CorchEdges.Data;
 using CorchEdges.Functions.SharePoint;
 using CorchEdges.Models;
 using CorchEdges.Services;
+using CorchEdges.Tests.Infrastructure;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -15,6 +16,7 @@ using Moq;
 
 namespace CorchEdges.Tests.Unit.Functions;
 
+[Trait("Category", TestCategories.Unit)]
 public class SharePointSyncFunctionTests : IDisposable
 {
     private readonly Mock<ILogger<SharePointSyncFunction>> _mockLogger;

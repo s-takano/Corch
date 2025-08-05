@@ -1,22 +1,17 @@
 ﻿using System.Data;
 using CorchEdges.Data.Abstractions;
-using CorchEdges.Data.Mappers;
 using CorchEdges.Data.Normalizers;
 using CorchEdges.Data.Providers;
+using CorchEdges.Tests.Infrastructure;
 
-namespace CorchEdges.Tests.Integration.Data.Normalizers;
+namespace CorchEdges.Tests.Functional.Data.Normalizers;
 
-[Trait("Category", "Integration")]
+[Trait("Category", TestCategories.Integration)]
 [Trait("Component", "Data")]
 [Trait("Target", "DataNormalizer")]
 public class DataNormalizerIntegrationTests
 {
-    private readonly ITableNormalizer _tableNormalizer;
-
-    public DataNormalizerIntegrationTests()
-    {
-        _tableNormalizer = CreateEntityDataNormalizer();
-    }
+    private readonly ITableNormalizer _tableNormalizer = CreateEntityDataNormalizer();
 
     private static ITableNormalizer CreateEntityDataNormalizer()
     {
