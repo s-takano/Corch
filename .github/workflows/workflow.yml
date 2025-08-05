@@ -45,13 +45,11 @@ jobs:
       - name: Run tests
         env:
           ConnectionStrings__TestDatabase: Host=localhost;Database=postgres;Username=postgres;Password=postgres
-          # ServiceBus__Connection: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
         run: |
           dotnet test -c Release --no-build --filter "Category=Contract"
           dotnet test -c Release --no-build --filter "Category=Unit"      
           dotnet test -c Release --no-build --filter "Category=Entity"
           dotnet test -c Release --no-build --filter "Category=Functional"
-#          dotnet test -c Release --no-build --filter "Category=Integration&Require=PostgreSQL"
           dotnet test -c Release --no-build --filter "Category=EndToEnd"
           
       # ---------- Azure auth via OIDC ----------
