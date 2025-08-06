@@ -77,12 +77,11 @@ jobs:
       - name: Run Azure Graph API Integration Tests
         run: dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureGraphApi"
       
-      # - name: Run Azure Service Bus Integration Tests
-      #   run: dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureServiceBus"
+      - name: Run Azure Service Bus Integration Tests
+        run: dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureServiceBus"
     
       - name: Run End-to-End Tests
         run: dotnet test -c Release --no-build --filter "Category=EndToEnd"
-     
       
       # ---------- Deploy ----------
       - uses: Azure/functions-action@v1
