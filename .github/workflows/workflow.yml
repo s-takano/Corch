@@ -51,19 +51,6 @@ jobs:
       - run: dotnet build -c Release --no-restore
       - run: dotnet publish -c Release -o ./publish
 
-      # ---------- Azure auth via OIDC ----------
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id:        ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:        ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Verify Azure login
-        run: |
-          echo "Current Azure account:"
-          az account show --query "{Name:name, User:user.name, SubscriptionId:id}" --output table
-
       - name: Run Contract Tests
         run: dotnet test -c Release --no-build --filter "Category=Contract"
     
@@ -75,7 +62,21 @@ jobs:
     
       - name: Run Functional Tests
         run: dotnet test -c Release --no-build --filter "Category=Functional"
-    
+      
+      # ---------- Azure auth via OIDC just before the integration tests ----------
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id:        ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:        ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Azure login
+        run: |
+          echo "Current Azure account:"
+          az account show --query "name" --output tsv
+          echo "Login verification: $(az account show --query "state" --output tsv)"
+          
       - name: Run PostgreSQL Integration Tests
         run: dotnet test -c Release --no-build --filter "Category=Integration&Require=PostgreSQL"
     
