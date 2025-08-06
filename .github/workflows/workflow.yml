@@ -45,13 +45,20 @@ jobs:
       - name: Run tests
         env:
           ConnectionStrings__TestDatabase: Host=localhost;Database=postgres;Username=postgres;Password=postgres
-          # ServiceBus__Connection: ${{ secrets.SERVICEBUS_CONNECTION_STRING }}
+          # Azure Graph API credentials for integration tests
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          # AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          # Azure Service Bus connection for integration tests
+          AZURE_SERVICEBUS_CONNECTION: ${{ secrets.AZURE_SERVICEBUS_CONNECTION }}
         run: |
           dotnet test -c Release --no-build --filter "Category=Contract"
           dotnet test -c Release --no-build --filter "Category=Unit"      
           dotnet test -c Release --no-build --filter "Category=Entity"
           dotnet test -c Release --no-build --filter "Category=Functional"
           dotnet test -c Release --no-build --filter "Category=Integration&Require=PostgreSQL"
+          dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureGraphApi"
+          # dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureServiceBus"
           dotnet test -c Release --no-build --filter "Category=EndToEnd"
 
       # ---------- Azure auth via OIDC ----------
