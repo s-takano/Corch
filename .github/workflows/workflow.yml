@@ -17,6 +17,14 @@ env:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+    env:
+      ConnectionStrings__TestDatabase: Host=localhost;Database=postgres;Username=postgres;Password=postgres
+      # Azure Graph API credentials for integration tests
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      # AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      # Azure Service Bus connection for integration tests
+      AZURE_SERVICEBUS_CONNECTION: ${{ secrets.AZURE_SERVICEBUS_CONNECTION }}
     services:
       postgres:
         image: postgres:16
@@ -49,25 +57,31 @@ jobs:
           client-id:        ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id:        ${{ secrets.AZURE_TENANT_ID }}
           subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Run tests
-        env:
-          ConnectionStrings__TestDatabase: Host=localhost;Database=postgres;Username=postgres;Password=postgres
-          # Azure Graph API credentials for integration tests
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          # AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          # Azure Service Bus connection for integration tests
-          AZURE_SERVICEBUS_CONNECTION: ${{ secrets.AZURE_SERVICEBUS_CONNECTION }}
-        run: |
-          dotnet test -c Release --no-build --filter "Category=Contract"
-          dotnet test -c Release --no-build --filter "Category=Unit"      
-          dotnet test -c Release --no-build --filter "Category=Entity"
-          dotnet test -c Release --no-build --filter "Category=Functional"
-          dotnet test -c Release --no-build --filter "Category=Integration&Require=PostgreSQL"
-          dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureGraphApi"
-          # dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureServiceBus"
-          dotnet test -c Release --no-build --filter "Category=EndToEnd"      
+          
+      - name: Run Contract Tests
+        run: dotnet test -c Release --no-build --filter "Category=Contract"
+    
+      - name: Run Unit Tests
+        run: dotnet test -c Release --no-build --filter "Category=Unit"
+    
+      - name: Run Entity Tests
+        run: dotnet test -c Release --no-build --filter "Category=Entity"
+    
+      - name: Run Functional Tests
+        run: dotnet test -c Release --no-build --filter "Category=Functional"
+    
+      - name: Run PostgreSQL Integration Tests
+        run: dotnet test -c Release --no-build --filter "Category=Integration&Require=PostgreSQL"
+    
+      - name: Run Azure Graph API Integration Tests
+        run: dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureGraphApi"
+      
+      # - name: Run Azure Service Bus Integration Tests
+      #   run: dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureServiceBus"
+    
+      - name: Run End-to-End Tests
+        run: dotnet test -c Release --no-build --filter "Category=EndToEnd"
+     
       
       # ---------- Deploy ----------
       - uses: Azure/functions-action@v1
