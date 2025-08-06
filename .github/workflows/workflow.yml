@@ -51,6 +51,7 @@ jobs:
       - run: dotnet build -c Release --no-restore
       - run: dotnet publish -c Release -o ./publish
 
+      # ---------- Test ----------
       - name: Run Contract Tests
         run: dotnet test -c Release --no-build --filter "Category=Contract"
     
