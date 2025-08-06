@@ -25,6 +25,7 @@ jobs:
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       # Azure Service Bus connection for integration tests
       AZURE_SERVICEBUS_CONNECTION: ${{ secrets.AZURE_SERVICEBUS_CONNECTION }}
+      TEST_FUNCTION_KEY: ${{ secrets.TEST_FUNCTION_KEY }}
     services:
       postgres:
         image: postgres:16
