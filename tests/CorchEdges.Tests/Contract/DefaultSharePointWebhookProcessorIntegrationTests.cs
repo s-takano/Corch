@@ -52,7 +52,7 @@ public class DefaultSharePointWebhookProcessorIntegrationTests
         //    - Architecture validation
         //
         // 3. End-to-End Tests:
-        //    - Full Azure Function testing through SharePointWebhookCallbackIntegrationTests
+        //    - Full Azure Function testing through SharePointWebhookCallbackFunctionalTests
         //    - Real HTTP request/response handling
         //    - Actual logging verification
         //
@@ -78,7 +78,7 @@ public class DefaultSharePointWebhookProcessorIntegrationTests
         var processor = new DefaultSharePointWebhookProcessor(loggerMock.Object);
         
         Assert.NotNull(processor);
-        // Logger usage is verified in SharePointWebhookCallbackIntegrationTests
+        // Logger usage is verified in SharePointWebhookCallbackFunctionalTests
         // where we can test the full Azure Function pipeline
     }
 }

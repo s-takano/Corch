@@ -6,10 +6,10 @@ using CorchEdges.Tests.Infrastructure;
 
 namespace CorchEdges.Tests.Functional.Data.Normalizers;
 
-[Trait("Category", TestCategories.Integration)]
+[Trait("Category", TestCategories.Functional)]
 [Trait("Component", "Data")]
 [Trait("Target", "DataNormalizer")]
-public class DataNormalizerIntegrationTests
+public class DataNormalizerFunctionalTests
 {
     private readonly ITableNormalizer _tableNormalizer = CreateEntityDataNormalizer();
 

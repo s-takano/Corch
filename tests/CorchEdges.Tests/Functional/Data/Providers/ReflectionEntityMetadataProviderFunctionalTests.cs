@@ -4,9 +4,9 @@ using CorchEdges.Tests.Infrastructure;
 
 namespace CorchEdges.Tests.Functional.Data.Providers;
 
-[Trait("Category", TestCategories.Integration)]
+[Trait("Category", TestCategories.Functional)]
 [Trait("Target", "ReflectionEntityMetadataProvider")]
-public class ReflectionEntityMetadataProviderIntegrationTests : MemoryDatabaseTestBase
+public class ReflectionEntityMetadataProviderFunctionalTests : MemoryDatabaseTestBase
 {
     private readonly ReflectionEntityMetadataProvider _metadataProvider = new();
 

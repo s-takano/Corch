@@ -7,9 +7,9 @@ using CorchEdges.Tests.Infrastructure;
 
 namespace CorchEdges.Tests.Functional.Data;
 
-[Trait("Category", TestCategories.Integration)]
+[Trait("Category", TestCategories.Functional)]
 [Trait("Target", "ExcelToDatabaseConverter")]
-public class ExcelToMemoryDatabaseConverterIntegrationTests : MemoryDatabaseTestBase
+public class ExcelToMemoryDatabaseConverterFunctionalTests : MemoryDatabaseTestBase
 {
     private readonly IDataSetConverter _dataSetConverter = new ExcelToDatabaseConverter();
 

@@ -11,14 +11,14 @@ using AzureFunctionsHttpTriggerAttribute = Microsoft.Azure.Functions.Worker.Http
 
 namespace CorchEdges.Tests.Functional.Azure;
 
-[Trait("Category", TestCategories.Integration)]
+[Trait("Category", TestCategories.Functional)]
 [Trait("Target", "ReceiveSharePointChangeNotification")]
-public class SharePointWebhookCallbackIntegrationTests
+public class SharePointWebhookCallbackFunctionalTests
 {
     private readonly Mock<ISharePointWebhookProcessor> _mockProcessor;
     private readonly ReceiveSharePointChangeNotification _function;
 
-    public SharePointWebhookCallbackIntegrationTests()
+    public SharePointWebhookCallbackFunctionalTests()
     {
         _mockProcessor = new Mock<ISharePointWebhookProcessor>();
         var mockLogger = new Mock<ILogger<ReceiveSharePointChangeNotification>>();
