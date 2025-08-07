@@ -24,7 +24,7 @@ jobs:
       # AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       # Azure Service Bus connection for integration tests
-      ServiceBusConnection: ${{ secrets.AZURE_SERVICEBUS_CONNECTION }}
+      ConnectionStrings__ServiceBusConnection: ${{ secrets.AZURE_SERVICEBUS_CONNECTION }}
       TEST_FUNCTION_KEY: ${{ secrets.TEST_FUNCTION_KEY }}
     services:
       postgres:
