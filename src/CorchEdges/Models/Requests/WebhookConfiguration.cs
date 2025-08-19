@@ -9,59 +9,103 @@ namespace CorchEdges.Models.Requests;
 /// </summary>
 /// <param name="SiteId">
 /// The SharePoint site ID in GUID format (e.g., "12345678-1234-1234-1234-123456789012"). 
-/// If not provided, the system will use the configured default site ID from app settings.
+/// This parameter is required and must be provided in the request body.
 /// </param>
 /// <param name="ListId">
 /// The SharePoint list ID in GUID format (e.g., "87654321-4321-4321-4321-210987654321"). 
-/// If not provided, the system will use the configured default list ID from app settings.
+/// This parameter is required and must be provided in the request body.
 /// </param>
-/// <param name="CallbackUrl">
-/// The webhook callback URL that will receive notifications from Microsoft Graph. 
-/// Must be an HTTPS URL with authentication parameter (e.g., "https://your-app.azurewebsites.net/sharepoint/webhook?code=your-function-key").
-/// If not provided, the URL will be auto-generated using the function app name and function key.
+/// <param name="WebhookPath">
+/// The custom webhook endpoint path that defines the API route for receiving SharePoint notifications
+/// (e.g., "sharepoint/webhook", "custom/handler", "webhooks/sharepoint").
+/// This parameter is required and must be provided in the request body.
+/// The path should not include leading/trailing slashes as they are handled automatically.
+/// This path is combined with FunctionAppName and FunctionKey to generate the complete webhook URL on-the-fly.
 /// </param>
 /// <param name="FunctionAppName">
-/// The Azure Function App name used for auto-generating callback URLs (e.g., "my-function-app"). 
-/// This is typically populated automatically from the WEBSITE_SITE_NAME environment variable 
-/// and is used when CallbackUrl is not explicitly provided.
+/// The Azure Function App name used for constructing the callback URL (e.g., "my-function-app"). 
+/// This parameter is required and must be provided in the request body.
+/// The webhook URL is generated as: https://{FunctionAppName}.azurewebsites.net/api/{WebhookPath}?code={FunctionKey}
 /// </param>
 /// <param name="FunctionKey">
-/// The function key used for webhook authentication and should be provided in the request body for security.
-/// This key authenticates incoming webhook notifications from Microsoft Graph 
-/// (e.g., "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz==").
+/// The function key used for webhook authentication (e.g., "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz==").
+/// This parameter is required and must be provided in the request body for security.
+/// This key authenticates incoming webhook notifications from Microsoft Graph.
 /// </param>
 /// <remarks>
-/// This configuration supports flexible webhook setup where:
+/// All parameters are mandatory and must be provided in the request body:
 /// <list type="bullet">
-/// <item>Site and List IDs can be omitted if defaults are configured</item>
-/// <item>Callback URLs can be auto-generated from function app settings</item>
-/// <item>All webhook subscriptions require proper authentication via function keys</item>
+/// <item><description>siteId - SharePoint site identifier (required)</description></item>
+/// <item><description>listId - SharePoint list identifier (required)</description></item>
+/// <item><description>functionAppName - Azure Function App name (required)</description></item>
+/// <item><description>functionKey - Function access key (required)</description></item>
+/// <item><description>webhookPath - Custom webhook endpoint path (required)</description></item>
 /// </list>
+/// The complete webhook URL is generated dynamically when needed using the format: 
+/// https://{functionAppName}.azurewebsites.net/api/{webhookPath}?code={functionKey}
 /// </remarks>
 /// <example>
 /// <code>
+/// // Request body example:
+/// {
+///   "siteId": "12345678-1234-1234-1234-123456789012",
+///   "listId": "87654321-4321-4321-4321-210987654321", 
+///   "functionAppName": "my-function-app",
+///   "functionKey": "abc123def456...",
+///   "webhookPath": "sharepoint/webhook"
+/// }
+/// 
+/// // This creates a WebhookConfiguration storing the parameters:
 /// var config = new WebhookConfiguration(
-///     siteId: "12345678-1234-1234-1234-123456789012",
-///     listId: "87654321-4321-4321-4321-210987654321", 
-///     callbackUrl: "https://my-app.azurewebsites.net/sharepoint/webhook?code=mykey123",
-///     functionAppName: "my-function-app",
-///     functionKey: "abc123def456..."
+///     SiteId: "12345678-1234-1234-1234-123456789012",
+///     ListId: "87654321-4321-4321-4321-210987654321", 
+///     WebhookPath: "sharepoint/webhook",
+///     FunctionAppName: "my-function-app",
+///     FunctionKey: "abc123def456..."
 /// );
+/// 
+/// // The webhook URL is generated when needed:
+/// // https://my-function-app.azurewebsites.net/api/sharepoint/webhook?code=abc123def456...
 /// </code>
 /// </example>
 public record WebhookConfiguration(
     [property:
-        OpenApiProperty(Description = "SharePoint site ID in GUID format. Optional if configured in app settings.")]
+        OpenApiProperty(Description = "SharePoint site ID in GUID format. ")]
     string? SiteId,
     [property:
-        OpenApiProperty(Description = "SharePoint list ID in GUID format. Optional if configured in app settings.")]
+        OpenApiProperty(Description = "SharePoint list ID in GUID format. ")]
     string? ListId,
-    [property: OpenApiProperty(Description = "HTTPS callback URL with authentication. Auto-generated if not provided.")]
-    string? CallbackUrl,
-    [property: OpenApiProperty(Description = "Function app name for URL generation. Usually auto-detected.")]
+    [property: OpenApiProperty(Description = "Function app name for URL generation. ")]
     string? FunctionAppName,
+    [property: OpenApiProperty(Description = "extra webhook path for URL generation. ")]
+    string? WebhookPath,
     [property:
         OpenApiProperty(Description = "Function authorization key for webhook security. Required for webhook setup.")]
     string? FunctionKey)
 {
+    /// <summary>
+    /// Creates a WebhookConfiguration from a dictionary of request parameters.
+    /// </summary>
+    /// <param name="requestData">Dictionary containing the required webhook parameters.</param>
+    /// <returns>A new WebhookConfiguration instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when required parameters are missing or invalid.</exception>
+    public static WebhookConfiguration Create(Dictionary<string, object> requestData)
+    {
+        // Factory logic here
+        var siteId = GetRequiredValue(requestData, "siteId");
+        var listId = GetRequiredValue(requestData, "listId");
+        var webhookPath = GetRequiredValue(requestData, "webhookPath");
+        var functionAppName = GetRequiredValue(requestData, "functionAppName");
+        var functionKey = GetRequiredValue(requestData, "functionKey");
+
+        return new WebhookConfiguration(siteId, listId, webhookPath, functionAppName, functionKey);
+    }
+
+    private static string GetRequiredValue(Dictionary<string, object> data, string key)
+    {
+        if (!data.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value?.ToString()))
+            throw new ArgumentException($"Required parameter '{key}' is missing or empty.");
+
+        return value.ToString()!;
+    }
 }

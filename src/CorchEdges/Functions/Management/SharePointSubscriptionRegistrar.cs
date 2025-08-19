@@ -71,17 +71,17 @@ public class SharePointSubscriptionRegistrar(
                     (
                         "12345678-1234-1234-1234-123456789abc",
                         "87654321-4321-4321-4321-cba987654321",
-                        "https://myapp.azurewebsites.net/api/webhook",
                         "MyFunctionApp",
+                        "webhook/callback",
                         "my-function-app-key"
                     ),
                     namingStrategy
                 ));
-        
+
             return this;
         }
     }
-    
+
     /// <summary>
     /// Handles the HTTP request to set up a SharePoint webhook, registering a webhook for a specified list
     /// in a SharePoint site and returning the details of the newly created subscription.
@@ -91,7 +91,7 @@ public class SharePointSubscriptionRegistrar(
     /// </summary>
     /// <param name="req">
     /// The HTTP request containing the setup details, expected to be a POST request with a JSON body
-    /// containing a <see cref="TryToParseWebhookConfiguration"/> object with the following required properties:
+    /// containing a <see cref="TryToParseRequestBody"/> object with the following required properties:
     /// <list type="bullet">
     /// <item><description><c>siteId</c> - The Optional SharePoint site ID (GUID format)</description></item>
     /// <item><description><c>listId</c> - The Optional SharePoint list ID (GUID format)</description></item>
@@ -150,31 +150,31 @@ public class SharePointSubscriptionRegistrar(
     /// </example>
     [Function("CreateSharePointSubscription")]
     [OpenApiOperation(
-        operationId: "CreateSharePointSubscription", 
+        operationId: "CreateSharePointSubscription",
         tags: new[] { "SharePoint Subscriptions" },
         Summary = "Create SharePoint webhook subscription",
         Description = "Creates a new webhook subscription to monitor changes in a SharePoint list")]
     [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
     [OpenApiRequestBody(
-        contentType: "application/json", 
+        contentType: "application/json",
         bodyType: typeof(WebhookConfiguration),
         Required = true,
         Description = "Webhook configuration for SharePoint subscription",
         Example = typeof(WebhookConfigurationExample))]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.Created, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.Created,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Subscription created successfully")]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.BadRequest, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.BadRequest,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Invalid configuration or validation error")]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.InternalServerError, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.InternalServerError,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Internal server error")]
     public async Task<HttpResponseData> CreateSharePointSubscriptionAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "sharepoint/subscriptions")]
@@ -184,19 +184,19 @@ public class SharePointSubscriptionRegistrar(
 
         try
         {
-            // Parse request body for optional parameters
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var requestData = ParseRequestBody(requestBody);
-            
+
             // Try to construct configuration values
-            if (!TryToParseWebhookConfiguration(
-                    requestData, 
-                    out var config, 
+            if (!TryToParseRequestBody(
+                    requestBody,
+                    out var config,
                     out var validationError))
             {
                 _logger.LogError("Configuration validation failed: {Error}", validationError);
                 return await CreateErrorResponseAsync(req, HttpStatusCode.BadRequest, validationError);
             }
+
+            var callbackUrl = BuildCallbackUrl(config);
 
             // Check if a webhook already exists
             if (await _sharePointWebhookRegistrar.IsListMonitoredByWebhookAsync(config.SiteId!, config.ListId!))
@@ -209,7 +209,7 @@ public class SharePointSubscriptionRegistrar(
                     Message = "Webhook already registered and active",
                     config.SiteId,
                     config.ListId,
-                    config.CallbackUrl
+                    callbackUrl
                 });
             }
 
@@ -217,7 +217,7 @@ public class SharePointSubscriptionRegistrar(
             var subscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(
                 config.SiteId!,
                 config.ListId!,
-                config.CallbackUrl!);
+                callbackUrl);
 
             _logger.LogInformation("Webhook registered successfully. Subscription ID: {SubscriptionId}",
                 subscription.Id);
@@ -226,7 +226,7 @@ public class SharePointSubscriptionRegistrar(
                 "Webhook registered successfully",
                 subscription.Id ?? string.Empty,
                 subscription.ExpirationDateTime,
-                config.CallbackUrl!,
+                callbackUrl,
                 subscription.Resource ?? string.Empty,
                 subscription.ChangeType ?? string.Empty,
                 subscription.ClientState ?? string.Empty);
@@ -268,9 +268,10 @@ public class SharePointSubscriptionRegistrar(
         }
     }
 
-    private bool TryToParseWebhookConfiguration(Dictionary<string, object> requestData, out WebhookConfiguration config, out string validationError)
+    private bool TryToParseRequestBody(string requestBody, out WebhookConfiguration config, out string validationError)
     {
-        config = ParseWebhookConfiguration(requestData);
+        var requestData = ParseRequestBody(requestBody);
+        config = WebhookConfiguration.Create(requestData);
         return ValidateConfiguration(config, out validationError);
     }
 
@@ -281,20 +282,20 @@ public class SharePointSubscriptionRegistrar(
     /// total active subscriptions, those expiring soon, and metadata for each subscription.</returns>
     [Function("GetSharePointSubscriptions")]
     [OpenApiOperation(
-        operationId: "GetSharePointSubscriptions", 
+        operationId: "GetSharePointSubscriptions",
         tags: new[] { "SharePoint Subscriptions" },
         Summary = "Get all SharePoint subscriptions",
         Description = "Retrieves all active SharePoint webhook subscriptions for the configured site and list")]
     [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.OK, 
-        contentType: "application/json", 
-        bodyType: typeof(object[]), 
+        statusCode: HttpStatusCode.OK,
+        contentType: "application/json",
+        bodyType: typeof(object[]),
         Description = "List of active subscriptions")]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.InternalServerError, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.InternalServerError,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Internal server error")]
     public async Task<HttpResponseData> GetSharePointSubscriptionsAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "get", Route = "sharepoint/subscriptions")]
@@ -356,20 +357,20 @@ public class SharePointSubscriptionRegistrar(
     /// details of the processed subscriptions, the number of successful and failed renewals, and the processing timestamp.</returns>
     [Function("RenewSharePointSubscriptions")]
     [OpenApiOperation(
-        operationId: "RenewSharePointSubscriptions", 
+        operationId: "RenewSharePointSubscriptions",
         tags: new[] { "SharePoint Subscriptions" },
         Summary = "Renew SharePoint subscriptions",
         Description = "Renews all existing SharePoint webhook subscriptions to extend their expiration date")]
     [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.OK, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.OK,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Subscriptions renewed successfully")]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.InternalServerError, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.InternalServerError,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Internal server error")]
     public async Task<HttpResponseData> RenewSharePointSubscriptionsAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "patch", Route = "sharepoint/subscriptions/renew")]
@@ -465,38 +466,39 @@ public class SharePointSubscriptionRegistrar(
     /// including success or the error encountered during the process.</returns>
     [Function("DeleteSharePointSubscription")]
     [OpenApiOperation(
-        operationId: "DeleteSharePointSubscription", 
+        operationId: "DeleteSharePointSubscription",
         tags: new[] { "SharePoint Subscriptions" },
         Summary = "Delete SharePoint subscription",
         Description = "Deletes a specific SharePoint webhook subscription by ID")]
     [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
     [OpenApiParameter(
-        name: "subscriptionId", 
-        In = ParameterLocation.Path, 
-        Required = true, 
+        name: "subscriptionId",
+        In = ParameterLocation.Path,
+        Required = true,
         Type = typeof(string),
         Description = "The unique identifier of the subscription to delete")]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.OK, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.OK,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Subscription deleted successfully")]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.NotFound, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.NotFound,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Subscription not found")]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.InternalServerError, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.InternalServerError,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Internal server error")]
     public async Task<HttpResponseData> DeleteSubscriptionAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "sharepoint/subscriptions/{subscriptionId}")]
         HttpRequestData req,
         string subscriptionId)
     {
-        _logger.LogInformation("DeleteSubscriptionAsync function triggered for subscription {SubscriptionId}", subscriptionId);
+        _logger.LogInformation("DeleteSubscriptionAsync function triggered for subscription {SubscriptionId}",
+            subscriptionId);
 
         try
         {
@@ -553,20 +555,20 @@ public class SharePointSubscriptionRegistrar(
     /// <returns>An HTTP response containing the cleanup results, which includes the number of processed, successfully deleted, and failed test subscriptions.</returns>
     [Function("CleanupTestSubscriptions")]
     [OpenApiOperation(
-        operationId: "CleanupTestSubscriptions", 
+        operationId: "CleanupTestSubscriptions",
         tags: new[] { "SharePoint Subscriptions" },
         Summary = "Cleanup test subscriptions",
         Description = "Removes all test or development SharePoint webhook subscriptions")]
     [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.OK, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.OK,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Test subscriptions cleaned up successfully")]
     [OpenApiResponseWithBody(
-        statusCode: HttpStatusCode.InternalServerError, 
-        contentType: "application/json", 
-        bodyType: typeof(object), 
+        statusCode: HttpStatusCode.InternalServerError,
+        contentType: "application/json",
+        bodyType: typeof(object),
         Description = "Internal server error")]
     public async Task<HttpResponseData> CleanupTestSubscriptionsAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "delete", Route = "sharepoint/subscriptions/test")]
@@ -634,6 +636,152 @@ public class SharePointSubscriptionRegistrar(
         {
             _logger.LogError(ex, "Error cleaning up test webhooks");
             return await CreateErrorResponseAsync(req, HttpStatusCode.InternalServerError, "Internal server error");
+        }
+    }
+
+    [Function("SubscribeToConfiguredList")]
+    public async Task<HttpResponseData> SubscribeToConfiguredListAsync(
+        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "sharepoint/subscribe-configured")]
+        HttpRequestData req)
+    {
+        try
+        {
+            var logger = req.FunctionContext.GetLogger("SubscribeToConfiguredList");
+            logger.LogInformation("Starting subscription to configured SharePoint list");
+
+            // Get configuration values
+            var siteId = _configuration["SharePoint:SiteId"];
+            var listId = _configuration["SharePoint:ListId"];
+            var functionAppName = _configuration["WEBSITE_SITE_NAME"];
+            var functionKey = _configuration["WebhookFunctionKey"];
+            var webhookPath = "sharepoint/notifications";
+
+            // Validate configuration
+            if (string.IsNullOrWhiteSpace(siteId) ||
+                string.IsNullOrWhiteSpace(listId) ||
+                string.IsNullOrWhiteSpace(functionAppName) ||
+                string.IsNullOrWhiteSpace(functionKey))
+            {
+                logger.LogError("Missing required configuration values");
+                return await CreateErrorResponseAsync(
+                    req,
+                    HttpStatusCode.BadRequest,
+                    "Missing required configuration. Please check SharePoint:SiteId, SharePoint:ListId, WEBSITE_SITE_NAME, and WebhookFunctionKey settings.");
+            }
+
+            // Build webhook configuration
+            var webhookConfig = new WebhookConfiguration(
+                SiteId: siteId,
+                ListId: listId,
+                WebhookPath: webhookPath,
+                FunctionAppName: functionAppName,
+                FunctionKey: functionKey
+            );
+
+            // Validate the configuration
+            if (!ValidateConfiguration(webhookConfig, out var validationError))
+            {
+                logger.LogError("Configuration validation failed: {Error}", validationError);
+                return await CreateErrorResponseAsync(req, HttpStatusCode.BadRequest, validationError);
+            }
+
+            var callbackUrl = BuildCallbackUrl(webhookConfig);
+
+            // Try to find existing subscription for this list and callback
+            var activeSubscriptions = await _sharePointWebhookRegistrar.GetActiveSubscriptionsAsync();
+
+            // Best-effort match: by exact callback URL and the resource containing both site and list IDs
+            var existingSubscription = activeSubscriptions.FirstOrDefault(s =>
+                !string.IsNullOrWhiteSpace(s.NotificationUrl) &&
+                s.NotificationUrl.Equals(callbackUrl, StringComparison.OrdinalIgnoreCase) &&
+                s.Resource?.Contains(siteId, StringComparison.OrdinalIgnoreCase) == true &&
+                s.Resource?.Contains(listId, StringComparison.OrdinalIgnoreCase) == true);
+
+            if (existingSubscription != null && !string.IsNullOrWhiteSpace(existingSubscription.Id))
+            {
+                logger.LogInformation("Existing subscription found with ID: {SubscriptionId}. Attempting renewal.",
+                    existingSubscription.Id);
+
+                try
+                {
+                    var renewed = await _sharePointWebhookRegistrar.RenewSubscriptionAsync(existingSubscription.Id);
+
+                    if (renewed)
+                    {
+                        // Re-fetch to report current expiration
+                        var refreshed = (await _sharePointWebhookRegistrar.GetActiveSubscriptionsAsync())
+                            .FirstOrDefault(s => s.Id == existingSubscription.Id);
+
+                        logger.LogInformation(
+                            "Successfully renewed subscription {SubscriptionId} for site {SiteId}, list {ListId}",
+                            existingSubscription.Id, siteId, listId);
+
+                        return await CreateSuccessResponseAsync(req, new
+                        {
+                            Action = "Renewed",
+                            SubscriptionId = existingSubscription.Id,
+                            SiteId = siteId,
+                            ListId = listId,
+                            CallbackUrl = callbackUrl,
+                            ExpirationDateTime = refreshed?.ExpirationDateTime,
+                            Message = "Existing subscription renewed successfully"
+                        });
+                    }
+
+                    logger.LogWarning(
+                        "Renewal returned false for subscription {SubscriptionId}. Will attempt to recreate.",
+                        existingSubscription.Id);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(
+                        "Failed to renew existing subscription {SubscriptionId}: {Error}. Will attempt to create new subscription.",
+                        existingSubscription.Id, ex.Message);
+                }
+
+                // If renewal failed, try to delete before recreating
+                try
+                {
+                    var deleted = await _sharePointWebhookRegistrar.DeleteSubscriptionAsync(existingSubscription.Id);
+                    logger.LogInformation(
+                        deleted
+                            ? "Deleted old subscription {SubscriptionId} prior to recreation"
+                            : "Old subscription {SubscriptionId} could not be deleted (may already be gone)",
+                        existingSubscription.Id);
+                }
+                catch (Exception deleteEx)
+                {
+                    logger.LogWarning("Failed to delete old subscription {SubscriptionId}: {Error}",
+                        existingSubscription.Id, deleteEx.Message);
+                }
+            }
+
+            // Create new subscription
+            logger.LogInformation("Creating new subscription for site {SiteId}, list {ListId}", siteId, listId);
+
+            var newSubscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(siteId, listId, callbackUrl);
+
+            logger.LogInformation("Successfully created subscription {SubscriptionId} for site {SiteId}, list {ListId}",
+                newSubscription.Id, siteId, listId);
+
+            return await CreateSuccessResponseAsync(req, new
+            {
+                Action = "Created",
+                SubscriptionId = newSubscription.Id,
+                SiteId = siteId,
+                ListId = listId,
+                CallbackUrl = callbackUrl,
+                ExpirationDateTime = newSubscription.ExpirationDateTime,
+                Message = "New subscription created successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            var logger = req.FunctionContext.GetLogger("SubscribeToConfiguredList");
+            logger.LogError(ex, "Failed to subscribe to configured SharePoint list");
+
+            return await CreateErrorResponseAsync(req, HttpStatusCode.InternalServerError,
+                $"Failed to subscribe to SharePoint list: {ex.Message}");
         }
     }
 
@@ -707,74 +855,23 @@ public class SharePointSubscriptionRegistrar(
         }
     }
 
-    /// Retrieves the webhook configuration based on the given request data.
-    /// Combines values from the request data, application configuration, and environment variables
-    /// to construct the necessary configuration for the webhook setup.
-    /// <param name="requestData">
-    /// A dictionary containing key-value pairs with optional parameters such as siteId, listId, functionKey,
-    /// and callbackUrl that override the default configuration values.
-    /// </param>
-    /// <returns>
-    /// An instance of WebhookConfiguration containing the site ID, list ID, callback URL, and optional
-    /// function app name that are required for webhook registration.
-    /// </returns>
-    /// <exception cref="ArgumentException">
-    /// Thrown when mandatory parameters such as siteId, listId, or callbackUrl are missing or empty.
-    /// </exception>
-    /// <exception cref="Exception">
-    /// Thrown when there is an unhandled error during the retrieval of the webhook configuration.
-    /// </exception>
-    private WebhookConfiguration ParseWebhookConfiguration(Dictionary<string, object> requestData)
+
+    public static string BuildCallbackUrl(WebhookConfiguration configuration)
     {
-        try
-        {
-            // Priority: Request body > Configuration > Environment variables
-            var siteId = requestData.GetConfigValue("siteId") ??
-                         _configuration["SharePoint:SiteId"];
+        return BuildCallbackUrl(configuration.FunctionAppName, configuration.WebhookPath, configuration.FunctionKey) ??
+               throw new InvalidOperationException("Failed to build callback URL");
+    }
 
-            var listId = requestData.GetConfigValue("listId") ??
-                         _configuration["SharePoint:ListId"];
+    private static string? BuildCallbackUrl(string? functionAppName, string? webhookPath, string? functionKey)
+    {
+        if (string.IsNullOrWhiteSpace(functionAppName) || string.IsNullOrWhiteSpace(functionKey))
+            return null;
 
-            var functionAppName = _configuration["WEBSITE_SITE_NAME"];
+        // Use provided path or default to "sharepoint/webhook"
+        var path = string.IsNullOrWhiteSpace(webhookPath) ? "sharepoint/webhook" : webhookPath.Trim('/');
 
-            var functionKey = requestData.GetConfigValue("functionKey") ??
-                              _configuration["WebhookFunctionKey"];
-
-            // Make function key required
-            if (string.IsNullOrEmpty(functionKey))
-            {
-                throw new InvalidOperationException(
-                    "Function key is required for webhook security. " +
-                    "Configure WebhookFunctionKey in settings or provide functionKey in request body.");
-            }
-
-            var callbackUrl = requestData.GetConfigValue("callbackUrl");
-
-            if (string.IsNullOrEmpty(callbackUrl))
-            {
-                if (string.IsNullOrEmpty(functionAppName))
-                {
-                    throw new InvalidOperationException(
-                        "Cannot generate callback URL: WEBSITE_SITE_NAME is not available and no explicit callbackUrl provided");
-                }
-
-                callbackUrl = $"https://{functionAppName}.azurewebsites.net/sharepoint/webhook?code={functionKey}";
-            }
-
-            if (string.IsNullOrEmpty(siteId))
-                throw new ArgumentException("SiteId cannot be null or empty", nameof(siteId));
-            if (string.IsNullOrEmpty(listId))
-                throw new ArgumentException("ListId cannot be null or empty", nameof(listId));
-            if (string.IsNullOrEmpty(callbackUrl))
-                throw new ArgumentException("CallbackUrl cannot be null or empty", nameof(callbackUrl));
-
-            return new WebhookConfiguration(siteId, listId, callbackUrl, functionAppName, null);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get webhook configuration");
-            throw;
-        }
+        // Ensure path doesn't start with '/' but includes it in URL construction
+        return $"https://{functionAppName}.azurewebsites.net/api/{path}?code={functionKey}";
     }
 
     /// <summary>
@@ -828,27 +925,6 @@ public class SharePointSubscriptionRegistrar(
         if (string.IsNullOrWhiteSpace(config.ListId))
         {
             error = "SharePoint List ID is required. Configure SharePoint:ListId or provide in request body.";
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(config.CallbackUrl))
-        {
-            error =
-                "Callback URL could not be determined. Ensure WEBSITE_SITE_NAME is available or provide callbackUrl in request body.";
-            return false;
-        }
-
-        if (!Uri.TryCreate(config.CallbackUrl, UriKind.Absolute, out var uri) ||
-            !uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
-        {
-            error = "Callback URL must be a valid HTTPS URL.";
-            return false;
-        }
-
-        // Validate that the URL includes authentication
-        if (!HasAuthenticationParameter(config.CallbackUrl))
-        {
-            error = "Callback URL must include authentication (function key). Use ?code=<function-key> parameter.";
             return false;
         }
 
