@@ -1,4 +1,5 @@
-﻿using CorchEdges.Data.Entities;
+﻿using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Entities;
 using CorchEdges.Data.Utilities;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,7 +8,7 @@ namespace CorchEdges.Data.Repositories;
 /// <summary>
 /// Repository for managing ProcessingLog entities with business logic.
 /// </summary>
-public class ProcessingLogRepository(EdgesDbContext context)
+public class ProcessingLogRepository(EdgesDbContext context) : IProcessingLogRepository
 {
     /// <summary>
     /// Gets the latest delta link for SharePoint synchronization.

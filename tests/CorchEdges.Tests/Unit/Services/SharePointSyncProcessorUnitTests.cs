@@ -17,7 +17,7 @@ using Moq;
 namespace CorchEdges.Tests.Unit.Services;
 
 [Trait("Category", TestCategories.Unit)]
-public class SharePointChangeHandlerUnitTests : IDisposable
+public class SharePointSyncProcessorUnitTests : IDisposable
 {
     private readonly Mock<ILogger> _mockLogger;
     private readonly Mock<IGraphApiClient> _mockGraph;
@@ -25,11 +25,13 @@ public class SharePointChangeHandlerUnitTests : IDisposable
     private readonly Mock<IDatabaseWriter> _mockDb;
     private readonly EdgesDbContext _mockContext;
     private readonly ProcessingLogRepository _mockProcessingLogRepository;
+    private readonly Mock<IProcessingLogRepository> _mockProcessingLogRepository2;
     private readonly string _testSiteId = "12345678-1234-1234-1234-123456789012";
     private readonly string _testListId = "87654321-4321-4321-4321-210987654321";
     private readonly Mock<IDataSetConverter> _mockDataSetConverter;
+    private readonly Mock<IProcessedFileRepository> _mockProcessedFileRepository;
 
-    public SharePointChangeHandlerUnitTests()
+    public SharePointSyncProcessorUnitTests()
     {
         _mockLogger = new Mock<ILogger>();
         _mockGraph = new Mock<IGraphApiClient>();
@@ -37,12 +39,13 @@ public class SharePointChangeHandlerUnitTests : IDisposable
         _mockDb = new Mock<IDatabaseWriter>();
         _mockContext = MemoryDatabaseTestBase.CreateInMemoryDbContext();
         _mockProcessingLogRepository = new ProcessingLogRepository(_mockContext);
+        _mockProcessingLogRepository2 = new Mock<IProcessingLogRepository>();
+        _mockProcessedFileRepository = new Mock<IProcessedFileRepository>();
         _mockDataSetConverter = new Mock<IDataSetConverter>();
     }
 
 
-
-    private SharePointSyncProcessor CreateHandler(string watchedPath = "/sites/test/Shared Documents/WatchedFolder")
+    private SharePointSyncProcessor CreateHandlerWithProcessingLogRepository(string watchedPath = "/sites/test/Shared Documents/WatchedFolder")
     {
         return new SharePointSyncProcessor(
             _mockLogger.Object,
@@ -51,12 +54,30 @@ public class SharePointChangeHandlerUnitTests : IDisposable
             _mockDb.Object,
             _mockContext,
             _mockProcessingLogRepository,
+            _mockProcessedFileRepository.Object,
             _mockDataSetConverter.Object,
             _testSiteId,
             _testListId,
             watchedPath);
     }
 
+    
+    private SharePointSyncProcessor CreateHandler(string watchedPath = "/Shared Documents/WatchedFolder")
+    {
+        return new SharePointSyncProcessor(
+            _mockLogger.Object,
+            _mockGraph.Object,
+            _mockParser.Object,
+            _mockDb.Object,
+            _mockContext,
+            _mockProcessingLogRepository2.Object,
+            _mockProcessedFileRepository.Object,
+            _mockDataSetConverter.Object,
+            _testSiteId,
+            _testListId,
+            watchedPath);
+    }
+    
     [Fact]
     public void Constructor_WithValidParameters_ShouldNotThrow()
     {
@@ -78,7 +99,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 _mockParser.Object,
                 _mockDb.Object,
                 _mockContext,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 _testSiteId,
                 _testListId,
@@ -96,7 +118,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 _mockParser.Object,
                 _mockDb.Object,
                 _mockContext,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 _testSiteId,
                 _testListId,
@@ -114,7 +137,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 null!,
                 _mockDb.Object,
                 _mockContext,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 _testSiteId,
                 _testListId,
@@ -132,7 +156,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 _mockParser.Object,
                 null!,
                 _mockContext,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 _testSiteId,
                 _testListId,
@@ -150,7 +175,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 _mockParser.Object,
                 _mockDb.Object,
                 null!,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 _testSiteId,
                 _testListId,
@@ -171,7 +197,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 _mockParser.Object,
                 _mockDb.Object,
                 _mockContext,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 invalidSiteId!,
                 _testListId,
@@ -194,7 +221,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 _mockParser.Object,
                 _mockDb.Object,
                 _mockContext,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 _testSiteId,
                 invalidListId!,
@@ -217,7 +245,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 _mockParser.Object,
                 _mockDb.Object,
                 _mockContext,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 _testSiteId,
                 _testListId,
@@ -240,7 +269,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 _mockParser.Object,
                 _mockDb.Object,
                 _mockContext,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 invalidSiteId,
                 _testListId,
@@ -263,7 +293,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
                 _mockParser.Object,
                 _mockDb.Object,
                 _mockContext,
-                _mockProcessingLogRepository,
+                _mockProcessingLogRepository2.Object,
+                _mockProcessedFileRepository.Object,
                 _mockDataSetConverter.Object,
                 _testSiteId,
                 invalidListId,
@@ -286,7 +317,8 @@ public class SharePointChangeHandlerUnitTests : IDisposable
             _mockParser.Object,
             _mockDb.Object,
             _mockContext,
-            _mockProcessingLogRepository,
+            _mockProcessingLogRepository2.Object,
+            _mockProcessedFileRepository.Object,
             _mockDataSetConverter.Object,
             sharePointSiteId,
             _testListId,
@@ -336,8 +368,12 @@ public class SharePointChangeHandlerUnitTests : IDisposable
         _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(new MemoryStream());
 
+        // Setup processing log repository mock
+        _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
+            .ReturnsAsync("test-delta-link");
+
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -380,8 +416,12 @@ public class SharePointChangeHandlerUnitTests : IDisposable
         _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
+        // Setup processing log repository mock
+        _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
+            .ReturnsAsync("test-delta-link");
+
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -443,6 +483,10 @@ public class SharePointChangeHandlerUnitTests : IDisposable
         _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
+        // Setup processing log repository mock
+        _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
+            .ReturnsAsync("test-delta-link");
+
         if (shouldProcess)
         {
             _mockParser.Setup(p => p.Parse(It.IsAny<Stream>()))
@@ -452,7 +496,7 @@ public class SharePointChangeHandlerUnitTests : IDisposable
         }
 
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -501,13 +545,17 @@ public class SharePointChangeHandlerUnitTests : IDisposable
         _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
+        // Setup processing log repository mock
+        _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
+            .ReturnsAsync("test-delta-link");
+
         _mockParser.Setup(p => p.Parse(It.IsAny<Stream>()))
             .Returns((new DataSet(), string.Empty));
         _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(new MemoryStream());
 
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -534,7 +582,7 @@ public class SharePointChangeHandlerUnitTests : IDisposable
     public async Task HandleAsync_WhenProcessingSucceeds_ShouldStoreProcessingLogRecord()
     {
         // Arrange
-        var handler = CreateHandler();
+        var handler = CreateHandlerWithProcessingLogRepository();
         var testSiteId = _testSiteId;
         var testListId = _testListId;
 
@@ -560,7 +608,7 @@ public class SharePointChangeHandlerUnitTests : IDisposable
 
         _mockGraph.Setup(g => g.GetDriveItemAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(mockDriveItem);
-            
+
         _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
 
@@ -571,7 +619,7 @@ public class SharePointChangeHandlerUnitTests : IDisposable
             .ReturnsAsync(new MemoryStream());
 
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -593,8 +641,7 @@ public class SharePointChangeHandlerUnitTests : IDisposable
     public async Task HandleAsync_WhenProcessingFails_ShouldStoreProcessingLogWithError()
     {
         // Arrange
-        var handler = CreateHandler();
-        var testException = new InvalidOperationException("Test parsing error");
+        var handler = CreateHandlerWithProcessingLogRepository();
 
         var changeNotification = new SharePointNotification
         {
@@ -624,13 +671,13 @@ public class SharePointChangeHandlerUnitTests : IDisposable
 
         _mockGraph.Setup(g => g.PullItemsDeltaAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(("delta", new List<string> { "test-item-id" }));
-            
+
         _mockParser.Setup(p => p.Parse(It.IsAny<Stream>()))
             .Returns((null, "Test parsing error"));
-            
+
 
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -645,6 +692,230 @@ public class SharePointChangeHandlerUnitTests : IDisposable
         log.LastError.Should().Be("Test parsing error");
         log.FailedItems.Should().Be(1);
         log.SuccessfulItems.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task FetchAndStoreItemAsync_WithDuplicateFile_ShouldSkipProcessing()
+    {
+        // Arrange
+        var handler = CreateHandler();
+        var itemId = "test-item-id";
+        var fileName = "test.xlsx";
+
+        // Mock list item with ProcessFlag = "Yes"
+        var listItem = new ListItem
+        {
+            Fields = new FieldValueSet
+            {
+                AdditionalData = new Dictionary<string, object> { { "ProcessFlag", "Yes" } }
+            }
+        };
+
+        // Mock drive item
+        var driveItem = new DriveItem
+        {
+            Id = itemId,
+            Name = fileName,
+            ParentReference = new ItemReference
+            {
+                Path = "/sites/test/drive/root:/Shared Documents/WatchedFolder",
+                DriveId = "drive-123"
+            }
+        };
+
+        // Mock file content stream
+        var fileContent = System.Text.Encoding.UTF8.GetBytes("sample excel content");
+        var fileStream = new MemoryStream(fileContent);
+
+        // Setup mocks
+        _mockGraph.Setup(x => x.GetListItemAsync(_testSiteId, _testListId, itemId))
+            .ReturnsAsync(listItem);
+        _mockGraph.Setup(x => x.GetDriveItemAsync(_testSiteId, _testListId, itemId))
+            .ReturnsAsync(driveItem);
+        _mockGraph.Setup(x => x.DownloadAsync("drive-123", itemId))
+            .ReturnsAsync(fileStream);
+
+        // Mock ProcessedFileRepository to return true for duplicate check
+        _mockProcessedFileRepository.Setup(x => x.ExistsByHashAsync(It.IsAny<string>(), It.IsAny<long>()))
+            .ReturnsAsync(true);
+
+        // Setup other required mocks
+        _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
+            .ReturnsAsync("test-delta-link");
+        _mockGraph.Setup(x => x.PullItemsDeltaAsync(_testSiteId, _testListId, "test-delta-link"))
+            .ReturnsAsync(("new-delta-link", new List<string> { itemId }));
+
+        // Act
+        var result = await handler.FetchAndStoreDeltaAsync();
+
+        // Assert
+        result.Success.Should().BeTrue();
+        handler.SuccessfulItems.Should().Be(0); // No items should be processed due to duplication
+        handler.FailedCount.Should().Be(0);
+
+        // Verify that duplicate check was called
+        _mockProcessedFileRepository.Verify(x => x.ExistsByHashAsync(It.IsAny<string>(), It.IsAny<long>()), Times.Once);
+
+        // Verify that parser and database writer were never called since file was skipped
+        _mockParser.Verify(x => x.Parse(It.IsAny<Stream>()), Times.Never);
+        _mockDb.Verify(x => x.WriteAsync(It.IsAny<DataSet>(), It.IsAny<EdgesDbContext>(),
+            It.IsAny<DbConnection>(), It.IsAny<DbTransaction>()), Times.Never);
+
+        // Verify log message for duplicate detection
+        VerifyLogMessage("Duplicate file detected with hash", Times.Once());
+    }
+
+    [Fact]
+    public async Task FetchAndStoreItemAsync_WithNonDuplicateFile_ShouldProcessFile()
+    {
+        // Arrange
+        var handler = CreateHandler();
+        var itemId = "test-item-id";
+        var fileName = "test.xlsx";
+
+        // Mock list item with ProcessFlag = "Yes"
+        var listItem = new ListItem
+        {
+            Fields = new FieldValueSet
+            {
+                AdditionalData = new Dictionary<string, object> { { "ProcessFlag", "Yes" } }
+            }
+        };
+
+        // Mock drive item
+        var driveItem = new DriveItem
+        {
+            Id = itemId,
+            Name = fileName,
+            ParentReference = new ItemReference
+            {
+                Path = "/sites/test/drive/root:/Shared Documents/WatchedFolder",
+                DriveId = "drive-123"
+            }
+        };
+
+        // Mock file content stream
+        var fileContent = System.Text.Encoding.UTF8.GetBytes("sample excel content");
+        var fileStream = new MemoryStream(fileContent);
+
+        // Mock successful parsing
+        var mockDataSet = new DataSet();
+        var mockPreparedDataSet = new DataSet();
+
+        // Setup mocks
+        _mockGraph.Setup(x => x.GetListItemAsync(_testSiteId, _testListId, itemId))
+            .ReturnsAsync(listItem);
+        _mockGraph.Setup(x => x.GetDriveItemAsync(_testSiteId, _testListId, itemId))
+            .ReturnsAsync(driveItem);
+        _mockGraph.Setup(x => x.DownloadAsync("drive-123", itemId))
+            .ReturnsAsync(fileStream);
+
+        // Mock ProcessedFileRepository to return false for duplicate check (not a duplicate)
+        _mockProcessedFileRepository.Setup(x => x.ExistsByHashAsync(It.IsAny<string>(), It.IsAny<long>()))
+            .ReturnsAsync(false);
+
+        // Mock successful parsing
+        _mockParser.Setup(x => x.Parse(It.IsAny<Stream>()))
+            .Returns((mockDataSet, null));
+        _mockDataSetConverter.Setup(x => x.ConvertForDatabase(mockDataSet))
+            .Returns(mockPreparedDataSet);
+
+        // Setup other required mocks
+        _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
+            .ReturnsAsync("test-delta-link");
+        _mockGraph.Setup(x => x.PullItemsDeltaAsync(_testSiteId, _testListId, "test-delta-link"))
+            .ReturnsAsync(("new-delta-link", new List<string> { itemId }));
+
+        // Act
+        var result = await handler.FetchAndStoreDeltaAsync();
+
+        // Assert
+        result.Success.Should().BeTrue();
+        handler.SuccessfulItems.Should().Be(1); // File should be processed successfully
+        handler.FailedCount.Should().Be(0);
+
+        // Verify that duplicate check was called
+        _mockProcessedFileRepository.Verify(x => x.ExistsByHashAsync(It.IsAny<string>(), It.IsAny<long>()), Times.Once);
+
+        // Verify that parser and database writer were called since file was not a duplicate
+        _mockParser.Verify(x => x.Parse(It.IsAny<Stream>()), Times.Once);
+        _mockDb.Verify(x => x.WriteAsync(mockPreparedDataSet, It.IsAny<EdgesDbContext>(),
+            It.IsAny<DbConnection>(), It.IsAny<DbTransaction>()), Times.Once);
+
+        // Verify no duplicate log message was logged
+        VerifyLogMessage("Duplicate file detected with hash", Times.Never());
+    }
+
+    [Theory]
+    [InlineData(1024L)]
+    [InlineData(2048L)]
+    [InlineData(0L)]
+    public async Task FetchAndStoreItemAsync_WithVariousHashAndSizeValues_ShouldCallDuplicateCheckCorrectly(
+        long expectedSize)
+    {
+        // Arrange
+        var handler = CreateHandler();
+        var itemId = "test-item-id";
+        var fileName = "test.xlsx";
+
+        // Mock list item with ProcessFlag = "Yes"
+        var listItem = new ListItem
+        {
+            Fields = new FieldValueSet
+            {
+                AdditionalData = new Dictionary<string, object> { { "ProcessFlag", "Yes" } }
+            }
+        };
+
+        // Mock drive item
+        var driveItem = new DriveItem
+        {
+            Id = itemId,
+            Name = fileName,
+            ParentReference = new ItemReference
+            {
+                Path = "/sites/test/drive/root:/Shared Documents/WatchedFolder",
+                DriveId = "drive-123"
+            }
+        };
+
+        // Create file content that would produce the expected hash and size
+        var fileContent = new byte[expectedSize];
+        var fileStream = new MemoryStream(fileContent);
+
+        // Setup mocks
+        _mockGraph.Setup(x => x.GetListItemAsync(_testSiteId, _testListId, itemId))
+            .ReturnsAsync(listItem);
+        _mockGraph.Setup(x => x.GetDriveItemAsync(_testSiteId, _testListId, itemId))
+            .ReturnsAsync(driveItem);
+        _mockGraph.Setup(x => x.DownloadAsync("drive-123", itemId))
+            .ReturnsAsync(fileStream);
+
+        // Mock ProcessedFileRepository to return false (not duplicate) to continue processing
+        _mockProcessedFileRepository.Setup(x => x.ExistsByHashAsync(It.IsAny<string>(), It.IsAny<long>()))
+            .ReturnsAsync(false);
+
+        // Mock successful parsing to avoid errors
+        var mockDataSet = new DataSet();
+        _mockParser.Setup(x => x.Parse(It.IsAny<Stream>()))
+            .Returns((mockDataSet, null));
+        _mockDataSetConverter.Setup(x => x.ConvertForDatabase(mockDataSet))
+            .Returns(mockDataSet);
+
+        // Setup other required mocks
+        _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
+            .ReturnsAsync("test-delta-link");
+        _mockGraph.Setup(x => x.PullItemsDeltaAsync(_testSiteId, _testListId, "test-delta-link"))
+            .ReturnsAsync(("new-delta-link", new List<string> { itemId }));
+
+        // Act
+        var result = await handler.FetchAndStoreDeltaAsync();
+
+        // Assert
+        result.Success.Should().BeTrue();
+
+        // Verify that duplicate check was called with the correct hash and size
+        _mockProcessedFileRepository.Verify(x => x.ExistsByHashAsync(It.IsAny<string>(), expectedSize), Times.Once);
     }
 
     private void VerifyLogMessage(string expectedMessage, Times times)

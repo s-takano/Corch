@@ -4,6 +4,7 @@ using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
 using CorchEdges.Data.Repositories;
 using CorchEdges.Models;
+using CorchEdges.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
@@ -72,7 +73,8 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     /// </remarks>
     private readonly EdgesDbContext _context;
 
-    private readonly ProcessingLogRepository _processingLogRepository;
+    private readonly IProcessingLogRepository _processingLogRepository;
+    private readonly IProcessedFileRepository _processedFileRepository;
     private readonly IDataSetConverter _dataSetConverter;
 
     /// <summary>
@@ -88,7 +90,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     /// typically used for tracking changes or accessing the list within a specified site.
     /// </summary>
     private readonly string _listId;
-
+    
     public int SuccessfulItems { get; private set; }
     public int FailedCount { get; private set; }
     public bool HasErrors { get; private set; }
@@ -108,7 +110,8 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         ITabularDataParser parser,
         IDatabaseWriter db,
         EdgesDbContext context,
-        ProcessingLogRepository processingLogRepository,
+        IProcessingLogRepository processingLogRepository,
+        IProcessedFileRepository processedFileRepository,
         IDataSetConverter dataSetConverter,
         string siteId,
         string listId,
@@ -127,6 +130,8 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _processingLogRepository =
             processingLogRepository ?? throw new ArgumentNullException(nameof(processingLogRepository));
+        _processedFileRepository = 
+            processedFileRepository ?? throw new ArgumentNullException(nameof(processedFileRepository));
         _dataSetConverter = dataSetConverter ?? throw new ArgumentNullException(nameof(dataSetConverter));
 
         // Validate string parameters
@@ -279,6 +284,10 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         }
     }
 
+    private async Task<bool> IsFileDuplicateAsync(string fileHash, long fileSize)
+    {
+        return await _processedFileRepository.ExistsByHashAsync(fileHash, fileSize);
+    }
 
     private async Task FetchAndStoreItemAsync(string itemId, DbConnection connection, IDbContextTransaction transaction)
     {
@@ -318,6 +327,31 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         }
 
         await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
+        
+        using var memoryStream = new MemoryStream();
+        await stream.CopyToAsync(memoryStream);
+        
+        // Filter by file duplication by comparing the hash of each file to the hashes of past files
+        // which have already been uploaded 
+        var (fileHash, fileSize) = await FileHashCalculator.CalculateHashAsync(memoryStream);
+            
+        if (await IsFileDuplicateAsync(fileHash, fileSize))
+        {
+            _log.LogInformation("Duplicate file detected with hash {Hash} and size {Size} bytes", 
+                fileHash, fileSize);
+            return;
+        }
+        
+        memoryStream.Seek(0, SeekOrigin.Begin);
+        
+        // only new file is processed
+        if (!await WriteStreamAsync(connection, transaction, memoryStream)) return;
+
+        SuccessfulItems++;
+    }
+
+    private async Task<bool> WriteStreamAsync(DbConnection connection, IDbContextTransaction transaction, Stream stream)
+    {
         var (ds, err) = _parser.Parse(stream);
         if (!string.IsNullOrEmpty(err))
         {
@@ -325,7 +359,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             HasErrors = true;
             LastError = err;
             FailedCount++;
-            return;
+            return false;
         }
 
         if (ds == null)
@@ -334,14 +368,14 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             HasErrors = true;
             LastError = "Parser returned null dataset";
             FailedCount++;
-            return;
+            return false;
         }
 
         var preparedDataSet = _dataSetConverter.ConvertForDatabase(ds);
 
         await _db.WriteAsync(preparedDataSet, _context, connection, transaction.GetDbTransaction());
 
-        SuccessfulItems++;
+        return true;
     }
 
     /// <summary>

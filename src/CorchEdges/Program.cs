@@ -131,6 +131,7 @@ static void RegisterDatabaseServices(IServiceCollection services, IConfiguration
         provider.GetRequiredService<ILogger<ExcelDatasetWriter>>()));
 
     services.AddTransient<ProcessingLogRepository>();
+    services.AddTransient<IProcessedFileRepository, ProcessedFileRepository>();
 
     Console.WriteLine("Database services registration completed.");
 }
@@ -211,6 +212,7 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
         p.GetRequiredService<IDatabaseWriter>(),
         p.GetRequiredService<EdgesDbContext>(),
         p.GetRequiredService<ProcessingLogRepository>(),
+        p.GetRequiredService<IProcessedFileRepository>(),
         p.GetRequiredService<IDataSetConverter>(),
         cfg["SharePoint:SiteId"] ?? "MISSING",
         cfg["SharePoint:ListId"] ?? "MISSING",
