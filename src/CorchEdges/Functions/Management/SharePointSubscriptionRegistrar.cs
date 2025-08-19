@@ -641,7 +641,7 @@ public class SharePointSubscriptionRegistrar(
 
     [Function("SubscribeToConfiguredList")]
     public async Task<HttpResponseData> SubscribeToConfiguredListAsync(
-        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "sharepoint/subscribe-configured")]
+        [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "sharepoint/subscriptions/configured")]
         HttpRequestData req)
     {
         try
