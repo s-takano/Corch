@@ -871,7 +871,7 @@ public class SharePointSubscriptionRegistrar(
         var path = string.IsNullOrWhiteSpace(webhookPath) ? "sharepoint/webhook" : webhookPath.Trim('/');
 
         // Ensure path doesn't start with '/' but includes it in URL construction
-        return $"https://{functionAppName}.azurewebsites.net/api/{path}?code={functionKey}";
+        return $"https://{functionAppName}.azurewebsites.net/{path}?code={functionKey}";
     }
 
     /// <summary>
