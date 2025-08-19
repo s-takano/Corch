@@ -5,12 +5,15 @@ using CorchEdges.Models.Requests;
 using CorchEdges.Services;
 using CorchEdges.Utilities;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Abstractions;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Resolvers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json.Serialization;
 
 namespace CorchEdges.Functions.Management;
 
@@ -56,6 +59,30 @@ public class SharePointSubscriptionRegistrar(
     private readonly IConfiguration _configuration =
         configuration ?? throw new ArgumentNullException(nameof(configuration));
 
+    private class WebhookConfigurationExample : IOpenApiExample<WebhookConfiguration>
+    {
+        public IOpenApiExample<WebhookConfiguration> Build(NamingStrategy namingStrategy = null!)
+        {
+            Examples.Add(
+                OpenApiExampleResolver.Resolve(
+                    "sample",
+                    new WebhookConfiguration
+                    (
+                        "12345678-1234-1234-1234-123456789abc",
+                        "87654321-4321-4321-4321-cba987654321",
+                        "https://myapp.azurewebsites.net/api/webhook",
+                        "MyFunctionApp",
+                        "my-function-app-key"
+                    ),
+                    namingStrategy
+                ));
+        
+            return this;
+        }
+
+        public IDictionary<string, OpenApiExample> Examples { get; } = new Dictionary<string, OpenApiExample>();
+    }
+    
     /// <summary>
     /// Handles the HTTP request to set up a SharePoint webhook, registering a webhook for a specified list
     /// in a SharePoint site and returning the details of the newly created subscription.
@@ -65,7 +92,7 @@ public class SharePointSubscriptionRegistrar(
     /// </summary>
     /// <param name="req">
     /// The HTTP request containing the setup details, expected to be a POST request with a JSON body
-    /// containing a <see cref="WebhookConfiguration"/> object with the following required properties:
+    /// containing a <see cref="TryToParseWebhookConfiguration"/> object with the following required properties:
     /// <list type="bullet">
     /// <item><description><c>siteId</c> - The Optional SharePoint site ID (GUID format)</description></item>
     /// <item><description><c>listId</c> - The Optional SharePoint list ID (GUID format)</description></item>
@@ -133,7 +160,8 @@ public class SharePointSubscriptionRegistrar(
         contentType: "application/json", 
         bodyType: typeof(WebhookConfiguration),
         Required = true,
-        Description = "Webhook configuration containing site ID, list ID, callback URL, and function app name")]
+        Description = "Webhook configuration for SharePoint subscription",
+        Example = typeof(WebhookConfigurationExample))]
     [OpenApiResponseWithBody(
         statusCode: HttpStatusCode.Created, 
         contentType: "application/json", 
@@ -161,10 +189,11 @@ public class SharePointSubscriptionRegistrar(
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var requestData = ParseRequestBody(requestBody);
             
-            // Get configuration values
-            var config = GetWebhookConfiguration(requestData);
-            
-            if (!ValidateConfiguration(config, out var validationError))
+            // Try to construct configuration values
+            if (!TryToParseWebhookConfiguration(
+                    requestData, 
+                    out var config, 
+                    out var validationError))
             {
                 _logger.LogError("Configuration validation failed: {Error}", validationError);
                 return await CreateErrorResponseAsync(req, HttpStatusCode.BadRequest, validationError);
@@ -238,6 +267,12 @@ public class SharePointSubscriptionRegistrar(
             _logger.LogError(ex, "Unexpected error during webhook registration");
             return await CreateErrorResponseAsync(req, HttpStatusCode.InternalServerError, "Internal server error");
         }
+    }
+
+    private bool TryToParseWebhookConfiguration(Dictionary<string, object> requestData, out WebhookConfiguration config, out string validationError)
+    {
+        config = ParseWebhookConfiguration(requestData);
+        return ValidateConfiguration(config, out validationError);
     }
 
     /// Retrieves the current status of SharePoint webhooks, including active subscriptions
@@ -690,7 +725,7 @@ public class SharePointSubscriptionRegistrar(
     /// <exception cref="Exception">
     /// Thrown when there is an unhandled error during the retrieval of the webhook configuration.
     /// </exception>
-    private WebhookConfiguration GetWebhookConfiguration(Dictionary<string, object> requestData)
+    private WebhookConfiguration ParseWebhookConfiguration(Dictionary<string, object> requestData)
     {
         try
         {
