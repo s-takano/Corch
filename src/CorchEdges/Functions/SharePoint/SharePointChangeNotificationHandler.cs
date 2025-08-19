@@ -97,7 +97,7 @@ public sealed class SharePointChangeNotificationHandler(ISharePointWebhookProces
         statusCode: HttpStatusCode.InternalServerError, 
         Description = "Internal processing error - notification may be retried by SharePoint")]
     public async Task<SharePointChangeNotificationResponse> HandleNotificationAsync(
-        [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "sharepoint/notifications")]
+        [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "sharepoint/notifications/webhook")]
         HttpRequestData req)
     {
         // Handle validation handshake during subscription creation

@@ -654,7 +654,7 @@ public class SharePointSubscriptionRegistrar(
             var listId = _configuration["SharePoint:ListId"];
             var functionAppName = _configuration["WEBSITE_SITE_NAME"];
             var functionKey = _configuration["WebhookFunctionKey"];
-            var webhookPath = "sharepoint/notifications";
+            var webhookPath = "sharepoint/notifications/webhook";
 
             // Validate configuration
             if (string.IsNullOrWhiteSpace(siteId) ||
