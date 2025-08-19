@@ -30,13 +30,13 @@ namespace CorchEdges.Functions.SharePoint;
 /// multiple SharePoint resource types (document libraries, sites, etc.), consider implementing
 /// a router pattern:
 /// <code>
-/// Current: SharePoint List → ReceiveSharePointChangeNotification → SharePointSyncFunction
-/// Future:  SharePoint Site → ReceiveSharePointChangeNotification → Router → [ListProcessor, LibraryProcessor, SiteProcessor]
+/// Current: SharePoint List → SharePointChangeNotificationHandler → SharePointChangeNotificationProcessor
+/// Future:  SharePoint Site → SharePointChangeNotificationHandler → Router → [ListProcessor, LibraryProcessor, SiteProcessor]
 /// </code>
 /// The router would examine the notification resource type and route to appropriate specialized processors,
 /// allowing this function to become a generic entry point while maintaining separation of concerns.
 /// </remarks>
-public sealed class ReceiveSharePointChangeNotification(ISharePointWebhookProcessor svc, ILogger<ReceiveSharePointChangeNotification> logger)
+public sealed class SharePointChangeNotificationHandler(ISharePointWebhookProcessor svc, ILogger<SharePointChangeNotificationHandler> logger)
 {
     /// <summary>
     /// Processes incoming SharePoint webhook requests for list change notifications.
@@ -57,11 +57,11 @@ public sealed class ReceiveSharePointChangeNotification(ISharePointWebhookProces
     /// 2. List item changes - receives notification with change details
     /// 
     /// All change notifications are enqueued to Service Bus for reliable asynchronous processing
-    /// by the SharePointSyncFunction function.
+    /// by the SharePointChangeNotificationProcessor function.
     /// </remarks>
-    [Function("SharePointChangeNotifications")]
+    [Function("HandleSharePointChangeNotification")]
     [OpenApiOperation(
-        operationId: "ReceiveSharePointChangeNotification", 
+        operationId: "SharePointChangeNotificationHandler", 
         tags: new[] { "SharePoint Webhooks" },
         Summary = "Receive SharePoint change notifications",
         Description = "Webhook endpoint that receives SharePoint list change notifications. Handles both validation handshakes during subscription setup and actual change notifications. Change notifications are automatically enqueued to Service Bus for asynchronous processing.")]
@@ -96,7 +96,7 @@ public sealed class ReceiveSharePointChangeNotification(ISharePointWebhookProces
     [OpenApiResponseWithoutBody(
         statusCode: HttpStatusCode.InternalServerError, 
         Description = "Internal processing error - notification may be retried by SharePoint")]
-    public async Task<SharePointChangeNotificationResponse> Run(
+    public async Task<SharePointChangeNotificationResponse> HandleNotificationAsync(
         [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "sharepoint/notifications")]
         HttpRequestData req)
     {

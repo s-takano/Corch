@@ -17,13 +17,13 @@ using Moq;
 namespace CorchEdges.Tests.Unit.Functions;
 
 [Trait("Category", TestCategories.Unit)]
-public class SharePointSyncFunctionTests : IDisposable
+public class SharePointChangeNotificationProcessorTests : IDisposable
 {
-    private readonly Mock<ILogger<SharePointSyncFunction>> _mockLogger;
+    private readonly Mock<ILogger<SharePointChangeNotificationProcessor>> _mockLogger;
     private readonly Mock<ISharePointSyncProcessor> _mockProcessor;
     private readonly Mock<BlobServiceClient> _mockBlobServiceClient;
     private readonly Mock<BlobContainerClient> _mockBlobContainerClient;
-    private readonly SharePointSyncFunction _function;
+    private readonly SharePointChangeNotificationProcessor _function;
 
     private EdgesDbContext CreateInMemoryContext()
     {
@@ -35,9 +35,9 @@ public class SharePointSyncFunctionTests : IDisposable
         return new EdgesDbContext(options);
     }
 
-    public SharePointSyncFunctionTests()
+    public SharePointChangeNotificationProcessorTests()
     {
-        _mockLogger = new Mock<ILogger<SharePointSyncFunction>>();
+        _mockLogger = new Mock<ILogger<SharePointChangeNotificationProcessor>>();
         _mockProcessor = new Mock<ISharePointSyncProcessor>();
         _mockBlobServiceClient = new Mock<BlobServiceClient>();
         _mockBlobContainerClient = new Mock<BlobContainerClient>();
@@ -52,7 +52,7 @@ public class SharePointSyncFunctionTests : IDisposable
             .Setup(x => x.CreateIfNotExistsAsync(It.IsAny<PublicAccessType>(), It.IsAny<IDictionary<string, string>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.FromResult(Mock.Of<Response<BlobContainerInfo>>()));
 
-        _function = new SharePointSyncFunction(
+        _function = new SharePointChangeNotificationProcessor(
             _mockLogger.Object,
             _mockProcessor.Object,
             _mockBlobServiceClient.Object);
@@ -85,7 +85,7 @@ public class SharePointSyncFunctionTests : IDisposable
             .Returns(1);
 
         // Act
-        var result = await _function.RunAsync(testMessage);
+        var result = await _function.ProcessNotificationAsync(testMessage);
 
         // Assert
         result.Should().NotBeNull();
@@ -125,7 +125,7 @@ public class SharePointSyncFunctionTests : IDisposable
             .Returns(Task.FromResult(Mock.Of<Response<BlobContentInfo>>()));
 
         // Act
-        var result = await _function.RunAsync(testMessage);
+        var result = await _function.ProcessNotificationAsync(testMessage);
 
         // Assert
         result.Should().NotBeNull();
@@ -180,7 +180,7 @@ public class SharePointSyncFunctionTests : IDisposable
             .Returns(Task.FromResult(Mock.Of<Response<BlobContentInfo>>()));
 
         // Act
-        var result = await _function.RunAsync(testMessage);
+        var result = await _function.ProcessNotificationAsync(testMessage);
 
         // Assert
         result.Should().NotBeNull();
@@ -222,7 +222,7 @@ public class SharePointSyncFunctionTests : IDisposable
             .Returns(3);
 
         // Act
-        var result = await _function.RunAsync(testMessage);
+        var result = await _function.ProcessNotificationAsync(testMessage);
 
         // Assert
         result.Should().NotBeNull();
@@ -249,7 +249,7 @@ public class SharePointSyncFunctionTests : IDisposable
             .ReturnsAsync(true);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<JsonException>(() => _function.RunAsync(invalidMessage));
+        var exception = await Assert.ThrowsAsync<JsonException>(() => _function.ProcessNotificationAsync(invalidMessage));
         
         _mockBlobContainerClient.Verify(x => x.UploadBlobAsync(
             It.Is<string>(s => s.StartsWith("processing-error-")),
@@ -288,7 +288,7 @@ public class SharePointSyncFunctionTests : IDisposable
             .Returns(Task.FromResult(Mock.Of<Response<BlobContentInfo>>()));
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => _function.RunAsync(testMessage));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => _function.ProcessNotificationAsync(testMessage));
         
         exception.Message.Should().Be("Handler error");
         
@@ -314,7 +314,7 @@ public class SharePointSyncFunctionTests : IDisposable
             .Returns(0);
 
         // Act
-        var result = await _function.RunAsync(testMessage);
+        var result = await _function.ProcessNotificationAsync(testMessage);
 
         // Assert
         result.Should().NotBeNull();
@@ -338,7 +338,7 @@ public class SharePointSyncFunctionTests : IDisposable
             .Returns(0);
 
         // Act
-        var result = await _function.RunAsync(testMessage);
+        var result = await _function.ProcessNotificationAsync(testMessage);
 
         // Assert
         result.Should().NotBeNull();

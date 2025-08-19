@@ -15,7 +15,7 @@ namespace CorchEdges.Functions.Testing;
 /// <remarks>
 /// The TestWebhookCallback class is designed to process HTTP requests sent to a specified webhook endpoint.
 /// It supports GET and POST methods and includes functionality for handling Microsoft Graph webhook validation
-/// handshakes and test notifications. The primary entry point for handling requests is the Run method.
+/// handshakes and test notifications. The primary entry point for handling requests is the Handle method.
 /// </remarks>
 public class TestWebhookCallback
 {

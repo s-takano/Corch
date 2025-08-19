@@ -20,19 +20,19 @@ namespace CorchEdges.Functions.SharePoint;
 /// It verifies the Microsoft Graph API connection, processes the notification messages,
 /// and handles errors such as failures in processing or connectivity issues.
 /// </remarks>
-public sealed class SharePointSyncFunction
+public sealed class SharePointChangeNotificationProcessor
 {
     /// <summary>
     /// A logger instance used for logging information, warnings, errors, and debug-level messages
-    /// within the <see cref="SharePointSyncFunction"/> class to provide detailed traceability
+    /// within the <see cref="SharePointChangeNotificationProcessor"/> class to provide detailed traceability
     /// of the SharePoint change processing workflow.
     /// </summary>
     /// <remarks>
-    /// This logger is specifically implemented for the <see cref="SharePointSyncFunction"/> class,
+    /// This logger is specifically implemented for the <see cref="SharePointChangeNotificationProcessor"/> class,
     /// and it facilitates monitoring and troubleshooting by recording critical processing steps,
     /// errors, and additional context regarding Azure Function execution and external system interactions.
     /// </remarks>
-    private readonly ILogger<SharePointSyncFunction> _log;
+    private readonly ILogger<SharePointChangeNotificationProcessor> _log;
 
     /// <summary>
     /// Represents a private instance of the <see cref="SharePointSyncProcessor"/> class.
@@ -58,7 +58,7 @@ public sealed class SharePointSyncFunction
     /// wrapper leveraging Azure functions for triggering operations. It integrates
     /// with supporting services to ensure robust handling of SharePoint change events.
     /// </remarks>
-    internal SharePointSyncFunction(ILogger<SharePointSyncFunction> log, ISharePointSyncProcessor processor, BlobServiceClient blobs)
+    internal SharePointChangeNotificationProcessor(ILogger<SharePointChangeNotificationProcessor> log, ISharePointSyncProcessor processor, BlobServiceClient blobs)
     {
         _log = log; 
         _processor = processor;
@@ -86,8 +86,8 @@ public sealed class SharePointSyncFunction
     /// </summary>
     /// <param name="msg">The serialized SharePoint change notification message received from Service Bus.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    [Function(nameof(SharePointSyncFunction))]
-    public async Task<SharePointSyncResult> RunAsync([ServiceBusTrigger("sp-changes", Connection="ServiceBusConnection")] string msg)
+    [Function("ProcessSharePointNotification")]
+    public async Task<SharePointSyncResult> ProcessNotificationAsync([ServiceBusTrigger("sp-changes", Connection="ServiceBusConnection")] string msg)
     {
         try
         {

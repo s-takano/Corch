@@ -59,9 +59,10 @@ public class SharePointSubscriptionRegistrar(
     private readonly IConfiguration _configuration =
         configuration ?? throw new ArgumentNullException(nameof(configuration));
 
-    private class WebhookConfigurationExample : IOpenApiExample<WebhookConfiguration>
+    // ReSharper disable once MemberCanBePrivate.Global
+    public class WebhookConfigurationExample : OpenApiExample<WebhookConfiguration>
     {
-        public IOpenApiExample<WebhookConfiguration> Build(NamingStrategy namingStrategy = null!)
+        public override IOpenApiExample<WebhookConfiguration> Build(NamingStrategy namingStrategy = null!)
         {
             Examples.Add(
                 OpenApiExampleResolver.Resolve(
@@ -79,8 +80,6 @@ public class SharePointSubscriptionRegistrar(
         
             return this;
         }
-
-        public IDictionary<string, OpenApiExample> Examples { get; } = new Dictionary<string, OpenApiExample>();
     }
     
     /// <summary>

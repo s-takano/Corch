@@ -12,17 +12,17 @@ using AzureFunctionsHttpTriggerAttribute = Microsoft.Azure.Functions.Worker.Http
 namespace CorchEdges.Tests.Functional.Azure;
 
 [Trait("Category", TestCategories.Functional)]
-[Trait("Target", "ReceiveSharePointChangeNotification")]
+[Trait("Target", "SharePointChangeNotificationHandler")]
 public class SharePointWebhookCallbackFunctionalTests
 {
     private readonly Mock<ISharePointWebhookProcessor> _mockProcessor;
-    private readonly ReceiveSharePointChangeNotification _function;
+    private readonly SharePointChangeNotificationHandler _function;
 
     public SharePointWebhookCallbackFunctionalTests()
     {
         _mockProcessor = new Mock<ISharePointWebhookProcessor>();
-        var mockLogger = new Mock<ILogger<ReceiveSharePointChangeNotification>>();
-        _function = new ReceiveSharePointChangeNotification(_mockProcessor.Object, mockLogger.Object);
+        var mockLogger = new Mock<ILogger<SharePointChangeNotificationHandler>>();
+        _function = new SharePointChangeNotificationHandler(_mockProcessor.Object, mockLogger.Object);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class SharePointWebhookCallbackFunctionalTests
             .Returns(expectedResponse.Object);
 
         // Act
-        var result = await _function.Run(mockRequest.Object);
+        var result = await _function.HandleNotificationAsync(mockRequest.Object);
 
         // Assert
         Assert.Equal(expectedResponse.Object, result.HttpResponse);
@@ -67,7 +67,7 @@ public class SharePointWebhookCallbackFunctionalTests
             .ReturnsAsync((expectedResponse.Object, expectedQueueBody));
 
         // Act
-        var result = await _function.Run(mockRequest.Object);
+        var result = await _function.HandleNotificationAsync(mockRequest.Object);
 
         // Assert
         Assert.Equal(expectedResponse.Object, result.HttpResponse);
@@ -95,7 +95,7 @@ public class SharePointWebhookCallbackFunctionalTests
             .ReturnsAsync((errorResponse.Object, null));
 
         // Act
-        var result = await _function.Run(mockRequest.Object);
+        var result = await _function.HandleNotificationAsync(mockRequest.Object);
 
         // Assert
         Assert.Equal(errorResponse.Object, result.HttpResponse);
@@ -148,7 +148,7 @@ public class SharePointWebhookCallbackFunctionalTests
     {
         // Test that the Azure Function properly accepts the abstraction
         var mockProcessor = new Mock<ISharePointWebhookProcessor>();
-        var function = new ReceiveSharePointChangeNotification(mockProcessor.Object, Mock.Of<ILogger<ReceiveSharePointChangeNotification>>());
+        var function = new SharePointChangeNotificationHandler(mockProcessor.Object, Mock.Of<ILogger<SharePointChangeNotificationHandler>>());
         
         Assert.NotNull(function);
         // This ensures the dependency injection will work correctly
