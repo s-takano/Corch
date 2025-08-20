@@ -5,6 +5,7 @@ using CorchEdges.Models.Requests;
 using CorchEdges.Services;
 using CorchEdges.Utilities;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Abstractions;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json.Serialization;
+
 
 namespace CorchEdges.Functions.Management;
 
@@ -639,16 +641,107 @@ public class SharePointSubscriptionRegistrar(
         }
     }
 
-    [Function("SubscribeToConfiguredList")]
-    public async Task<HttpResponseData> SubscribeToConfiguredListAsync(
+    
+    [Function("EnsureConfiguredListSubscriptionTimer")]
+    public async Task EnsureConfiguredListSubscriptionTimerAsync(
+        [TimerTrigger("%SharePoint:EnsureSubscriptionScheduleCron%")] TimerInfo timerInfo)
+    {
+        _logger.LogInformation(
+            "EnsureConfiguredListSubscriptionTimer triggered at {Now}. Next occurrence at {Next}",
+            DateTimeOffset.UtcNow,
+            timerInfo?.ScheduleStatus?.Next);
+
+        if (timerInfo?.IsPastDue ?? false)
+        {
+            _logger.LogWarning("Timer is running late (past due). Catching up missed schedule.");
+        }
+
+        try
+        {
+            var result = await EnsureConfiguredSharePointListSubscriptionAsync();
+
+            _logger.LogInformation(
+                "EnsureConfiguredListSubscriptionTimer finished. Action={Action}, SubscriptionId={SubscriptionId}, SiteId={SiteId}, ListId={ListId}, Expires={Expiration}",
+                result.Action,
+                result.SubscriptionId,
+                result.SiteId,
+                result.ListId,
+                result.ExpirationDateTime);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Invalid configuration for scheduled ensure: {Message}", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Scheduled ensure failed");
+        }
+    }
+
+    [Function("RegisterConfiguredListSubscription")]
+    public async Task<HttpResponseData> RegisterConfiguredListSubscriptionAsync(
         [HttpTrigger(AuthorizationLevel.Admin, "post", Route = "sharepoint/subscriptions/configured")]
         HttpRequestData req)
     {
         try
         {
-            var logger = req.FunctionContext.GetLogger("SubscribeToConfiguredList");
-            logger.LogInformation("Starting subscription to configured SharePoint list");
+            var result = await EnsureConfiguredSharePointListSubscriptionAsync();
 
+            return await CreateSuccessResponseAsync(req, new
+            {
+                result.Action,
+                result.SubscriptionId,
+                result.SiteId,
+                result.ListId,
+                result.CallbackUrl,
+                result.ExpirationDateTime,
+                result.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Invalid configuration: {Message}", ex.Message);
+            return await CreateErrorResponseAsync(req, HttpStatusCode.BadRequest, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to subscribe to configured SharePoint list");
+            return await CreateErrorResponseAsync(req, HttpStatusCode.InternalServerError,
+                $"Failed to subscribe to SharePoint list: {ex.Message}");
+        }
+    }
+
+    private sealed record EnsureSubscriptionResult(
+        string Action,
+        string? SubscriptionId,
+        string SiteId,
+        string ListId,
+        string CallbackUrl,
+        DateTimeOffset? ExpirationDateTime,
+        string Message);
+
+    /// <summary>
+    /// Core logic to ensure a SharePoint webhook subscription exists and is up-to-date.
+    /// Decoupled from HTTP-specific types for reuse from other triggers.
+    /// </summary>
+    private async Task<EnsureSubscriptionResult> EnsureConfiguredSharePointListSubscriptionAsync()
+    {
+        _logger.LogInformation("Ensuring subscription to configured SharePoint list");
+
+        var webhookConfig = BuildWebhookConfiguration();
+
+        var callbackUrl = BuildCallbackUrl(webhookConfig);
+
+        var existingSubscription = await GetExistingSubscriptionAsync();
+
+        var (renewalSuccess, renewalResult) = await TryRenewOrRecreateSharePointSubscriptionAsync(existingSubscription);
+        if (renewalSuccess) return renewalResult!;
+
+        return await RegisterNewSharePointSubscriptionAsync();
+        
+        
+        WebhookConfiguration BuildWebhookConfiguration()
+        {
             // Get configuration values
             var siteId = _configuration["SharePoint:SiteId"];
             var listId = _configuration["SharePoint:ListId"];
@@ -657,20 +750,17 @@ public class SharePointSubscriptionRegistrar(
             var webhookPath = "sharepoint/notifications/webhook";
 
             // Validate configuration
-            if (string.IsNullOrWhiteSpace(siteId) ||
-                string.IsNullOrWhiteSpace(listId) ||
-                string.IsNullOrWhiteSpace(functionAppName) ||
-                string.IsNullOrWhiteSpace(functionKey))
-            {
-                logger.LogError("Missing required configuration values");
-                return await CreateErrorResponseAsync(
-                    req,
-                    HttpStatusCode.BadRequest,
-                    "Missing required configuration. Please check SharePoint:SiteId, SharePoint:ListId, WEBSITE_SITE_NAME, and WebhookFunctionKey settings.");
-            }
+            if (string.IsNullOrWhiteSpace(siteId))
+                throw new ArgumentException("SharePoint:SiteId is required");
+            if (string.IsNullOrWhiteSpace(listId))
+                throw new ArgumentException("SharePoint:ListId is required");
+            if (string.IsNullOrWhiteSpace(functionAppName))
+                throw new ArgumentException("WEBSITE_SITE_NAME is required");
+            if (string.IsNullOrWhiteSpace(functionKey))
+                throw new ArgumentException("WebhookFunctionKey is required");
 
             // Build webhook configuration
-            var webhookConfig = new WebhookConfiguration(
+            var webhookConfiguration = new WebhookConfiguration(
                 SiteId: siteId,
                 ListId: listId,
                 WebhookPath: webhookPath,
@@ -679,109 +769,108 @@ public class SharePointSubscriptionRegistrar(
             );
 
             // Validate the configuration
-            if (!ValidateConfiguration(webhookConfig, out var validationError))
-            {
-                logger.LogError("Configuration validation failed: {Error}", validationError);
-                return await CreateErrorResponseAsync(req, HttpStatusCode.BadRequest, validationError);
-            }
+            if (!ValidateConfiguration(webhookConfiguration, out var validationError))
+                throw new ArgumentException(validationError);
+            return webhookConfiguration;
+        }
 
-            var callbackUrl = BuildCallbackUrl(webhookConfig);
-
+        async Task<Subscription?> GetExistingSubscriptionAsync()
+        {
             // Try to find existing subscription for this list and callback
             var activeSubscriptions = await _sharePointWebhookRegistrar.GetActiveSubscriptionsAsync();
 
             // Best-effort match: by exact callback URL and the resource containing both site and list IDs
-            var existingSubscription = activeSubscriptions.FirstOrDefault(s =>
+            var subscription = activeSubscriptions.FirstOrDefault(s =>
                 !string.IsNullOrWhiteSpace(s.NotificationUrl) &&
                 s.NotificationUrl.Equals(callbackUrl, StringComparison.OrdinalIgnoreCase) &&
-                s.Resource?.Contains(siteId, StringComparison.OrdinalIgnoreCase) == true &&
-                s.Resource?.Contains(listId, StringComparison.OrdinalIgnoreCase) == true);
+                s.Resource?.Contains(webhookConfig.SiteId!, StringComparison.OrdinalIgnoreCase) == true &&
+                s.Resource?.Contains(webhookConfig.ListId!, StringComparison.OrdinalIgnoreCase) == true);
+            return subscription;
+        }
 
-            if (existingSubscription != null && !string.IsNullOrWhiteSpace(existingSubscription.Id))
+        async Task<(bool, EnsureSubscriptionResult? ensureSubscriptionResult)> TryRenewOrRecreateSharePointSubscriptionAsync(Subscription? subscription)
+        {
+            if (subscription == null || string.IsNullOrWhiteSpace(subscription.Id)) 
+                return (false, null);
+            
+            _logger.LogInformation("Existing subscription found with ID: {SubscriptionId}. Attempting renewal.",
+                subscription.Id);
+
+            try
             {
-                logger.LogInformation("Existing subscription found with ID: {SubscriptionId}. Attempting renewal.",
-                    existingSubscription.Id);
+                var renewed = await _sharePointWebhookRegistrar.RenewSubscriptionAsync(subscription.Id);
 
-                try
+                if (renewed)
                 {
-                    var renewed = await _sharePointWebhookRegistrar.RenewSubscriptionAsync(existingSubscription.Id);
+                    // Re-fetch to report current expiration
+                    var refreshed = (await _sharePointWebhookRegistrar.GetActiveSubscriptionsAsync())
+                        .FirstOrDefault(s => s.Id == subscription.Id);
 
-                    if (renewed)
-                    {
-                        // Re-fetch to report current expiration
-                        var refreshed = (await _sharePointWebhookRegistrar.GetActiveSubscriptionsAsync())
-                            .FirstOrDefault(s => s.Id == existingSubscription.Id);
+                    _logger.LogInformation(
+                        "Successfully renewed subscription {SubscriptionId} for site {SiteId}, list {ListId}",
+                        subscription.Id, webhookConfig.SiteId, webhookConfig.ListId);
 
-                        logger.LogInformation(
-                            "Successfully renewed subscription {SubscriptionId} for site {SiteId}, list {ListId}",
-                            existingSubscription.Id, siteId, listId);
-
-                        return await CreateSuccessResponseAsync(req, new
-                        {
-                            Action = "Renewed",
-                            SubscriptionId = existingSubscription.Id,
-                            SiteId = siteId,
-                            ListId = listId,
-                            CallbackUrl = callbackUrl,
-                            ExpirationDateTime = refreshed?.ExpirationDateTime,
-                            Message = "Existing subscription renewed successfully"
-                        });
-                    }
-
-                    logger.LogWarning(
-                        "Renewal returned false for subscription {SubscriptionId}. Will attempt to recreate.",
-                        existingSubscription.Id);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(
-                        "Failed to renew existing subscription {SubscriptionId}: {Error}. Will attempt to create new subscription.",
-                        existingSubscription.Id, ex.Message);
+                    var ensureSubscriptionResult = new EnsureSubscriptionResult(
+                        Action: "Renewed",
+                        SubscriptionId: subscription.Id,
+                        SiteId: webhookConfig.SiteId!,
+                        ListId: webhookConfig.ListId!,
+                        CallbackUrl: callbackUrl,
+                        ExpirationDateTime: refreshed?.ExpirationDateTime,
+                        Message: "Existing subscription renewed successfully"
+                    );
+                    return (true, ensureSubscriptionResult);
                 }
 
-                // If renewal failed, try to delete before recreating
-                try
-                {
-                    var deleted = await _sharePointWebhookRegistrar.DeleteSubscriptionAsync(existingSubscription.Id);
-                    logger.LogInformation(
-                        deleted
-                            ? "Deleted old subscription {SubscriptionId} prior to recreation"
-                            : "Old subscription {SubscriptionId} could not be deleted (may already be gone)",
-                        existingSubscription.Id);
-                }
-                catch (Exception deleteEx)
-                {
-                    logger.LogWarning("Failed to delete old subscription {SubscriptionId}: {Error}",
-                        existingSubscription.Id, deleteEx.Message);
-                }
+                _logger.LogWarning(
+                    "Renewal returned false for subscription {SubscriptionId}. Will attempt to recreate.",
+                    subscription.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    "Failed to renew existing subscription {SubscriptionId}: {Error}. Will attempt to create new subscription.",
+                    subscription.Id, ex.Message);
             }
 
-            // Create new subscription
-            logger.LogInformation("Creating new subscription for site {SiteId}, list {ListId}", siteId, listId);
-
-            var newSubscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(siteId, listId, callbackUrl);
-
-            logger.LogInformation("Successfully created subscription {SubscriptionId} for site {SiteId}, list {ListId}",
-                newSubscription.Id, siteId, listId);
-
-            return await CreateSuccessResponseAsync(req, new
+            // If renewal failed, try to delete before recreating
+            try
             {
-                Action = "Created",
-                SubscriptionId = newSubscription.Id,
-                SiteId = siteId,
-                ListId = listId,
-                CallbackUrl = callbackUrl,
-                ExpirationDateTime = newSubscription.ExpirationDateTime,
-                Message = "New subscription created successfully"
-            });
-        }
-        catch (Exception ex)
-        {
-            var logger = req.FunctionContext.GetLogger("SubscribeToConfiguredList");
-            logger.LogError(ex, "Failed to subscribe to configured SharePoint list");
+                var deleted = await _sharePointWebhookRegistrar.DeleteSubscriptionAsync(subscription.Id);
+                _logger.LogInformation(
+                    deleted
+                        ? "Deleted old subscription {SubscriptionId} prior to recreation"
+                        : "Old subscription {SubscriptionId} could not be deleted (may already be gone)",
+                    subscription.Id);
+            }
+            catch (Exception deleteEx)
+            {
+                _logger.LogWarning("Failed to delete old subscription {SubscriptionId}: {Error}",
+                    subscription.Id, deleteEx.Message);
+            }
 
-            return await CreateErrorResponseAsync(req, HttpStatusCode.InternalServerError,
-                $"Failed to subscribe to SharePoint list: {ex.Message}");
+            return (false, null);
+        }
+
+        async Task<EnsureSubscriptionResult> RegisterNewSharePointSubscriptionAsync()
+        {
+            // Create new subscription
+            _logger.LogInformation("Creating new subscription for site {SiteId}, list {ListId}", webhookConfig.SiteId, webhookConfig.ListId);
+
+            var newSubscription = await _sharePointWebhookRegistrar.RegisterWebhookAsync(webhookConfig.SiteId!, webhookConfig.ListId!, callbackUrl);
+
+            _logger.LogInformation("Successfully created subscription {SubscriptionId} for site {SiteId}, list {ListId}",
+                newSubscription.Id, webhookConfig.SiteId, webhookConfig.ListId);
+
+            return new EnsureSubscriptionResult(
+                Action: "Created",
+                SubscriptionId: newSubscription.Id,
+                SiteId: webhookConfig.SiteId!,
+                ListId: webhookConfig.ListId!,
+                CallbackUrl: callbackUrl,
+                ExpirationDateTime: newSubscription.ExpirationDateTime,
+                Message: "New subscription created successfully"
+            );
         }
     }
 

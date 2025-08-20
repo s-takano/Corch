@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/host",
   "version": "2.0",
   "logging": {
     "applicationInsights": {
@@ -22,6 +23,12 @@
       "prefetchCount": 100,
       "maxConcurrentCalls": 16,
       "autoCompleteMessages": true
+    },
+    "timers": {
+      "timezone": "Tokyo Standard Time",
+      "scheduleMonitor": {
+        "useMonitor": true
+      }
     }
   }
 }
