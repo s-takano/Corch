@@ -12,7 +12,7 @@ public abstract class PostgresDatabaseTestBase : IDisposable
     private string TestConnectionString { get; set; }
     
     // Fixed schema name as required
-    protected virtual string TestSchema => "corch_edges_raw";
+    protected virtual string TestSchema => "corch_edges_raw_test";
     
     // Shared connection for all tests in this class
     protected internal NpgsqlConnection Connection { get; private set; } = null!;
@@ -143,7 +143,7 @@ public abstract class PostgresDatabaseTestBase : IDisposable
     protected async Task<string> SetupTestTable(string tableName, string tableDefinition)
     {
         var qualifiedTableName = tableName;
-
+        
         var createTableSql = $"CREATE TABLE {qualifiedTableName} ({tableDefinition})";
         await using var cmd = new NpgsqlCommand(createTableSql, Connection);
         await cmd.ExecuteNonQueryAsync();

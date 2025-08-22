@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ConnectionStrings__TestDatabase: Host=localhost;Database=postgres;Username=postgres;Password=postgres
+      # Provide EF design-time connection for migrations (used by EdgesDbContextFactory)
+      ConnectionStrings__PostgreSQLConnection: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres;Include Error Detail=true
       # Azure Graph API credentials for integration tests
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       # AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
@@ -45,25 +47,29 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      
+
+      # Install dotnet-ef (align to EF Core 8)
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 8.*
+
       # ---------- Build ----------
       - run: dotnet restore
       - run: dotnet build -c Release --no-restore
       - run: dotnet publish -c Release -o ./publish
 
-      # ---------- Test ----------
+      # ---------- Tests ----------
       - name: Run Contract Tests
         run: dotnet test -c Release --no-build --filter "Category=Contract"
-    
+
       - name: Run Unit Tests
         run: dotnet test -c Release --no-build --filter "Category=Unit"
-    
+
       - name: Run Entity Tests
         run: dotnet test -c Release --no-build --filter "Category=Entity"
-    
+
       - name: Run Functional Tests
         run: dotnet test -c Release --no-build --filter "Category=Functional"
-      
+
       # ---------- Azure auth via OIDC just before the integration tests ----------
       - name: Login to Azure
         uses: azure/login@v2
@@ -77,19 +83,50 @@ jobs:
           echo "Current Azure account:"
           az account show --query "name" --output tsv
           echo "Login verification: $(az account show --query "state" --output tsv)"
-          
+
       - name: Run PostgreSQL Integration Tests
         run: dotnet test -c Release --no-build --filter "Category=Integration&Require=PostgreSQL"
-    
+
       - name: Run Azure Graph API Integration Tests
         run: dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureGraphApi"
-      
+
       - name: Run Azure Service Bus Integration Tests
         run: dotnet test -c Release --no-build --filter "Category=Integration&Requires=AzureServiceBus"
-    
+
       - name: Run End-to-End Tests
         run: dotnet test -c Release --no-build --filter "Category=EndToEnd"
-      
+
+      # ---------- Generate idempotent migration script ----------
+      - name: Generate idempotent EF Core migration script
+        working-directory: src/CorchEdges
+        run: |
+          mkdir -p artifacts
+          dotnet ef migrations list --context EdgesDbContext --project . --startup-project .
+          dotnet ef migrations script --idempotent --context EdgesDbContext --project . --startup-project . --output artifacts/migrations.sql
+
+      - name: Upload migration script artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrations-sql
+          path: src/CorchEdges/artifacts/migrations.sql
+
+      # ---------- Apply migrations to target DB (optional; requires secrets) ----------
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Apply migrations to database
+        if: ${{ secrets.PGHOST && secrets.PGDATABASE && secrets.PGUSER && secrets.PGPASSWORD }}
+        working-directory: src/CorchEdges
+        env:
+          PGHOST:     ${{ secrets.PGHOST }}
+          PGPORT:     ${{ secrets.PGPORT || '5432' }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+          PGUSER:     ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+        run: |
+          echo "SET lock_timeout = '5s'; SET statement_timeout = '5min';" | psql "sslmode=require"
+          psql "sslmode=require" -v ON_ERROR_STOP=1 -f artifacts/migrations.sql
+
       # ---------- Deploy ----------
       - uses: Azure/functions-action@v1
         with:

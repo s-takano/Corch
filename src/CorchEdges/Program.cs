@@ -146,7 +146,13 @@ static Action<DbContextOptionsBuilder> CreateContextFactory(IConfiguration confi
 
     Console.WriteLine("✓ Database services registered");
 
-    return options => { options.UseNpgsql(connectionString); };
+    return options =>
+    {
+        options.UseNpgsql(connectionString, 
+            // Keep EF's migration history isolated per schema
+            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "corch_edges_raw")
+        );
+    };
 }
 
 

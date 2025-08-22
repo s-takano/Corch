@@ -10,7 +10,6 @@ namespace CorchEdges.Tests.Integration.Database;
 [Trait("Requires", InfrastructureRequirements.PostgreSql)] 
 public class PostgresTableWriterIntegrationTests : PostgresDatabaseTestBase
 {
-    protected override string TestSchema { get;  } = "corch_edges_raw";
     
     private readonly IPostgresTableWriter _writer = new PostgresTableWriter();
 

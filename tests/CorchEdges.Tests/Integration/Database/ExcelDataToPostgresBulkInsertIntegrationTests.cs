@@ -12,7 +12,6 @@ namespace CorchEdges.Tests.Integration.Database;
 [Trait("Requires", InfrastructureRequirements.PostgreSql)]
 public class ExcelDataToPostgresBulkInsertIntegrationTests : PostgresDatabaseTestBase
 {
-    protected override string TestSchema { get;  } = "corch_edges_raw";
     
     private readonly IPostgresTableWriter _writer = new PostgresTableWriter();
     private readonly ExcelDataParser _excelParser = new();
@@ -69,7 +68,7 @@ public class ExcelDataToPostgresBulkInsertIntegrationTests : PostgresDatabaseTes
 
         // Create database table
         var tableDefinition = DatabaseTestHelper.GetTableDefinition(sourceTable);
-        var qualifiedTableName = await SetupTestTable(sourceTable.TableName, tableDefinition);
+        var qualifiedTableName = await SetupTestTableFromMappedName(sourceTable.TableName, tableDefinition);
             
         // Create a copy of the table with the qualified name for database operations
         var tableForDatabase = sourceTable.Copy();
@@ -132,7 +131,7 @@ public class ExcelDataToPostgresBulkInsertIntegrationTests : PostgresDatabaseTes
 
             var mappedTableName = table.TableName; // Already mapped by adapter
             var tableDefinition = DatabaseTestHelper.GetTableDefinition(table);
-            var qualifiedTableName = await SetupTestTable(mappedTableName, tableDefinition);
+            var qualifiedTableName = await SetupTestTableFromMappedName(mappedTableName, tableDefinition);
 
             // Update table name to qualified name for database operations
             var originalTableName = table.TableName;

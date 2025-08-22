@@ -41,7 +41,10 @@ namespace CorchEdges.Data
                 throw new InvalidOperationException("Database not configured - PostgreSQL connection string missing");
 
             var optionsBuilder = new DbContextOptionsBuilder<EdgesDbContext>()
-                .UseNpgsql(connectionString);
+                .UseNpgsql(connectionString,             
+                    // Keep EF's migration history isolated per schema
+                    npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "corch_edges_raw")
+                );
 
             // Optional: helpful when developing locally
             if (string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase))
