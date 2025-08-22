@@ -114,6 +114,22 @@ jobs:
       - name: Install psql client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
+      - name: Check DB secrets availability
+        id: check-db-secrets
+        env:
+          PGHOST:     ${{ secrets.PGHOST }}
+          PGPORT:     ${{ secrets.PGPORT }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+          PGUSER:     ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+        run: |
+          has_all=true
+          [ -z "${PGHOST}" ] && has_all=false
+          [ -z "${PGDATABASE}" ] && has_all=false
+          [ -z "${PGUSER}" ] && has_all=false
+          [ -z "${PGPASSWORD}" ] && has_all=false
+          echo "apply=${has_all}" >> "$GITHUB_OUTPUT"
+
       - name: Apply migrations to database
         if: ${{ secrets.PGHOST && secrets.PGDATABASE && secrets.PGUSER && secrets.PGPASSWORD }}
         working-directory: src/CorchEdges
