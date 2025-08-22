@@ -1,78 +1,81 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <AzureFunctionsVersion>v4</AzureFunctionsVersion>
-    <OutputType>Exe</OutputType>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
 
-  <ItemGroup>
-    <!-- Core Azure Functions Worker types -->
-    <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.4.0" />
-    <PackageReference Include="FluentAssertions" Version="8.3.0" />
-    <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.23.0" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.21.0" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="2.0.0" />
-    
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <AzureFunctionsVersion>v4</AzureFunctionsVersion>
+        <OutputType>Exe</OutputType>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <UserSecretsId>ec0cd7dc-e59c-426e-b667-2c7f75a3c60f</UserSecretsId>
+    </PropertyGroup>
 
-    <!-- HTTP-specific extensions -->
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.1.0" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.OpenApi" Version="1.5.1" />
-    <!-- ServiceBus-specific extensions -->
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" Version="5.17.0" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.16.4" />
+    <ItemGroup>
+        <!-- Core Azure Functions Worker types -->
+        <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.4.0"/>
+        <PackageReference Include="FluentAssertions" Version="8.3.0"/>
+        <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.23.0"/>
+        <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.21.0"/>
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="2.0.0"/>
 
 
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.8" PrivateAssets="all" />
+        <!-- HTTP-specific extensions -->
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.1.0"/>
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.OpenApi" Version="1.5.1"/>
+        <!-- ServiceBus-specific extensions -->
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" Version="5.17.0"/>
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1"/>
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.16.4"/>
 
-    <!-- Excel reading -->
-    <PackageReference Include="ExcelDataReader" Version="3.7.0" />
-    <PackageReference Include="ExcelDataReader.DataSet" Version="3.7.0" />
-    
-    <!-- Azure Storage -->
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.24.0" />
-    
-    <!-- Microsoft Graph -->
-    <PackageReference Include="Microsoft.Graph" Version="5.62.0" />
-    <PackageReference Include="Azure.Identity" Version="1.14.0" />
-    
-    <!-- Database (PostgreSQL) -->
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.8" />
-    <PackageReference Include="NPOI" Version="2.7.3" />
-  </ItemGroup>
 
-  <ItemGroup>
-    <!-- Framework reference for ASP.NET Core -->
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.8" PrivateAssets="all"/>
 
-  <ItemGroup>
-    <Folder Include="Data\Configurations\" />
-    <Folder Include="Data\Utilities\" />
-    <Folder Include="Extensions\" />
-  </ItemGroup>
+        <!-- Database (PostgreSQL) -->
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.8"/>
+        <PackageReference Include="NPOI" Version="2.7.3"/>
 
-  <ItemGroup>
-    <None Update="host.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="appsettings.production.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="appsettings.development.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+        <!-- Excel reading -->
+        <PackageReference Include="ExcelDataReader" Version="3.7.0"/>
+        <PackageReference Include="ExcelDataReader.DataSet" Version="3.7.0"/>
 
-  <ItemGroup>
-    <InternalsVisibleTo Include="CorchEdges.Tests" />
-  </ItemGroup>
+        <!-- Azure Storage -->
+        <PackageReference Include="Azure.Storage.Blobs" Version="12.24.0"/>
+
+        <!-- Microsoft Graph -->
+        <PackageReference Include="Microsoft.Graph" Version="5.62.0"/>
+        <PackageReference Include="Azure.Identity" Version="1.14.0"/>
+
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Framework reference for ASP.NET Core -->
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Data\Configurations\"/>
+        <Folder Include="Data\Migrations\"/>
+        <Folder Include="Data\Utilities\"/>
+        <Folder Include="Extensions\"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="host.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="appsettings.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="appsettings.production.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="appsettings.development.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="CorchEdges.Tests"/>
+    </ItemGroup>
 
 </Project>
