@@ -131,7 +131,7 @@ jobs:
           echo "apply=${has_all}" >> "$GITHUB_OUTPUT"
 
       - name: Apply migrations to database
-        if: ${{ secrets.PGHOST && secrets.PGDATABASE && secrets.PGUSER && secrets.PGPASSWORD }}
+        if: ${{ steps.check-db-secrets.outputs.apply == 'true' }}
         working-directory: src/CorchEdges
         env:
           PGHOST:     ${{ secrets.PGHOST }}
