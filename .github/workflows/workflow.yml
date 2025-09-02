@@ -96,52 +96,52 @@ jobs:
       - name: Run End-to-End Tests
         run: dotnet test -c Release --no-build --filter "Category=EndToEnd"
 
-      # ---------- Generate idempotent migration script ----------
-      - name: Generate idempotent EF Core migration script
-        working-directory: src/CorchEdges
-        run: |
-          mkdir -p artifacts
-          dotnet ef migrations list --context EdgesDbContext --project . --startup-project .
-          dotnet ef migrations script --idempotent --context EdgesDbContext --project . --startup-project . --output artifacts/migrations.sql
-
-      - name: Upload migration script artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: migrations-sql
-          path: src/CorchEdges/artifacts/migrations.sql
-
-      # ---------- Apply migrations to target DB (optional; requires secrets) ----------
-      - name: Install psql client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Check DB secrets availability
-        id: check-db-secrets
-        env:
-          PGHOST:     ${{ secrets.PGHOST }}
-          PGPORT:     ${{ secrets.PGPORT }}
-          PGDATABASE: ${{ secrets.PGDATABASE }}
-          PGUSER:     ${{ secrets.PGUSER }}
-          PGPASSWORD: ${{ secrets.PGPASSWORD }}
-        run: |
-          has_all=true
-          [ -z "${PGHOST}" ] && has_all=false
-          [ -z "${PGDATABASE}" ] && has_all=false
-          [ -z "${PGUSER}" ] && has_all=false
-          [ -z "${PGPASSWORD}" ] && has_all=false
-          echo "apply=${has_all}" >> "$GITHUB_OUTPUT"
-
-      - name: Apply migrations to database
-        if: ${{ steps.check-db-secrets.outputs.apply == 'true' }}
-        working-directory: src/CorchEdges
-        env:
-          PGHOST:     ${{ secrets.PGHOST }}
-          PGPORT:     ${{ secrets.PGPORT || '5432' }}
-          PGDATABASE: ${{ secrets.PGDATABASE }}
-          PGUSER:     ${{ secrets.PGUSER }}
-          PGPASSWORD: ${{ secrets.PGPASSWORD }}
-        run: |
-          echo "SET lock_timeout = '5s'; SET statement_timeout = '5min';" | psql "sslmode=require"
-          psql "sslmode=require" -v ON_ERROR_STOP=1 -f artifacts/migrations.sql
+#      # ---------- Generate idempotent migration script ----------
+#      - name: Generate idempotent EF Core migration script
+#        working-directory: src/CorchEdges
+#        run: |
+#          mkdir -p artifacts
+#          dotnet ef migrations list --context EdgesDbContext --project . --startup-project .
+#          dotnet ef migrations script --idempotent --context EdgesDbContext --project . --startup-project . --output artifacts/migrations.sql
+#
+#      - name: Upload migration script artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: migrations-sql
+#          path: src/CorchEdges/artifacts/migrations.sql
+#
+#      # ---------- Apply migrations to target DB (optional; requires secrets) ----------
+#      - name: Install psql client
+#        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+#
+#      - name: Check DB secrets availability
+#        id: check-db-secrets
+#        env:
+#          PGHOST:     ${{ secrets.PGHOST }}
+#          PGPORT:     ${{ secrets.PGPORT }}
+#          PGDATABASE: ${{ secrets.PGDATABASE }}
+#          PGUSER:     ${{ secrets.PGUSER }}
+#          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+#        run: |
+#          has_all=true
+#          [ -z "${PGHOST}" ] && has_all=false
+#          [ -z "${PGDATABASE}" ] && has_all=false
+#          [ -z "${PGUSER}" ] && has_all=false
+#          [ -z "${PGPASSWORD}" ] && has_all=false
+#          echo "apply=${has_all}" >> "$GITHUB_OUTPUT"
+#
+#      - name: Apply migrations to database
+#        if: ${{ steps.check-db-secrets.outputs.apply == 'true' }}
+#        working-directory: src/CorchEdges
+#        env:
+#          PGHOST:     ${{ secrets.PGHOST }}
+#          PGPORT:     ${{ secrets.PGPORT || '5432' }}
+#          PGDATABASE: ${{ secrets.PGDATABASE }}
+#          PGUSER:     ${{ secrets.PGUSER }}
+#          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+#        run: |
+#          echo "SET lock_timeout = '5s'; SET statement_timeout = '5min';" | psql "sslmode=require"
+#          psql "sslmode=require" -v ON_ERROR_STOP=1 -f artifacts/migrations.sql
 
       # ---------- Deploy ----------
       - uses: Azure/functions-action@v1
