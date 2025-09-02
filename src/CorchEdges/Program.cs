@@ -74,6 +74,8 @@ var host = Host.CreateDefaultBuilder(args)
 
         svcs.AddScoped<ISharePointWebhookProcessor, DefaultSharePointWebhookProcessor>();
 
+        svcs.AddScoped<CorchEdges.Functions.SharePoint.SharePointChangeNotificationProcessor>();
+
         RegisterDatabaseServices(svcs, ctx.Configuration);
         RegisterGraph(svcs);
         RegisterServiceBus(svcs, ctx.Configuration);
