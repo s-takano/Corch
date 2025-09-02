@@ -213,7 +213,7 @@ static void RegisterBusiness(IServiceCollection svcs, IConfiguration cfg)
     // Add WebhookRegistrationService service
     svcs.AddTransient<SharePointWebhookRegistrar>();
 
-    svcs.AddScoped<SharePointSyncProcessor>(p => new SharePointSyncProcessor(
+    svcs.AddScoped<ISharePointSyncProcessor>(p => new SharePointSyncProcessor(
         p.GetRequiredService<ILogger<SharePointSyncProcessor>>(),
         p.GetRequiredService<IGraphApiClient>(),
         p.GetRequiredService<ITabularDataParser>(),
