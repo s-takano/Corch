@@ -52,12 +52,6 @@ public class ContractCurrent
     public DateOnly? RenewalEndDate { get; set; }
     public decimal? RenewalRent { get; set; }
     public decimal? RenewalManagementFee { get; set; }
-    public decimal? RenewalWaterFee { get; set; }
-    public decimal? RenewalHotWaterFee { get; set; }
-    public decimal? RenewalElectricityFee { get; set; }
-    public decimal? RenewalBicycleFee { get; set; }
-    public decimal? RenewalMotorcycleFee { get; set; }
-    public decimal? RenewalPhoneFee { get; set; }
     public decimal? RenewalParkingFee { get; set; }
     
     // Guarantee Company
