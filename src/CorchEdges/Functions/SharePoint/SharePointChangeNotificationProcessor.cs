@@ -58,7 +58,7 @@ public sealed class SharePointChangeNotificationProcessor
     /// wrapper leveraging Azure functions for triggering operations. It integrates
     /// with supporting services to ensure robust handling of SharePoint change events.
     /// </remarks>
-    internal SharePointChangeNotificationProcessor(ILogger<SharePointChangeNotificationProcessor> log, ISharePointSyncProcessor processor, BlobServiceClient blobs)
+    public SharePointChangeNotificationProcessor(ILogger<SharePointChangeNotificationProcessor> log, ISharePointSyncProcessor processor, BlobServiceClient blobs)
     {
         _log = log; 
         _processor = processor;
