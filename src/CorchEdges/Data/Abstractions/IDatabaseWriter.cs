@@ -16,5 +16,5 @@ public interface IDatabaseWriter
     /// <param name="connection">The database connection to be used during the write operation.</param>
     /// <param name="transaction">The database transaction under which the write operation will be executed.</param>
     /// <returns>A Task representing the asynchronous operation of writing data to the database.</returns>
-    Task WriteAsync(DataSet tables, EdgesDbContext context, DbConnection connection, DbTransaction transaction);
+    Task<int> WriteAsync(DataSet tables, EdgesDbContext context, DbConnection connection, DbTransaction transaction);
 }

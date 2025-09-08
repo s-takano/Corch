@@ -8,6 +8,7 @@ namespace CorchEdges.Data.Repositories;
 public interface IProcessedFileRepository
 {
     Task<bool> ExistsByHashAsync(string fileHash, long fileSize);
+    Task<ProcessedFile?> GetByIdAsync(int id);
     Task<ProcessedFile?> GetByHashAsync(string fileHash, long fileSize);
     Task<ProcessedFile> AddAsync(ProcessedFile processedFile);
     Task<ProcessedFile> UpdateAsync(ProcessedFile processedFile);

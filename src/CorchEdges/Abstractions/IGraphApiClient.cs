@@ -64,6 +64,6 @@ public interface IGraphApiClient
     /// </returns>
     Task<ConnectionTestResult> TestConnectionAsync(string siteId = "root");
 
-    Task<(string deltaLink, List<string> itemIds)> PullItemsDeltaAsync(string siteId, string listId, string? cursor = null);
+    Task<(string deltaLink, List<string> itemIds)> PullItemsDeltaAsync(string siteId, string listId, string? lastDeltaLink = null);
 
 }

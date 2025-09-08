@@ -96,4 +96,7 @@ public class ContractCurrent
     
     // Metadata
     public DateTime? OutputDateTime { get; set; }
+
+    public int ProcessedFileId { get; set; }
+    public ProcessedFile? ProcessedFile { get; set; }
 }

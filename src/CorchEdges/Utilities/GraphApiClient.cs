@@ -82,7 +82,7 @@ public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGra
     }
     /// <summary>
     /// Returns every list item created/updated/deleted since the
-    /// <paramref name="cursor"/> and hands back the new delta link.
+    /// <paramref name="lastDeltaLink"/> and hands back the new delta link.
     ///
     /// Pass <c>null</c> or the literal <c>"latest"</c> **exactly once**
     /// to create a “start-from-now” watermark without downloading the
@@ -91,7 +91,7 @@ public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGra
     /// </summary>
     /// <param name="siteId">Site ID (GUID or host,guid,guid notation).</param>
     /// <param name="listId">List GUID.</param>
-    /// <param name="cursor">
+    /// <param name="lastDeltaLink">
     ///     • <c>null</c>       → first boot, create baseline  
     ///     • <c>"latest"</c>  → explicit baseline (same effect as <c>null</c>)  
     ///     • deltaLink URL   → normal incremental poll
@@ -104,7 +104,7 @@ public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGra
     public async Task<(string deltaLink, List<string> itemIds)> PullItemsDeltaAsync(
         string siteId,
         string listId,
-        string? cursor /* null / "latest" → bootstrap ; deltaLink → normal */)
+        string? lastDeltaLink /* null / "latest" → bootstrap ; deltaLink → normal */)
     {
         // Builder for …/sites/{siteId}/lists/{listId}/items/delta
         var deltaBuilder = graphServiceClient
@@ -118,8 +118,8 @@ public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGra
         string? mark = null; // final @odata.deltaLink
 
         // ── 1) Bootstrap or incremental kick-off ──────────────────────────
-        if (string.IsNullOrEmpty(cursor) ||
-            cursor.Equals("latest", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(lastDeltaLink) ||
+            lastDeltaLink.Equals("latest", StringComparison.OrdinalIgnoreCase))
         {
             // Manually craft “…/delta?token=latest”
             var bootstrapUrl = $"{graphServiceClient.RequestAdapter.BaseUrl}/" +
@@ -137,7 +137,7 @@ public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGra
         }
         else
         {
-            hop = cursor; // previously stored deltaLink
+            hop = lastDeltaLink; // previously stored deltaLink
         }
 
         // ── 2) Walk every @odata.nextLink in this delta round ─────────────

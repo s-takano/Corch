@@ -34,4 +34,7 @@ public class ContractCreation
     public decimal? InternetApplicationFee { get; set; }
     public decimal? MaximumAmount { get; set; }
     public DateTime? OutputDateTime { get; set; }
+    
+    public int ProcessedFileId { get; set; }
+    public ProcessedFile? ProcessedFile { get; set; }
 }

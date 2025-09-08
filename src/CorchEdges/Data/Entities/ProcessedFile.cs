@@ -25,4 +25,10 @@ public class ProcessedFile
     /// Used in conjunction with hash for duplicate detection.
     /// </summary>
     public long? FileSizeBytes { get; set; }
+
+    // Inverse navigations to records produced from this file
+    public ICollection<ContractCreation> ContractCreations { get; set; } = new List<ContractCreation>();
+    public ICollection<ContractCurrent> ContractCurrents { get; set; } = new List<ContractCurrent>();
+    public ICollection<ContractRenewal> ContractRenewals { get; set; } = new List<ContractRenewal>();
+    public ICollection<ContractTermination> ContractTerminations { get; set; } = new List<ContractTermination>();
 }

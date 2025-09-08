@@ -2,6 +2,7 @@
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Entities;
 using CorchEdges.Data.Repositories;
 using CorchEdges.Models;
 using CorchEdges.Utilities;
@@ -328,6 +329,13 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
 
         await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
         
+        if (!await WriteStreamAsync(connection, transaction, stream)) return;
+
+        SuccessfulItems++;
+    }
+
+    private async Task<bool> WriteStreamAsync(DbConnection connection, IDbContextTransaction transaction, Stream stream)
+    {
         using var memoryStream = new MemoryStream();
         await stream.CopyToAsync(memoryStream);
         
@@ -339,20 +347,14 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         {
             _log.LogInformation("Duplicate file detected with hash {Hash} and size {Size} bytes", 
                 fileHash, fileSize);
-            return;
+            return false;
         }
         
         memoryStream.Seek(0, SeekOrigin.Begin);
         
         // only new file is processed
-        if (!await WriteStreamAsync(connection, transaction, memoryStream)) return;
 
-        SuccessfulItems++;
-    }
-
-    private async Task<bool> WriteStreamAsync(DbConnection connection, IDbContextTransaction transaction, Stream stream)
-    {
-        var (ds, err) = _parser.Parse(stream);
+        var (ds, err) = _parser.Parse(memoryStream);
         if (!string.IsNullOrEmpty(err))
         {
             _log.LogError("Parser error: {error}", err);
@@ -373,9 +375,23 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
 
         var preparedDataSet = _dataSetConverter.ConvertForDatabase(ds);
 
-        await _db.WriteAsync(preparedDataSet, _context, connection, transaction.GetDbTransaction());
+        var id = await _db.WriteAsync(preparedDataSet, _context, connection, transaction.GetDbTransaction());
+
+        await UpdateProcessedFileMetadata(id, fileHash, fileSize);
 
         return true;
+    }
+
+    private async Task UpdateProcessedFileMetadata(int id, string fileHash, long fileSize)
+    {
+        var file = await _processedFileRepository.GetByIdAsync(id);
+        if (file == null)
+            throw new InvalidOperationException("File not found");
+        
+        file.FileHash = fileHash;
+        file.FileSizeBytes = fileSize;
+    
+        await _processedFileRepository.UpdateAsync(file);
     }
 
     /// <summary>
