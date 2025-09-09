@@ -9,7 +9,7 @@ namespace CorchEdges.Tests.Entities;
 [Trait("Entity", "ContractRenewal")]
 public class ContractRenewalCrudTests : EntityCrudTestBase<ContractRenewal>
 {
-    protected override ContractRenewal CreateValidEntity()
+    protected override ContractRenewal CreateValidEntity(ProcessedFile processedFile)
     {
         return new ContractRenewal
         {
@@ -26,7 +26,8 @@ public class ContractRenewalCrudTests : EntityCrudTestBase<ContractRenewal>
             NextContractStartDate = DateOnly.FromDateTime(DateTime.Today),
             NextContractEndDate = DateOnly.FromDateTime(DateTime.Today.AddDays(730)),
             ContractRenewalDate = DateOnly.FromDateTime(DateTime.Today),
-            OutputDateTime = DateTime.Now
+            OutputDateTime = DateTime.Now,
+            ProcessedFile = processedFile
         };
     }
 

@@ -9,7 +9,7 @@ namespace CorchEdges.Tests.Entities;
 [Trait("Entity", "ContractCreation")]
 public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
 {
-    protected override ContractCreation CreateValidEntity()
+    protected override ContractCreation CreateValidEntity(ProcessedFile processedFile)
     {
         return new ContractCreation
         {
@@ -22,7 +22,8 @@ public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
             ProgressStatus = "進行中",
             ApplicationDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-30)),
             SecurityDeposit = 160000,
-            OutputDateTime = DateTime.Now
+            OutputDateTime = DateTime.Now,
+            ProcessedFile = processedFile
         };
     }
 
@@ -59,11 +60,16 @@ public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
         using var dbContext = CreateInMemoryDbContext();
         
         // Arrange
+        var processedFile = new ProcessedFile();
+        dbContext.ProcessedFiles.Add(processedFile);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
         var entity = new ContractCreation
         {
             // Only set required fields, leave nullable ones as null
             ContractId = $"CONTRACT_MINIMAL_{Guid.NewGuid().ToString("N")[..8]}",
-            OutputDateTime = DateTime.Now
+            OutputDateTime = DateTime.Now,
+            ProcessedFile = processedFile
         };
 
         // Act
@@ -85,12 +91,16 @@ public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
     {
         using var dbContext = CreateInMemoryDbContext();
         
+        var processedFile = new ProcessedFile();
+        dbContext.ProcessedFiles.Add(processedFile);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
         // Arrange
         var entities = new[]
         {
-            CreateValidEntity(),
-            CreateValidEntity(),
-            CreateValidEntity()
+            CreateValidEntity(processedFile),
+            CreateValidEntity(processedFile),
+            CreateValidEntity(processedFile)
         };
         
         entities[0].ProgressStatus = "進行中";

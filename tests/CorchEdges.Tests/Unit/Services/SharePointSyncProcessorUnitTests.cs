@@ -3,6 +3,7 @@ using System.Data.Common;
 using CorchEdges.Abstractions;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Entities;
 using CorchEdges.Data.Repositories;
 using CorchEdges.Data.Utilities;
 using CorchEdges.Models;
@@ -372,6 +373,9 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
             .ReturnsAsync("test-delta-link");
 
+        _mockProcessedFileRepository.Setup(x => x.GetByIdAsync(It.IsAny<int>()))
+            .ReturnsAsync(new ProcessedFile());
+        
         // Act
         var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
@@ -494,6 +498,8 @@ public class SharePointSyncProcessorUnitTests : IDisposable
             _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(new MemoryStream());
         }
+        _mockProcessedFileRepository.Setup(x => x.GetByIdAsync(It.IsAny<int>()))
+            .ReturnsAsync(new ProcessedFile());
 
         // Act
         var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
@@ -553,6 +559,8 @@ public class SharePointSyncProcessorUnitTests : IDisposable
             .Returns((new DataSet(), string.Empty));
         _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(new MemoryStream());
+        _mockProcessedFileRepository.Setup(x => x.GetByIdAsync(It.IsAny<int>()))
+            .ReturnsAsync(new ProcessedFile());
 
         // Act
         var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
@@ -617,6 +625,8 @@ public class SharePointSyncProcessorUnitTests : IDisposable
 
         _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(new MemoryStream());
+        _mockProcessedFileRepository.Setup(x => x.GetByIdAsync(It.IsAny<int>()))
+            .ReturnsAsync(new ProcessedFile());
 
         // Act
         var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
@@ -826,6 +836,9 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         _mockGraph.Setup(x => x.PullItemsDeltaAsync(_testSiteId, _testListId, "test-delta-link"))
             .ReturnsAsync(("new-delta-link", new List<string> { itemId }));
 
+        _mockProcessedFileRepository.Setup(x => x.GetByIdAsync(It.IsAny<int>()))
+            .ReturnsAsync(new ProcessedFile());
+
         // Act
         var result = await handler.FetchAndStoreDeltaAsync();
 
@@ -907,6 +920,9 @@ public class SharePointSyncProcessorUnitTests : IDisposable
             .ReturnsAsync("test-delta-link");
         _mockGraph.Setup(x => x.PullItemsDeltaAsync(_testSiteId, _testListId, "test-delta-link"))
             .ReturnsAsync(("new-delta-link", new List<string> { itemId }));
+
+        _mockProcessedFileRepository.Setup(x => x.GetByIdAsync(It.IsAny<int>()))
+            .ReturnsAsync(new ProcessedFile());
 
         // Act
         var result = await handler.FetchAndStoreDeltaAsync();

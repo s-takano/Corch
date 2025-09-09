@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Entities;
 
 namespace CorchEdges.Data.Configurations;
 
@@ -73,8 +74,23 @@ public abstract class BaseEntityConfiguration<TEntity> : IEntityTypeConfiguratio
         else
             builder.ToTable(GetTableName());
 
+        // Get all column metadata and add ProcessedFileId configuration for entities that require it
         var columnMetadata = GetColumnMetadata().ToList();
-        
+        if (columnMetadata.All(m => m.ColumnName != "ProcessedFileId"))
+        {
+            columnMetadata.Add(new ColumnMetaInfo
+            (
+                nameof(ContractCreation.ProcessedFileId),
+                "ProcessedFileId",
+                "integer",
+                true,
+                false,
+                false,
+                null,
+                true
+            ));
+        }
+
         // Configure keys
         var keyColumns = columnMetadata.Where(c => c.IsKey).ToList();
         switch (keyColumns.Count)
@@ -188,13 +204,14 @@ public abstract class BaseEntityConfiguration<TEntity> : IEntityTypeConfiguratio
         var propertyInfo = typeof(TEntity).GetProperty(propertyName);
         if (propertyInfo == null)
         {
-            throw new InvalidOperationException($"Property '{propertyName}' not found on entity '{typeof(TEntity).Name}'");
+            throw new InvalidOperationException(
+                $"Property '{propertyName}' not found on entity '{typeof(TEntity).Name}'");
         }
 
         // Create the lambda expression: e => e.PropertyName
         var parameter = Expression.Parameter(typeof(TEntity), "e");
         var property = Expression.Property(parameter, propertyInfo);
-        
+
         // Convert to nullable object to match EF Core's expected signature
         Expression converted;
         if (property.Type == typeof(object))
@@ -205,7 +222,7 @@ public abstract class BaseEntityConfiguration<TEntity> : IEntityTypeConfiguratio
         {
             converted = Expression.Convert(property, typeof(object));
         }
-        
+
         return Expression.Lambda<Func<TEntity, object?>>(converted, parameter);
     }
 }

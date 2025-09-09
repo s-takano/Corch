@@ -9,7 +9,7 @@ namespace CorchEdges.Tests.Entities;
 [Trait("Entity", "ContractTermination")]
 public class ContractTerminationCrudTests : EntityCrudTestBase<ContractTermination>
 {
-    protected override ContractTermination CreateValidEntity()
+    protected override ContractTermination CreateValidEntity(ProcessedFile processedFile)
     {
         return new ContractTermination
         {
@@ -29,7 +29,8 @@ public class ContractTerminationCrudTests : EntityCrudTestBase<ContractTerminati
             MoveOutInspector = "Inspector Tanaka",
             SettlementCreationDate = DateOnly.FromDateTime(DateTime.Today.AddDays(35)),
             SettlementCreator = "Admin Yamada",
-            OutputDateTime = DateTime.Now 
+            OutputDateTime = DateTime.Now,
+            ProcessedFile = processedFile
         };
     }
 

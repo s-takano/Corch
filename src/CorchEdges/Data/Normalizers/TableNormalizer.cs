@@ -49,6 +49,28 @@ public class TableNormalizer : ITableNormalizer
         _columnMapper = new EntityBasedColumnMapper(_metadataProvider.GetColumnMappings());
     }
 
+    private static bool IsDataConvertibleType(Type type)
+    {
+        // Check if the type is something we can reasonably convert data to/from
+        var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+        return IsDataTableCompatibleType(underlyingType);
+    }
+
+    private static bool IsDataTableCompatibleType(Type type)
+    {
+        // DataTable supports these types directly
+        return type == typeof(string) ||
+               type == typeof(int) ||
+               type == typeof(long) ||
+               type == typeof(decimal) ||
+               type == typeof(double) ||
+               type == typeof(bool) ||
+               type == typeof(DateTime) ||
+               type == typeof(DateOnly) ||
+               type == typeof(TimeOnly) ||
+               type.IsEnum;
+    }
+
     /// <summary>
     /// Normalizes the column data types of a source DataTable to match the schema of the specified target table.
     /// </summary>
@@ -59,7 +81,10 @@ public class TableNormalizer : ITableNormalizer
     {
         var result = new DataTable(entityName);
 
-        sourceTable.Columns.Cast<DataColumn>().ToList().ForEach(dataColumn => result.Columns.Add(
+        sourceTable.Columns.Cast<DataColumn>()
+            .Where(dataColumn => IsDataConvertibleType(dataColumn.DataType))
+            .ToList()
+            .ForEach(dataColumn => result.Columns.Add(
             MapColumnDefinition(sourceTable.TableName, dataColumn.ColumnName)));
 
         sourceTable.Rows.Cast<DataRow>().ToList().ForEach(sourceRow => result.Rows.Add(

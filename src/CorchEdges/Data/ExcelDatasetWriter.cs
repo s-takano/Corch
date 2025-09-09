@@ -5,6 +5,9 @@ using CorchEdges.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using System.Linq;
+using System.Linq.Expressions;
+using Org.BouncyCastle.Crypto.Engines;
 
 namespace CorchEdges.Data;
 
@@ -44,14 +47,18 @@ public class ExcelDatasetWriter(
 
             context.ProcessedFiles.Add(processedFile);
             await context.SaveChangesAsync(); // Still within transaction
-            
-            // 2. Get the underlying connection and use it for COPY
+
+            // 2. Add ProcessedFileId to each table
+            StampProcessedFileId(tables, processedFile.Id);
+
+            // 3. Get the underlying connection and use it for COPY
             var npgsqlConnection = (NpgsqlConnection)context.Database.GetDbConnection();
 
-            // 3. Use PostgreSQL COPY with the SAME transaction
+            
+            // 4. Use PostgreSQL COPY with the SAME transaction
             await tableWriter.WriteAsync(tables, npgsqlConnection, transaction);
 
-            // 4. Update metadata (still within the same transaction)
+            // 5. Update metadata (still within the same transaction)
             var totalRecords = tables.Tables.Cast<DataTable>().Sum(t => t.Rows.Count);
             processedFile.Status = "Success";
             processedFile.RecordCount = totalRecords;
@@ -62,13 +69,44 @@ public class ExcelDatasetWriter(
             logger.LogInformation(
                 "Successfully processed {RecordCount} records in {Duration}ms using shared transaction",
                 totalRecords, duration.TotalMilliseconds);
-            
+
             return processedFile.Id;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to write DataSet - transaction rolled back");
             throw;
+        }
+    }
+
+
+    public static void StampProcessedFileId(DataSet dataSet, int processedFileId)
+    {
+        const string columnName = nameof(ContractCreation.ProcessedFileId);
+
+        foreach (var table in dataSet.Tables.Cast<DataTable>())
+        {
+            if (!table.Columns.Contains(columnName))
+            {
+                var col = new DataColumn(columnName, typeof(int)) { AllowDBNull = false };
+                table.Columns.Add(col);
+            }
+
+            var colRef = table.Columns[columnName];
+            colRef!.DefaultValue = processedFileId;
+
+            table.BeginLoadData();
+            try
+            {
+                foreach (DataRow row in table.Rows)
+                {
+                    if (row.IsNull(colRef)) row[colRef] = processedFileId;
+                }
+            }
+            finally
+            {
+                table.EndLoadData();
+            }
         }
     }
 }

@@ -9,7 +9,7 @@ namespace CorchEdges.Tests.Entities;
 [Trait("Entity", "ContractCurrent")]
 public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
 {
-    protected override ContractCurrent CreateValidEntity()
+    protected override ContractCurrent CreateValidEntity(ProcessedFile processedFile)
     {
         return new ContractCurrent
         {
@@ -35,7 +35,8 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
             FixedTermLease = false,
             ContractorEmail = "tanaka@example.com",
             ContractorPhoneNumber = "090-1234-5678",
-            OutputDateTime = DateTime.Now
+            OutputDateTime = DateTime.Now,
+            ProcessedFile = processedFile
         };
     }
 
@@ -80,13 +81,16 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     public async Task Query_FilterByPropertyNo_ReturnsCorrectEntities()
     {
         using var dbContext = CreateInMemoryDbContext();
-        
+        var processedFile = new ProcessedFile();
+        dbContext.ProcessedFiles.Add(processedFile);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
         // Arrange
         var entities = new[]
         {
-            CreateValidEntity(),
-            CreateValidEntity(),
-            CreateValidEntity()
+            CreateValidEntity(processedFile),
+            CreateValidEntity(processedFile),
+            CreateValidEntity(processedFile)
         };
         
         entities[0].PropertyNo = 100;
@@ -111,13 +115,16 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     public async Task Query_FilterByRentRange_ReturnsCorrectEntities()
     {
         using var dbContext = CreateInMemoryDbContext();
-        
+        var processedFile = new ProcessedFile();
+        dbContext.ProcessedFiles.Add(processedFile);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
         // Arrange
         var entities = new[]
         {
-            CreateValidEntity(),
-            CreateValidEntity(),
-            CreateValidEntity()
+            CreateValidEntity(processedFile),
+            CreateValidEntity(processedFile),
+            CreateValidEntity(processedFile)
         };
         
         entities[0].Rent = 80000;
@@ -144,9 +151,12 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     public async Task Create_WithValidContractStatus_SavesSuccessfully()
     {
         using var dbContext = CreateInMemoryDbContext();
-        
+        var processedFile = new ProcessedFile();
+        dbContext.ProcessedFiles.Add(processedFile);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
         // Arrange
-        var entity = CreateValidEntity();
+        var entity = CreateValidEntity(processedFile);
         entity.ContractStatus = "解約予定";
 
         // Act
@@ -167,13 +177,16 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     public async Task Query_FilterByFixedTermLease_ReturnsCorrectEntities()
     {
         using var dbContext = CreateInMemoryDbContext();
-        
+        var processedFile = new ProcessedFile();
+        dbContext.ProcessedFiles.Add(processedFile);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+   
         // Arrange
         var entities = new[]
         {
-            CreateValidEntity(),
-            CreateValidEntity(),
-            CreateValidEntity()
+            CreateValidEntity(processedFile),
+            CreateValidEntity(processedFile),
+            CreateValidEntity(processedFile)
         };
         
         entities[0].FixedTermLease = true;

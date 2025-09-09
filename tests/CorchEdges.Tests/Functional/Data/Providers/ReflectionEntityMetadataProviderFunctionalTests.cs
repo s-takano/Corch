@@ -227,7 +227,7 @@ public class ReflectionEntityMetadataProviderFunctionalTests : MemoryDatabaseTes
             
         // Get all properties from ProcessingLog (likely to have diverse types)
         var entityType = typeof(ContractCreation);
-        var properties = entityType.GetProperties();
+        var properties = entityType.GetProperties().Where(p=>IsDataConvertibleType(p.PropertyType));
 
         foreach (var property in properties)
         {
@@ -269,17 +269,7 @@ public class ReflectionEntityMetadataProviderFunctionalTests : MemoryDatabaseTes
     {
         // Check if the type is something we can reasonably convert data to/from
         var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
-            
-        return underlyingType == typeof(string) ||
-               underlyingType == typeof(int) ||
-               underlyingType == typeof(long) ||
-               underlyingType == typeof(decimal) ||
-               underlyingType == typeof(double) ||
-               underlyingType == typeof(bool) ||
-               underlyingType == typeof(DateTime) ||
-               underlyingType == typeof(DateOnly) ||
-               underlyingType == typeof(TimeOnly) ||
-               underlyingType.IsEnum;
+        return IsDataTableCompatibleType(underlyingType);
     }
 
     private static bool IsDataTableCompatibleType(Type type)
