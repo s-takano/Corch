@@ -91,7 +91,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     /// typically used for tracking changes or accessing the list within a specified site.
     /// </summary>
     private readonly string _listId;
-    
+
     public int SuccessfulItems { get; private set; }
     public int FailedCount { get; private set; }
     public bool HasErrors { get; private set; }
@@ -131,7 +131,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _processingLogRepository =
             processingLogRepository ?? throw new ArgumentNullException(nameof(processingLogRepository));
-        _processedFileRepository = 
+        _processedFileRepository =
             processedFileRepository ?? throw new ArgumentNullException(nameof(processedFileRepository));
         _dataSetConverter = dataSetConverter ?? throw new ArgumentNullException(nameof(dataSetConverter));
 
@@ -274,7 +274,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             await transaction.CommitAsync();
 
             _log.LogInformation("Successfully processed {count} notifications", SuccessfulItems);
-            
+
             return SharePointSyncResult.Succeeded();
         }
         catch (Exception e)
@@ -320,6 +320,9 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             return;
         }
 
+        if (di.Name == null)
+            throw new InvalidOperationException("DriveItem has no name");
+        
         // Filter by file extension before downloading
         if (!IsExcelFile(di.Name))
         {
@@ -328,30 +331,31 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         }
 
         await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
-        
-        if (!await WriteStreamAsync(connection, transaction, stream)) return;
+
+        if (!await WriteStreamAsync(connection, transaction, stream, di.Name)) return;
 
         SuccessfulItems++;
     }
 
-    private async Task<bool> WriteStreamAsync(DbConnection connection, IDbContextTransaction transaction, Stream stream)
+    private async Task<bool> WriteStreamAsync(DbConnection connection, IDbContextTransaction transaction, Stream stream,
+        string fileName)
     {
         using var memoryStream = new MemoryStream();
         await stream.CopyToAsync(memoryStream);
-        
+
         // Filter by file duplication by comparing the hash of each file to the hashes of past files
         // which have already been uploaded 
         var (fileHash, fileSize) = await FileHashCalculator.CalculateHashAsync(memoryStream);
-            
+
         if (await IsFileDuplicateAsync(fileHash, fileSize))
         {
-            _log.LogInformation("Duplicate file detected with hash {Hash} and size {Size} bytes", 
+            _log.LogInformation("Duplicate file detected with hash {Hash} and size {Size} bytes",
                 fileHash, fileSize);
             return false;
         }
-        
+
         memoryStream.Seek(0, SeekOrigin.Begin);
-        
+
         // only new file is processed
 
         var (ds, err) = _parser.Parse(memoryStream);
@@ -377,20 +381,21 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
 
         var id = await _db.WriteAsync(preparedDataSet, _context, connection, transaction.GetDbTransaction());
 
-        await UpdateProcessedFileMetadata(id, fileHash, fileSize);
+        await UpdateProcessedFileMetadata(id, fileHash, fileSize, fileName);
 
         return true;
     }
 
-    private async Task UpdateProcessedFileMetadata(int id, string fileHash, long fileSize)
+    private async Task UpdateProcessedFileMetadata(int id, string fileHash, long fileSize, string fileName)
     {
         var file = await _processedFileRepository.GetByIdAsync(id);
         if (file == null)
             throw new InvalidOperationException("File not found");
-        
+
+        file.FileName = fileName;
         file.FileHash = fileHash;
         file.FileSizeBytes = fileSize;
-    
+
         await _processedFileRepository.UpdateAsync(file);
     }
 
