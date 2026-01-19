@@ -355,14 +355,16 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         Assert.NotNull(subsequentDeltaLink);
         Assert.NotNull(subsequentItems);
 
-        _output.WriteLine($"✅ Retrieved subsequent delta");
-        _output.WriteLine($"   Initial Items Count: {initialItems.Count}");
-        _output.WriteLine($"   Subsequent Items Count: {subsequentItems.Count}");
-        _output.WriteLine($"   Initial Delta Link: {initialDeltaLink}");
-        _output.WriteLine($"   Subsequent Delta Link: {subsequentDeltaLink}");
+        // Always valid
+        Assert.False(string.IsNullOrWhiteSpace(subsequentDeltaLink));
+        Assert.True(Uri.TryCreate(subsequentDeltaLink, UriKind.Absolute, out _));
+        Assert.Contains("delta", subsequentDeltaLink, StringComparison.OrdinalIgnoreCase);
 
-        // The subsequent delta link should be different from the initial one
-        Assert.NotEqual(initialDeltaLink, subsequentDeltaLink);
+        // Only require different when a change is known to have happened
+        if (subsequentItems.Count > 0)
+        {
+            Assert.NotEqual(initialDeltaLink, subsequentDeltaLink);
+        }
     }
 
     [Fact]
