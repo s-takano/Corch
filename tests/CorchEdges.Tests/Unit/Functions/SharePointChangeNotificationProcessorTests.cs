@@ -270,7 +270,7 @@ public class SharePointChangeNotificationProcessorTests : IDisposable
             It.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(new[] { "1", "2" })),
             It.Is<string>(link => link == "https://example.com/deltaLink"),
             It.Is<bool>(finalize => finalize == true),
-            It.Is<int>(batch => batch == 200)), Times.Once);
+            It.Is<int>(batch => batch == 10)), Times.Once);
 
         _mockServiceBusSender.Verify(
             x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()),
