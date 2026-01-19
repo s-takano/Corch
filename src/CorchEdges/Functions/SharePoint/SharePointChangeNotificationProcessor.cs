@@ -51,7 +51,7 @@ public sealed class SharePointChangeNotificationProcessor
     private sealed record ContinuationPayload(IReadOnlyList<string> ItemIds, string DeltaLink);
 
     private readonly ServiceBusSender _sender;
-    private const int BatchSize = 200;
+    private const int BatchSize = 10;
 
     /// <summary>
     /// Represents an Azure Function for processing SharePoint change notifications
