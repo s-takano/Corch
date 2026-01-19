@@ -3,6 +3,7 @@
 using System.Data;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Configurations;
 using CorchEdges.Tests.Infrastructure;
 
 namespace CorchEdges.Tests.Functional.Data;
@@ -13,11 +14,24 @@ public class ExcelToMemoryDatabaseConverterFunctionalTests : MemoryDatabaseTestB
 {
     private readonly IDataSetConverter _dataSetConverter = new ExcelToDatabaseConverter();
 
+
     [Fact]
     public void PrepareDataSetForDatabase_WithRealContractData_ProcessesSuccessfully()
     {
         // Arrange
-        var sourceDataSet = CreateRealContractDataSet();
+        var config = new ContractCreationConfigurationV1();
+        var table = DataTableTestHelper.CreateDataTableFromConfiguration(config);
+
+        // Add sample data
+        var row = table.NewRow();
+        row["契約ID"] = "CONTRACT_001";
+        row["物件No"] = "123";
+        row["物件名"] = "Test Property";
+        row["出力日時"] = "2024-01-01T10:00:00";
+        table.Rows.Add(row);
+
+        var sourceDataSet = new DataSet();
+        sourceDataSet.Tables.Add(table);
 
         // Act
         var result = _dataSetConverter.ConvertForDatabase(sourceDataSet);
@@ -26,18 +40,18 @@ public class ExcelToMemoryDatabaseConverterFunctionalTests : MemoryDatabaseTestB
         Assert.NotNull(result);
         Assert.Single(result.Tables);
             
-        var table = result.Tables[0];
-        Assert.Equal("corch_edges_raw.contract_creation", table.TableName);
+        var resultTable = result.Tables[0];
+        Assert.Equal("corch_edges_raw.contract_creation", resultTable.TableName);
             
         // Verify DataTable column types (underlying types, not nullable)
-        Assert.Equal(typeof(string), table.Columns["契約ID"]!.DataType);
-        Assert.Equal(typeof(int), table.Columns["物件No"]!.DataType); // int, not int?
-        Assert.Equal(typeof(string), table.Columns["物件名"]!.DataType);
-        Assert.Equal(typeof(DateTime), table.Columns["出力日時"]!.DataType); // DateTime, not DateTime?
+        Assert.Equal(typeof(string), resultTable.Columns["契約ID"]!.DataType);
+        Assert.Equal(typeof(int), resultTable.Columns["物件No"]!.DataType); // int, not int?
+        Assert.Equal(typeof(string), resultTable.Columns["物件名"]!.DataType);
+        Assert.Equal(typeof(DateTime), resultTable.Columns["出力日時"]!.DataType); // DateTime, not DateTime?
             
         // Verify nullable columns allow DBNull
-        Assert.True(table.Columns["物件No"]!.AllowDBNull);
-        Assert.True(table.Columns["出力日時"]!.AllowDBNull);
+        Assert.True(resultTable.Columns["物件No"]!.AllowDBNull);
+        Assert.True(resultTable.Columns["出力日時"]!.AllowDBNull);
     }
 
     [Fact]
@@ -46,10 +60,8 @@ public class ExcelToMemoryDatabaseConverterFunctionalTests : MemoryDatabaseTestB
         // Test that nullable entity properties are handled correctly
             
         // Arrange
-        var sourceTable = new DataTable("新規to業務管理");
-        sourceTable.Columns.Add("契約ID", typeof(string));
-        sourceTable.Columns.Add("物件No", typeof(string));
-        sourceTable.Columns.Add("出力日時", typeof(string));
+        var config = new ContractCreationConfigurationV1();
+        var sourceTable = DataTableTestHelper.CreateDataTableFromConfiguration(config);
 
         // Add row with null values for nullable columns
         var row1 = sourceTable.NewRow();
@@ -94,14 +106,8 @@ public class ExcelToMemoryDatabaseConverterFunctionalTests : MemoryDatabaseTestB
 
     private DataSet CreateRealContractDataSet()
     {
-        var dataSet = new DataSet();
-        var table = new DataTable("新規to業務管理");
-            
-        // Add columns that match real ContractCreation entity
-        table.Columns.Add("契約ID", typeof(string));
-        table.Columns.Add("物件No", typeof(string)); // Will be converted to int?
-        table.Columns.Add("物件名", typeof(string));
-        table.Columns.Add("出力日時", typeof(string)); // Will be converted to DateTime
+        var config = new ContractCreationConfigurationV1();
+        var table = DataTableTestHelper.CreateDataTableFromConfiguration(config);
 
         // Add sample data
         var row = table.NewRow();
@@ -111,6 +117,7 @@ public class ExcelToMemoryDatabaseConverterFunctionalTests : MemoryDatabaseTestB
         row["出力日時"] = "2024-01-01T10:00:00";
         table.Rows.Add(row);
 
+        var dataSet = new DataSet();
         dataSet.Tables.Add(table);
         return dataSet;
     }
@@ -131,7 +138,7 @@ public class ExcelToMemoryDatabaseConverterFunctionalTests : MemoryDatabaseTestB
         var exception = Assert.Throws<ArgumentException>(() => 
             _dataSetConverter.ConvertForDatabase(dataSet));
     
-        Assert.Contains("Invalid table name", exception.Message);
+        Assert.Contains("No strict schema match found for sheet 'UnknownTableName'", exception.Message);
     }
     [Fact]
     public void PrepareDataSetForDatabase_NormalizesColumnTypes()

@@ -218,6 +218,19 @@ public class ReflectionEntityMetadataProvider : IEntityMetadataProvider
                     qualifiedTableName);
             });
 
+    /// <summary>
+    /// Gets all registered entity configurations grouped by their Excel SheetName.
+    /// This supports the one-to-many mapping where different entities might share the same sheet name.
+    /// </summary>
+    public ILookup<string, IEntityTypeMetaInfo> GetEntityTypeMetaInfoBySheetName()
+    {
+        var allConfigs = GetAllLoadableTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Contains(typeof(IEntityTypeMetaInfo)))
+            .Select(t => Activator.CreateInstance(t) as IEntityTypeMetaInfo)
+            .Where(m => m != null);
+
+        return allConfigs.ToLookup(m => m!.SheetName, m => m!);
+    }
 
     /// Retrieves the default entity mappings for converting Excel data to database entities.
     /// This method returns a dictionary where the keys represent the names of Excel tables

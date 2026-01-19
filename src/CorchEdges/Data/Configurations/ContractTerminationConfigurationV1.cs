@@ -3,7 +3,7 @@ using CorchEdges.Data.Abstractions;
 
 namespace CorchEdges.Data.Configurations;
 
-public class ContractTerminationConfiguration : BaseEntityConfiguration<ContractTermination>
+public class ContractTerminationConfigurationV1 : BaseEntityConfiguration<ContractTermination>
 {
     public override string SheetName { get; } = "解約to業務管理";
     public override string GetTableName() => "contract_termination";

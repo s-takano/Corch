@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Data.Configurations;
 using CorchEdges.Tests.Helpers;
 using CorchEdges.Tests.Infrastructure;
 using CorchEdges.Utilities;
@@ -22,7 +23,7 @@ public class ExcelDataToPostgresBulkInsertIntegrationTests : PostgresDatabaseTes
     public async Task WriteAsync_FromValidExcelFile_InsertsDataSuccessfully()
     {
         // Arrange
-        var excelFilePath = Path.Combine("TestData", "valid-data.xlsx");
+        var excelFilePath = Path.Combine("Data", "Files", "valid-data.xlsx");
         Assert.True(File.Exists(excelFilePath), $"Test file not found: {excelFilePath}");
 
         var excelBytes = await File.ReadAllBytesAsync(excelFilePath, TestContext.Current.CancellationToken);
@@ -56,7 +57,7 @@ public class ExcelDataToPostgresBulkInsertIntegrationTests : PostgresDatabaseTes
     public async Task WriteAsync_FromValidExcelFile_DataIntegrityCheck()
     {
         // Arrange
-        var excelFilePath = Path.Combine("TestData", "valid-data.xlsx");
+        var excelFilePath = Path.Combine("Data", "Files", "valid-data.xlsx");
         byte[] excelBytes = await File.ReadAllBytesAsync(excelFilePath, TestContext.Current.CancellationToken);
         var (sourceDataSet, _) = _excelParser.Parse(new MemoryStream(excelBytes));
 
@@ -165,70 +166,51 @@ public class ExcelDataToPostgresBulkInsertIntegrationTests : PostgresDatabaseTes
 
     private DataTable CreateTestTableForContractType(string originalSheetName, string tableType)
     {
-        var table = new DataTable(originalSheetName);
-
-        // Add common columns
-        table.Columns.Add("物件名", typeof(string));
-
-        // Add type-specific columns
-        switch (tableType)
+        IEntityTypeMetaInfo config = tableType switch
         {
-            case "contract_creation":
-                table.Columns.Add("契約者名", typeof(string));
-                table.Columns.Add("契約日", typeof(DateTime));
-                table.Columns.Add("入居予定日", typeof(DateTime));
-                table.Columns.Add("礼金_家", typeof(decimal));
-                break;
-            case "contract_current":
-                table.Columns.Add("契約ID", typeof(string));
-                table.Columns.Add("契約者_名", typeof(string));
-                table.Columns.Add("契約状態", typeof(string));
-                table.Columns.Add("家賃", typeof(decimal));
-                break;
-            case "contract_renewal":
-                table.Columns.Add("契約ID", typeof(string));
-                table.Columns.Add("契約者_名", typeof(string));
-                table.Columns.Add("更新日", typeof(DateTime));
-                table.Columns.Add("進捗管理ステータス", typeof(string));
-                break;
-            case "contract_termination":
-                table.Columns.Add("契約ID", typeof(string));
-                table.Columns.Add("契約者_名", typeof(string));
-                table.Columns.Add("_転出日", typeof(DateTime));
-                table.Columns.Add("転出点検者", typeof(string));
-                break;
-        }
+            "contract_creation" => new ContractCreationConfigurationV1(),
+            "contract_current" => new ContractCurrentConfigurationV1(),
+            "contract_renewal" => new ContractRenewalConfigurationV1(),
+            "contract_termination" => new ContractTerminationConfigurationV1(),
+            _ => throw new ArgumentException($"Unknown contract type: {tableType}")
+        };
 
-        // Add sample data
+        var table = DataTableTestHelper.CreateDataTableFromConfiguration(config);
+
+        // Add sample data (all values as strings since Excel input is string-based)
         var row = table.NewRow();
-        row["物件名"] = $"テスト物件_{tableType}";
 
-        // Add type-specific data
+        if (table.Columns.Contains("物件名"))
+            row["物件名"] = $"テスト物件_{tableType}";
+
         switch (tableType)
         {
             case "contract_creation":
-                row["契約者名"] = "田中太郎";
-                row["入居予定日"] = DateTime.Now.AddDays(7);
-                row["礼金_家"] = 300000m;
-                row["契約日"] = DateTime.Now.AddDays(-30);
+                if (table.Columns.Contains("契約者名")) row["契約者名"] = "田中太郎";
+                if (table.Columns.Contains("入居予定日")) row["入居予定日"] = DateTime.Now.AddDays(7).ToString("yyyy-MM-dd");
+                if (table.Columns.Contains("礼金_家")) row["礼金_家"] = "300000";
+                if (table.Columns.Contains("契約日")) row["契約日"] = DateTime.Now.AddDays(-30).ToString("yyyy-MM-dd");
                 break;
+
             case "contract_current":
-                row["契約ID"] = $"CNT_{tableType.ToUpper()}_001";
-                row["契約者_名"] = "田中太郎";
-                row["契約状態"] = "有効";
-                row["家賃"] = 100000m;
+                if (table.Columns.Contains("契約ID")) row["契約ID"] = $"CNT_{tableType.ToUpper()}_001";
+                if (table.Columns.Contains("契約者_名")) row["契約者_名"] = "田中太郎";
+                if (table.Columns.Contains("契約状態")) row["契約状態"] = "有効";
+                if (table.Columns.Contains("家賃")) row["家賃"] = "100000";
                 break;
+
             case "contract_renewal":
-                row["契約ID"] = $"CNT_{tableType.ToUpper()}_001";
-                row["契約者_名"] = "田中太郎";
-                row["更新日"] = DateTime.Now.AddDays(30);
-                row["進捗管理ステータス"] = "未確認";
+                if (table.Columns.Contains("契約ID")) row["契約ID"] = $"CNT_{tableType.ToUpper()}_001";
+                if (table.Columns.Contains("契約者_名")) row["契約者_名"] = "田中太郎";
+                if (table.Columns.Contains("更新日")) row["更新日"] = DateTime.Now.AddDays(30).ToString("yyyy-MM-dd");
+                if (table.Columns.Contains("進捗管理ステータス")) row["進捗管理ステータス"] = "未確認";
                 break;
+
             case "contract_termination":
-                row["契約ID"] = $"CNT_{tableType.ToUpper()}_001";
-                row["契約者_名"] = "田中太郎";
-                row["_転出日"] = DateTime.Now.AddDays(30);
-                row["転出点検者"] = "転居";
+                if (table.Columns.Contains("契約ID")) row["契約ID"] = $"CNT_{tableType.ToUpper()}_001";
+                if (table.Columns.Contains("契約者_名")) row["契約者_名"] = "田中太郎";
+                if (table.Columns.Contains("_転出日")) row["_転出日"] = DateTime.Now.AddDays(30).ToString("yyyy-MM-dd");
+                if (table.Columns.Contains("転出点検者")) row["転出点検者"] = "転居";
                 break;
         }
 

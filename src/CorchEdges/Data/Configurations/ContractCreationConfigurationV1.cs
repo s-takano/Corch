@@ -3,7 +3,7 @@ using CorchEdges.Data.Abstractions;
 
 namespace CorchEdges.Data.Configurations;
 
-public class ContractCreationConfiguration : BaseEntityConfiguration<ContractCreation>
+public class ContractCreationConfigurationV1 : BaseEntityConfiguration<ContractCreation>
 {
     public override string SheetName { get; } = "新規to業務管理";
     

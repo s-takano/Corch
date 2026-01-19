@@ -21,10 +21,10 @@ public class DataNormalizerFunctionalTests
     [Fact]
     public void NormalizeTableTypes_WithTypeConversion_ConvertsDataCorrectly()
     {
-        // Arrange - Use the same Excel sheet name as defined in ContractCreationConfiguration
+        // Arrange - Use the same Excel sheet name as defined in ContractCreationConfigurationV1
         var sourceTable = new DataTable("新規to業務管理");
 
-        // Add columns with Japanese names matching ContractCreationConfiguration
+        // Add columns with Japanese names matching ContractCreationConfigurationV1
         sourceTable.Columns.Add("契約ID", typeof(string));
         sourceTable.Columns.Add("物件No", typeof(string));
         sourceTable.Columns.Add("部屋No", typeof(string));

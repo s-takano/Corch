@@ -37,7 +37,11 @@ public interface IEntityMetadataProvider
     /// <returns>A dictionary containing column mappings, where the key represents the original column name, and the value represents the mapped column name. Returns an empty dictionary if no configuration class is found or an error occurs during processing.
     Dictionary<string, string> ExtractColumnMappingsFromConfiguration(Type entityType);
 
-
+    /// <summary>
+    /// Gets all registered entity configurations grouped by their Excel SheetName.
+    /// </summary>
+    ILookup<string, IEntityTypeMetaInfo> GetEntityTypeMetaInfoBySheetName();
+    
     IEntityTypeMetaInfo? GetEntityTypeMetaInfo(Type entityType);
 
     Dictionary<TKey, TResult> MapMetadata<TKey, TResult>(

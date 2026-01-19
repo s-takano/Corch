@@ -6,7 +6,7 @@ using CorchEdges.Data.Abstractions;
 
 namespace CorchEdges.Data.Configurations;
 
-public class ContractRenewalConfiguration : BaseEntityConfiguration<ContractRenewal>
+public class ContractRenewalConfigurationV1 : BaseEntityConfiguration<ContractRenewal>
 {
     public override string SheetName { get; } = "更新to業務管理";
     

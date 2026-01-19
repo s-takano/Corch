@@ -13,7 +13,7 @@ public class ExcelDataParserTests
     public void Parse_ValidExcelFile_ReturnsDataSetWithoutError()
     {
         // Arrange
-        byte[] validExcelBytes = LoadTestFile("TestData/valid-data.xlsx");
+        byte[] validExcelBytes = LoadTestFile("Data/Files/valid-data.xlsx");
 
         // Act
         var (dataSet, error) = _parser.Parse(new MemoryStream(validExcelBytes));
@@ -28,7 +28,7 @@ public class ExcelDataParserTests
     public void Parse_ValidExcelFile_ReturnsCorrectNumberOfTables()
     {
         // Arrange
-        var validExcelBytes = LoadTestFile("TestData/valid-data.xlsx");
+        var validExcelBytes = LoadTestFile("Data/Files/valid-data.xlsx");
 
         // Act
         var (dataSet, error) = _parser.Parse(new MemoryStream(validExcelBytes));
@@ -44,7 +44,7 @@ public class ExcelDataParserTests
     public void Parse_ValidExcelFile_AllTablesHaveValidStructure()
     {
         // Arrange
-        byte[] validExcelBytes = LoadTestFile("TestData/valid-data.xlsx");
+        byte[] validExcelBytes = LoadTestFile("Data/Files/valid-data.xlsx");
 
         // Act
         var (dataSet, error) = _parser.Parse(new MemoryStream(validExcelBytes));
@@ -110,7 +110,7 @@ public class ExcelDataParserTests
     }
 
     [Theory]
-    [InlineData("TestData/valid-data.xlsx")]
+    [InlineData("Data/Files/valid-data.xlsx")]
     public void Parse_SpecificTestFiles_ParsesSuccessfully(string fileName)
     {
         // Arrange
@@ -128,7 +128,7 @@ public class ExcelDataParserTests
     public void Parse_LargeExcelFile_HandlesCorrectly()
     {
         // Arrange
-        byte[] validExcelBytes = LoadTestFile("TestData/valid-data.xlsx");
+        byte[] validExcelBytes = LoadTestFile("Data/Files/valid-data.xlsx");
 
         // Act
         var (dataSet, error) = _parser.Parse(new MemoryStream(validExcelBytes));;
@@ -161,7 +161,7 @@ public class ExcelDataParserTests
     {
         // Arrange
         var parser = new ExcelDataParser();
-        var excelFilePath = Path.Combine("TestData", "valid-data.xlsx");
+        var excelFilePath = Path.Combine("Data", "Files", "valid-data.xlsx");
         byte[] excelBytes = File.ReadAllBytes(excelFilePath);
 
         // Act

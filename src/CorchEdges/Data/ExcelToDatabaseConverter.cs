@@ -24,7 +24,9 @@ public class ExcelToDatabaseConverter : IDataSetConverter
     /// </summary>
     private readonly ITableNormalizer _tableNormalizer;
 
-    private readonly IEntityMetadataProvider _metadataProvider;
+    private readonly ReflectionEntityMetadataProvider _metadataProvider;
+
+    private readonly StrictSchemaDetector _schemaDetector;
 
 
     // Constructor for backward compatibility (creates default implementations)
@@ -42,6 +44,7 @@ public class ExcelToDatabaseConverter : IDataSetConverter
     {
         _metadataProvider = new ReflectionEntityMetadataProvider();
         _tableNormalizer = new TableNormalizer(_metadataProvider);
+        _schemaDetector = new StrictSchemaDetector(_metadataProvider);
     }
 
 
@@ -63,21 +66,13 @@ public class ExcelToDatabaseConverter : IDataSetConverter
             if (sourceTable.Rows.Count == 0)
                 continue;
 
-            var entityName = MapSheetNameToEntityName(sourceTable.TableName);
+            // Resolve the specific entity and table name by strictly checking the column headers
+            var entityName = _schemaDetector.DetectQualifiedEntityName(sourceTable);
+            
             var normalizedTable = _tableNormalizer.Normalize(entityName, sourceTable);
             result.Tables.Add(normalizedTable);
         }
 
         return result;
-    }
-
-
-    private string MapSheetNameToEntityName(string originalTableName)
-    {
-        if (!string.IsNullOrWhiteSpace(originalTableName) &&
-            _metadataProvider.GetTableMappings().TryGetValue(originalTableName, out var mapped))
-            return mapped;
-
-        throw new ArgumentException($"Invalid table name: {originalTableName}");
     }
 }
