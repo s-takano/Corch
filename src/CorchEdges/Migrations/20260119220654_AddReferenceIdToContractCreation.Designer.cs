@@ -3,6 +3,7 @@ using System;
 using CorchEdges.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CorchEdges.Migrations
 {
     [DbContext(typeof(EdgesDbContext))]
-    partial class EdgesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260119220654_AddReferenceIdToContractCreation")]
+    partial class AddReferenceIdToContractCreation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -86,10 +89,6 @@ namespace CorchEdges.Migrations
                     b.Property<decimal?>("DocumentStampFee")
                         .HasColumnType("numeric(12,0)")
                         .HasColumnName("用紙印紙代");
-
-                    b.Property<string>("FixedTermContract")
-                        .HasColumnType("text")
-                        .HasColumnName("定期借家");
 
                     b.Property<decimal?>("GuaranteeFee")
                         .HasColumnType("numeric(12,0)")

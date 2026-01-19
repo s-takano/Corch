@@ -40,5 +40,8 @@ public class ContractCreation
     public DateTime? OutputDateTime { get; set; }
     
     public int ProcessedFileId { get; set; }
+    
+    public string? FixedTermContract { get; set; }
+    
     public ProcessedFile? ProcessedFile { get; set; }
 }
