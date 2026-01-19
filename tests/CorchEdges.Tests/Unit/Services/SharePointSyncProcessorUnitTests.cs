@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
+using Microsoft.Graph.Models.ODataErrors;
 using Moq;
 
 namespace CorchEdges.Tests.Unit.Services;
@@ -647,6 +648,108 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         log.LastProcessedCount.Should().Be(1);
     }
 
+    
+    [Fact]
+    public async Task FetchAndStoreDeltaAsync_WhenDeltaLinkExpired_UsesWindowedResync()
+    {
+        // Arrange
+        var handler = CreateHandler();
+        var lastProcessedAt = new DateTime(2026, 1, 19, 7, 0, 0, DateTimeKind.Utc);
+        var expectedWindowStart = lastProcessedAt.AddMinutes(-10);
+
+        _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
+            .ReturnsAsync("stale-delta-link");
+
+        _mockProcessingLogRepository2.Setup(x => x.GetLastProcessedAtUtcAsync(_testSiteId, _testListId))
+            .ReturnsAsync(lastProcessedAt);
+
+        _mockProcessingLogRepository2.Setup(x => x.RecordSuccessfulSyncAsync(
+                _testSiteId,
+                _testListId,
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(new ProcessingLog());
+
+        var graphError = new ODataError
+        {
+            Error = new MainError
+            {
+                Message = "Exception of type 'Microsoft.Vroom.Exceptions.ResyncApplyDifferencesVroomException' was thrown."
+            }
+        };
+
+        _mockGraph.Setup(g => g.PullItemsDeltaAsync(_testSiteId, _testListId, "stale-delta-link"))
+            .ThrowsAsync(graphError);
+
+        _mockGraph.Setup(g => g.PullItemsModifiedSinceAsync(_testSiteId, _testListId, It.IsAny<DateTime>()))
+            .ReturnsAsync(new List<string>());
+
+        _mockGraph.Setup(g => g.GetFreshDeltaLinkAsync(_testSiteId, _testListId))
+            .ReturnsAsync("fresh-delta-link");
+
+        // Act
+        var result = await handler.FetchAndStoreDeltaAsync();
+
+        // Assert
+        result.Success.Should().BeTrue();
+
+        _mockGraph.Verify(g => g.PullItemsModifiedSinceAsync(
+            _testSiteId,
+            _testListId,
+            It.Is<DateTime>(d => d == expectedWindowStart)), Times.Once);
+
+        _mockGraph.Verify(g => g.GetFreshDeltaLinkAsync(_testSiteId, _testListId), Times.Once);
+    }
+
+    [Fact]
+    public async Task FetchAndStoreDeltaAsync_WhenDeltaLinkExpired_WithoutLastProcessedAt_SkipsWindowedResync()
+    {
+        // Arrange
+        var handler = CreateHandler();
+
+        _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
+            .ReturnsAsync("stale-delta-link");
+
+        _mockProcessingLogRepository2.Setup(x => x.GetLastProcessedAtUtcAsync(_testSiteId, _testListId))
+            .ReturnsAsync((DateTime?)null);
+
+        _mockProcessingLogRepository2.Setup(x => x.RecordSuccessfulSyncAsync(
+                _testSiteId,
+                _testListId,
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(new ProcessingLog());
+
+        var graphError = new ODataError
+        {
+            Error = new MainError
+            {
+                Message = "Exception of type 'Microsoft.Vroom.Exceptions.ResyncApplyDifferencesVroomException' was thrown."
+            }
+        };
+
+        _mockGraph.Setup(g => g.PullItemsDeltaAsync(_testSiteId, _testListId, "stale-delta-link"))
+            .ThrowsAsync(graphError);
+
+        _mockGraph.Setup(g => g.GetFreshDeltaLinkAsync(_testSiteId, _testListId))
+            .ReturnsAsync("fresh-delta-link");
+
+        // Act
+        var result = await handler.FetchAndStoreDeltaAsync();
+
+        // Assert
+        result.Success.Should().BeTrue();
+
+        _mockGraph.Verify(g => g.PullItemsModifiedSinceAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<DateTime>()), Times.Never);
+
+        _mockGraph.Verify(g => g.GetFreshDeltaLinkAsync(_testSiteId, _testListId), Times.Once);
+    }
+    
     [Fact]
     public async Task HandleAsync_WhenProcessingFails_ShouldStoreProcessingLogWithError()
     {

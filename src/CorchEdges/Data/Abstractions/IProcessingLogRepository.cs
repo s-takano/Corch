@@ -59,4 +59,10 @@ public interface IProcessingLogRepository
         string siteId,
         string listId,
         int count = 10);
+
+    /// <summary>
+    /// Gets the most recent LastProcessedAt (UTC) for a given site/list pair.
+    /// Returns null if no successful record exists.
+    /// </summary>
+    Task<DateTime?> GetLastProcessedAtUtcAsync(string siteId, string listId);
 }

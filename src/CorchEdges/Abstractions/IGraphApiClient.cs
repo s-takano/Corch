@@ -66,4 +66,14 @@ public interface IGraphApiClient
 
     Task<(string deltaLink, List<string> itemIds)> PullItemsDeltaAsync(string siteId, string listId, string? lastDeltaLink = null);
 
+    
+    /// <summary>
+    /// Pull items modified since a given UTC timestamp.
+    /// </summary>
+    Task<List<string>> PullItemsModifiedSinceAsync(string siteId, string listId, DateTime sinceUtc);
+
+    /// <summary>
+    /// Get a fresh delta link without downloading all items.
+    /// </summary>
+    Task<string> GetFreshDeltaLinkAsync(string siteId, string listId);
 }

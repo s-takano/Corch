@@ -30,13 +30,13 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         });
     }
 
-    public GraphApiClientIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output) 
+    public GraphApiClientIntegrationTests(IntegrationTestFixture fixture, ITestOutputHelper output)
         : base(fixture, output)
     {
         _graphApiClient = fixture.Services.GetRequiredService<IGraphApiClient>();
         _output = output;
-        
-        
+
+
         _output.WriteLine($"Test Environment Variables:");
         _output.WriteLine($"Item ID: {TestItemId}");
     }
@@ -49,7 +49,7 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
 
         // Assert
         Assert.True(result.IsSuccess, $"Graph connection failed: {result.ErrorReason} (Code: {result.ErrorCode})");
-        
+
         if (result.IsSuccess)
         {
             _output.WriteLine("✅ Graph connection test passed");
@@ -89,17 +89,18 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         if (ShouldSkipTest()) return;
 
         // Act
-        var result = await _graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var result =
+            await _graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
 
         // Assert
         Assert.NotNull(result);
         Assert.Equal(TestItemId, result.Id);
         Assert.NotNull(result.Fields);
-        
+
         _output.WriteLine($"✅ Retrieved list item: {result.Id}");
         _output.WriteLine($"   Created: {result.CreatedDateTime}");
         _output.WriteLine($"   Modified: {result.LastModifiedDateTime}");
-        
+
         // Check if the ProcessFlag field exists (based on your business logic)
         if (result.Fields?.AdditionalData.ContainsKey("ProcessFlag") == true)
         {
@@ -117,7 +118,8 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         const string invalidItemId = "999999";
 
         // Act & Assert
-        await Assert.ThrowsAsync<ODataError>(async ()=> await _graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
+        await Assert.ThrowsAsync<ODataError>(async () =>
+            await _graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
 
         _output.WriteLine("✅ Invalid item ID correctly returned null");
     }
@@ -129,7 +131,8 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         if (ShouldSkipTest()) return;
 
         // Act
-        var result = await _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var result =
+            await _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
 
         // Assert
         Assert.NotNull(result);
@@ -137,7 +140,7 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         Assert.NotNull(result.Name);
         Assert.NotNull(result.ParentReference);
         Assert.NotNull(result.ParentReference.DriveId);
-        
+
         _output.WriteLine($"✅ Retrieved drive item: {result.Name}");
         _output.WriteLine($"   ID: {result.Id}");
         _output.WriteLine($"   Drive ID: {result.ParentReference.DriveId}");
@@ -153,7 +156,8 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         const string invalidItemId = "999999";
 
         // Act & Assert
-        await Assert.ThrowsAsync<ODataError>(()=> _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
+        await Assert.ThrowsAsync<ODataError>(() =>
+            _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), invalidItemId));
         _output.WriteLine("✅ Invalid drive item ID correctly returned null");
     }
 
@@ -162,37 +166,38 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
     {
         // Arrange
         if (ShouldSkipTest()) return;
-        
+
         // First get the drive item to get the drive ID
-        var driveItem = await _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var driveItem =
+            await _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
         Assert.NotNull(driveItem);
         Assert.NotNull(driveItem.ParentReference?.DriveId);
         Assert.NotNull(driveItem.Id);
 
         // Act
         await using var stream = await _graphApiClient.DownloadAsync(
-            driveItem.ParentReference.DriveId, 
+            driveItem.ParentReference.DriveId,
             driveItem.Id);
 
         // Assert
         Assert.NotNull(stream);
         Assert.True(stream.CanRead);
-        
+
         // Verify we can actually read content
         var buffer = new byte[1024];
         var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, TestContext.Current.CancellationToken);
         Assert.True(bytesRead > 0, "Should be able to read data from the stream");
-        
+
         _output.WriteLine($"✅ Successfully downloaded file stream");
         _output.WriteLine($"   First read: {bytesRead} bytes");
         _output.WriteLine($"   Stream can seek: {stream.CanSeek}");
-        
+
         // If it's an Excel file, check for Excel signature
         if (bytesRead >= 4)
         {
             var isExcel = buffer[0] == 0x50 && buffer[1] == 0x4B; // ZIP signature (Excel files are ZIP-based)
             var isOldExcel = buffer[0] == 0xD0 && buffer[1] == 0xCF; // OLE signature (old Excel files)
-            
+
             if (isExcel || isOldExcel)
             {
                 _output.WriteLine($"   ✅ File appears to be Excel format");
@@ -212,7 +217,7 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         {
             await using var stream = await _graphApiClient.DownloadAsync(invalidDriveId, invalidItemId);
         });
-        
+
         _output.WriteLine("✅ Invalid drive/item IDs correctly threw ServiceException");
     }
 
@@ -231,22 +236,24 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         _output.WriteLine("   ✅ Step 1: Connection verified");
 
         // Step 2: Get list item
-        var listItem = await _graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var listItem =
+            await _graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
         Assert.NotNull(listItem);
         _output.WriteLine($"   ✅ Step 2: List item retrieved (ID: {listItem.Id})");
 
         // Step 3: Get drive item
-        var driveItem = await _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
+        var driveItem =
+            await _graphApiClient.GetDriveItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId);
         Assert.NotNull(driveItem);
         Assert.NotNull(driveItem.ParentReference?.DriveId);
         _output.WriteLine($"   ✅ Step 3: Drive item retrieved (Name: {driveItem.Name})");
 
         // Step 4: Download content
         await using var stream = await _graphApiClient.DownloadAsync(
-            driveItem.ParentReference.DriveId, 
+            driveItem.ParentReference.DriveId,
             driveItem.Id!);
         Assert.NotNull(stream);
-        
+
         var buffer = new byte[1024];
         var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, TestContext.Current.CancellationToken);
         Assert.True(bytesRead > 0);
@@ -262,12 +269,12 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         // Arrange
         if (ShouldSkipTest()) return;
         const int concurrentRequests = 5;
-        
+
         var tasks = new List<Task<ListItem?>>();
 
         // Act
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        
+
         for (var i = 0; i < concurrentRequests; i++)
         {
             tasks.Add(_graphApiClient.GetListItemAsync(Fixture.GetTestSiteId(), Fixture.GetTestListId(), TestItemId));
@@ -279,12 +286,12 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         // Assert
         Assert.All(results, result => Assert.NotNull(result));
         Assert.All(results, result => Assert.Equal(TestItemId, result!.Id));
-        
+
         _output.WriteLine($"✅ {concurrentRequests} concurrent requests completed in {stopwatch.ElapsedMilliseconds}ms");
         _output.WriteLine($"   Average: {stopwatch.ElapsedMilliseconds / concurrentRequests}ms per request");
-        
+
         // Performance assertion - adjust threshold as needed
-        Assert.True(stopwatch.ElapsedMilliseconds < 30000, 
+        Assert.True(stopwatch.ElapsedMilliseconds < 30000,
             $"Concurrent requests took too long: {stopwatch.ElapsedMilliseconds}ms");
     }
 
@@ -504,12 +511,50 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
 
     private bool ShouldSkipTest([System.Runtime.CompilerServices.CallerMemberName] string? testName = null)
     {
-        if (string.IsNullOrEmpty(Fixture.GetTestSiteId()) || string.IsNullOrEmpty(Fixture.GetTestListId()) || string.IsNullOrEmpty(TestItemId))
+        if (string.IsNullOrEmpty(Fixture.GetTestSiteId()) || string.IsNullOrEmpty(Fixture.GetTestListId()) ||
+            string.IsNullOrEmpty(TestItemId))
         {
             _output.WriteLine($"⚠️  Skipping {testName} - Environment variables not set");
             _output.WriteLine("   Required: TEST_SHAREPOINT_SITE_ID, TEST_SHAREPOINT_LIST_ID, TEST_SHAREPOINT_ITEM_ID");
             return true;
         }
+
         return false;
+    }
+
+    [Fact]
+    public async Task PullItemsModifiedSinceAsync_WithRecentTimestamp_ReturnsItemsOrEmpty()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+        var sinceUtc = DateTime.UtcNow.AddDays(-1);
+
+        // Act
+        var itemIds = await _graphApiClient.PullItemsModifiedSinceAsync(
+            Fixture.GetTestSiteId(),
+            Fixture.GetTestListId(),
+            sinceUtc);
+
+        // Assert
+        Assert.NotNull(itemIds);
+        _output.WriteLine($"✅ PullItemsModifiedSinceAsync returned {itemIds.Count} items since {sinceUtc:o}");
+    }
+
+    [Fact]
+    public async Task GetFreshDeltaLinkAsync_ReturnsDeltaLink()
+    {
+        // Arrange
+        if (ShouldSkipTest()) return;
+
+        // Act
+        var deltaLink = await _graphApiClient.GetFreshDeltaLinkAsync(
+            Fixture.GetTestSiteId(),
+            Fixture.GetTestListId());
+
+        // Assert
+        Assert.NotNull(deltaLink);
+        Assert.NotEmpty(deltaLink);
+        Assert.Contains("delta", deltaLink, StringComparison.OrdinalIgnoreCase);
+        _output.WriteLine($"✅ Fresh delta link acquired: {deltaLink}");
     }
 }

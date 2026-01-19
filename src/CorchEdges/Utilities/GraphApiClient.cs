@@ -80,6 +80,7 @@ public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGra
             return ConnectionTestResult.Failure($"Unexpected error: {ex.Message}", ex.GetType().Name);
         }
     }
+
     /// <summary>
     /// Returns every list item created/updated/deleted since the
     /// <paramref name="lastDeltaLink"/> and hands back the new delta link.
@@ -128,8 +129,8 @@ public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGra
             var seed = await deltaBuilder
                 .WithUrl(bootstrapUrl)
                 .GetAsDeltaGetResponseAsync();
-            
-            if( seed is null )
+
+            if (seed is null)
                 throw new InvalidOperationException("Graph returned null seed.");
 
             mark = seed.OdataDeltaLink; // bookmark “now”
@@ -149,7 +150,7 @@ public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGra
 
             if (page is null)
                 throw new InvalidOperationException("Graph returned null page.");
-            
+
             if (page.Value?.Count > 0)
                 itemIds.AddRange(page.Value.Select(i => i.Id)!);
 
@@ -166,5 +167,59 @@ public sealed class GraphApiClient(GraphServiceClient graphServiceClient) : IGra
         }
 
         return (mark!, itemIds);
+    }
+
+    public async Task<List<string>> PullItemsModifiedSinceAsync(string siteId, string listId, DateTime sinceUtc)
+    {
+        var itemIds = new List<string>();
+        var sinceIso = sinceUtc.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+        var response = await graphServiceClient
+            .Sites[siteId]
+            .Lists[listId]
+            .Items
+            .GetAsync(options =>
+            {
+                options.QueryParameters.Expand = ["fields($select=Modified)"];
+                options.QueryParameters.Filter = $"fields/Modified ge '{sinceIso}'";
+                options.QueryParameters.Select = ["id"];
+            });
+
+        while (response != null)
+        {
+            if (response.Value?.Count > 0)
+                itemIds.AddRange(response.Value.Select(i => i.Id)!);
+
+            if (string.IsNullOrEmpty(response.OdataNextLink))
+                break;
+
+            response = await graphServiceClient
+                .Sites[siteId]
+                .Lists[listId]
+                .Items
+                .WithUrl(response.OdataNextLink)
+                .GetAsync();
+        }
+
+        return itemIds;
+    }
+
+    public async Task<string> GetFreshDeltaLinkAsync(string siteId, string listId)
+    {
+        var deltaBuilder = graphServiceClient
+            .Sites[siteId]
+            .Lists[listId]
+            .Items
+            .Delta;
+
+        var bootstrapUrl = $"{graphServiceClient.RequestAdapter.BaseUrl}/" +
+                           $"sites/{siteId}/lists/{listId}/items/delta?token=latest";
+
+        var seed = await deltaBuilder
+            .WithUrl(bootstrapUrl)
+            .GetAsDeltaGetResponseAsync();
+
+        return seed?.OdataDeltaLink
+               ?? throw new InvalidOperationException("Missing @odata.deltaLink");
     }
 }

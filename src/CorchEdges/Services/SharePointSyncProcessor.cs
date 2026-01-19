@@ -9,6 +9,7 @@ using CorchEdges.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph.Models.ODataErrors;
 
 namespace CorchEdges.Services;
 
@@ -251,7 +252,32 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         {
             _log.LogDebug("Pulling items delta");
 
-            var (deltaLink, itemIds) = await _graph.PullItemsDeltaAsync(_siteId, _listId, lastDataLink);
+            List<string> itemIds;
+            string deltaLink;
+
+            try
+            {
+                (deltaLink, itemIds) = await _graph.PullItemsDeltaAsync(_siteId, _listId, lastDataLink);
+            }
+            catch (ODataError ex) when (IsResyncRequired(ex))
+            {
+                _log.LogWarning("Delta link expired. Attempting windowed resync from last_processed_at.");
+
+                var lastProcessedAt = await _processingLogRepository.GetLastProcessedAtUtcAsync(_siteId, _listId);
+
+                if (lastProcessedAt == null)
+                {
+                    _log.LogWarning("No last_processed_at available. Establishing fresh delta link.");
+                    deltaLink = await _graph.GetFreshDeltaLinkAsync(_siteId, _listId);
+                    itemIds = new List<string>();
+                }
+                else
+                {
+                    var windowStart = lastProcessedAt.Value.AddMinutes(-10);
+                    itemIds = await _graph.PullItemsModifiedSinceAsync(_siteId, _listId, windowStart);
+                    deltaLink = await _graph.GetFreshDeltaLinkAsync(_siteId, _listId);
+                }
+            }
 
             foreach (var itemId in itemIds)
             {
@@ -283,6 +309,12 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             await transaction.RollbackAsync();
             throw;
         }
+    }
+
+    private static bool IsResyncRequired(ODataError ex)
+    {
+        var message = ex.Error?.Message ?? string.Empty;
+        return message.Contains("ResyncApplyDifferencesVroomException", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<bool> IsFileDuplicateAsync(string fileHash, long fileSize)

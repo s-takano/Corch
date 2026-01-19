@@ -10,6 +10,13 @@ namespace CorchEdges.Data.Repositories;
 /// </summary>
 public class ProcessingLogRepository(EdgesDbContext context) : IProcessingLogRepository
 {
+    public async Task<DateTime?> GetLastProcessedAtUtcAsync(string siteId, string listId)
+    {
+        return await context.QueryProcessingLogsBySiteAndListDesc(siteId, listId)
+            .Select(p => p.LastProcessedAt)
+            .FirstOrDefaultAsync();
+    }
+
     /// <summary>
     /// Gets the latest delta link for SharePoint synchronization.
     /// Returns "latest" as fallback if no previous delta link exists.
