@@ -7,6 +7,8 @@ public class ContractCreation
     public int? PropertyNo { get; set; }
     public int? RoomNo { get; set; }
     public int? ContractorNo { get; set; }
+    
+    public int? ReferenceId { get; set; }
     public string? PropertyName { get; set; }
     public string? ContractorName { get; set; }
     public string? ProgressStatus { get; set; }
