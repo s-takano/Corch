@@ -1,10 +1,12 @@
 ﻿using System.Data;
 using CorchEdges.Data;
 using CorchEdges.Data.Abstractions;
+using CorchEdges.Tests.Infrastructure;
 using Moq;
 
 namespace CorchEdges.Tests.Unit.Data;
 
+[Trait("Category", TestCategories.Unit)]
 public class StrictSchemaDetectorTests
 {
     private readonly Mock<IEntityMetadataProvider> _metadataProviderMock;
