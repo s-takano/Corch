@@ -106,6 +106,7 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
 
         var processingStatus = result.Fields.AdditionalData["ProcessingStatus"];
         _output.WriteLine($"   ProcessingStatus: {processingStatus}");
+        Assert.Equal("False", processingStatus?.ToString());
     }
 
     [Fact]

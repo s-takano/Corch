@@ -852,7 +852,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         {
             Fields = new FieldValueSet
             {
-                AdditionalData = new Dictionary<string, object> { { "ProcessingStatus", "Yes" } }
+                AdditionalData = new Dictionary<string, object> { { "ProcessingStatus", "False" } }
             }
         };
 

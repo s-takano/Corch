@@ -433,7 +433,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     {
         var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
         if (li?.Fields?.AdditionalData?.TryGetValue("ProcessingStatus", out var flag) == true &&
-            !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
+            "True".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
         {
             _log.LogInformation("Skipping {id}", itemId);
             return;
