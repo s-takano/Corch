@@ -12,6 +12,9 @@
       "Host.Results": "Information",
       "Host.Aggregator": "Information",
       "Microsoft.Azure.Functions.Worker": "Information",
+      "Microsoft.Identity.Client": "Warning",
+      "Microsoft.Identity.Client.*": "Warning",
+      "MSAL": "Warning",
       "default": "Information"
     }
   },

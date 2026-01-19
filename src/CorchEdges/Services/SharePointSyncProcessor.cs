@@ -250,7 +250,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         var connection = _context.Database.GetDbConnection();
         try
         {
-            _log.LogDebug("Pulling items delta");
+            _log.LogDebug("Pulling items delta with {delta}", lastDataLink ?? "fresh");
 
             List<string> itemIds;
             string deltaLink;
