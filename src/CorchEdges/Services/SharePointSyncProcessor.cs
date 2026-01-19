@@ -273,11 +273,16 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
                 }
                 else
                 {
+                    _log.LogInformation("Performing windowed resync from last_processed_at: {lastProcessedAt}",
+                        lastProcessedAt.Value);
+
                     var windowStart = lastProcessedAt.Value.AddMinutes(-10);
                     itemIds = await _graph.PullItemsModifiedSinceAsync(_siteId, _listId, windowStart);
                     deltaLink = await _graph.GetFreshDeltaLinkAsync(_siteId, _listId);
                 }
             }
+
+            _log.LogInformation("Processing {count} items from delta", itemIds.Count);
 
             foreach (var itemId in itemIds)
             {
@@ -354,7 +359,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
 
         if (di.Name == null)
             throw new InvalidOperationException("DriveItem has no name");
-        
+
         // Filter by file extension before downloading
         if (!IsExcelFile(di.Name))
         {
