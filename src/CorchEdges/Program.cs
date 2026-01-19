@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Npgsql;
 
+Console.OutputEncoding = System.Text.Encoding.UTF8;
 Console.WriteLine("[Bootstrap] CorchEdges Functions starting…");
 
 var host = Host.CreateDefaultBuilder(args)

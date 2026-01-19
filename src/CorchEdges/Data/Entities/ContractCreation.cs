@@ -15,6 +15,8 @@ public class ContractCreation
     public DateOnly? MoveInDate { get; set; }
     public DateOnly? KeyHandoverDate { get; set; }
     public DateOnly? ContractDate { get; set; }
+    public DateOnly? ContractStartDate { get; set; }
+    public DateOnly? ContractEndDate { get; set; }
     
     public decimal? KeyMoney { get; set; }
     public decimal? BrokerageCommission { get; set; }
