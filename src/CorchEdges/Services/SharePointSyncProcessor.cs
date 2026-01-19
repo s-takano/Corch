@@ -258,6 +258,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             try
             {
                 (deltaLink, itemIds) = await _graph.PullItemsDeltaAsync(_siteId, _listId, lastDataLink);
+                _log.LogInformation("Retrieved {count} items from delta", itemIds.Count);
             }
             catch (ODataError ex) when (IsResyncRequired(ex))
             {
@@ -282,36 +283,46 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
                 }
             }
 
+            SharePointSyncResult batchResult;
+
             if (itemIds.Count == 0)
             {
+                _log.LogInformation("No new items found in delta sync for site {siteId}, list {listId}", _siteId,
+                    _listId);
+
                 var log = await _processingLogRepository.CreateProcessingLogAsync(_siteId, _listId);
                 await RecordProcessingLogAsync(
                     log.Id, SuccessfulItems, FailedCount, HasErrors, LastError, deltaLink);
+                
+                batchResult = SharePointSyncResult.Succeeded();
+            }
+            else
+            {
+                var batch = itemIds.Take(batchSize).ToList();
+                var remaining = itemIds.Skip(batchSize).ToList();
 
-                await transaction.CommitAsync();
-                return SharePointSyncResult.Succeeded();
+                batchResult = await FetchAndStoreItemsAsync(
+                    batch,
+                    deltaLink,
+                    finalizeDeltaLink: remaining.Count == 0,
+                    connection,
+                    transaction);
+                
+                if (remaining.Count > 0)
+                {
+                    batchResult = batchResult with
+                    {
+                        RemainingItemIds = remaining,
+                        PendingDeltaLink = deltaLink
+                    };
+                }
             }
 
-            var batch = itemIds.Take(batchSize).ToList();
-            var remaining = itemIds.Skip(batchSize).ToList();
-
-            var batchResult = await FetchAndStoreItemsAsync(
-                batch,
-                deltaLink,
-                finalizeDeltaLink: remaining.Count == 0,
-                connection,
-                transaction);
-            
             await transaction.CommitAsync();
 
-            if (remaining.Count > 0)
-            {
-                return batchResult with
-                {
-                    RemainingItemIds = remaining,
-                    PendingDeltaLink = deltaLink
-                };
-            }
+            _log.LogInformation(
+                "Delta sync completed. Processed {SuccessfulItems} items successfully, {FailedCount} failed",
+                SuccessfulItems, FailedCount);
 
             return batchResult;
         }
@@ -414,12 +425,12 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         return await _processedFileRepository.ExistsByHashAsync(fileHash, fileSize);
     }
 
-        private async Task FetchAndStoreItemAsync(
-            string itemId,
-            DbConnection connection,
-            IDbContextTransaction transaction,
-            int processingLogId)
-        {
+    private async Task FetchAndStoreItemAsync(
+        string itemId,
+        DbConnection connection,
+        IDbContextTransaction transaction,
+        int processingLogId)
+    {
         var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
         if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
             !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
@@ -477,11 +488,11 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     }
 
     private async Task<bool> WriteStreamAsync(
-            DbConnection connection,
-            IDbContextTransaction transaction,
-            Stream stream,
-            string fileName,
-            int processingLogId)
+        DbConnection connection,
+        IDbContextTransaction transaction,
+        Stream stream,
+        string fileName,
+        int processingLogId)
     {
         using var memoryStream = new MemoryStream();
         await stream.CopyToAsync(memoryStream);
@@ -523,7 +534,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         var preparedDataSet = _dataSetConverter.ConvertForDatabase(ds);
 
         var id = await _db.WriteAsync(
-                preparedDataSet, _context, connection, transaction.GetDbTransaction(), processingLogId);
+            preparedDataSet, _context, connection, transaction.GetDbTransaction(), processingLogId);
 
         await UpdateProcessedFileMetadata(id, fileHash, fileSize, fileName);
 
@@ -552,24 +563,24 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     /// <param name="hasErrors">Whether any errors occurred during processing</param>
     /// <param name="lastError">The last error message if any errors occurred</param>
     /// <param name="dataLink"></param>
-        private async Task RecordProcessingLogAsync(
-            int processingLogId,
-            int successfulItems,
-            int failedItems,
-            bool hasErrors,
-            string? lastError,
-            string dataLink)
-        {
-            await _processingLogRepository.UpdateProcessingLogAsync(
-                processingLogId,
-                dataLink,
-                successfulItems,
-                failedItems,
-                hasErrors,
-                lastError);
+    private async Task RecordProcessingLogAsync(
+        int processingLogId,
+        int successfulItems,
+        int failedItems,
+        bool hasErrors,
+        string? lastError,
+        string dataLink)
+    {
+        await _processingLogRepository.UpdateProcessingLogAsync(
+            processingLogId,
+            dataLink,
+            successfulItems,
+            failedItems,
+            hasErrors,
+            lastError);
 
-            _log.LogDebug("Processing log created successfully");
-        }
+        _log.LogDebug("Processing log created successfully");
+    }
 
 
     /// <summary>
