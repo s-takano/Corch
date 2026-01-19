@@ -255,6 +255,8 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             List<string> itemIds;
             string deltaLink;
 
+            var lastProcessedAt = await _processingLogRepository.GetLastProcessedAtUtcAsync(_siteId, _listId);
+
             try
             {
                 (deltaLink, itemIds) = await _graph.PullItemsDeltaAsync(_siteId, _listId, lastDataLink);
@@ -263,9 +265,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             catch (ODataError ex) when (IsResyncRequired(ex))
             {
                 _log.LogWarning("Delta link expired. Attempting windowed resync from last_processed_at.");
-
-                var lastProcessedAt = await _processingLogRepository.GetLastProcessedAtUtcAsync(_siteId, _listId);
-
+                
                 if (lastProcessedAt == null)
                 {
                     _log.LogWarning("No last_processed_at available. Establishing fresh delta link.");
@@ -432,7 +432,7 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         int processingLogId)
     {
         var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
-        if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
+        if (li?.Fields?.AdditionalData?.TryGetValue("ProcessingStatus", out var flag) == true &&
             !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
         {
             _log.LogInformation("Skipping {id}", itemId);

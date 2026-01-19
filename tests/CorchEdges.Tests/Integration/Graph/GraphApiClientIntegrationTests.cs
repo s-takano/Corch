@@ -101,12 +101,11 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         _output.WriteLine($"   Created: {result.CreatedDateTime}");
         _output.WriteLine($"   Modified: {result.LastModifiedDateTime}");
 
-        // Check if the ProcessFlag field exists (based on your business logic)
-        if (result.Fields?.AdditionalData.ContainsKey("ProcessFlag") == true)
-        {
-            var processFlag = result.Fields.AdditionalData["ProcessFlag"];
-            _output.WriteLine($"   ProcessFlag: {processFlag}");
-        }
+        // Check if the ProcessingStatus field exists (based on your business logic)
+        Assert.True(result.Fields?.AdditionalData.ContainsKey("ProcessingStatus"));
+
+        var processingStatus = result.Fields.AdditionalData["ProcessingStatus"];
+        _output.WriteLine($"   ProcessingStatus: {processingStatus}");
     }
 
     [Fact]
@@ -365,6 +364,8 @@ public class GraphApiClientIntegrationTests : IntegrationTestBase
         {
             Assert.NotEqual(initialDeltaLink, subsequentDeltaLink);
         }
+
+        _output.WriteLine($"   Items Count: {subsequentItems.Count}");
     }
 
     [Fact]

@@ -847,12 +847,12 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         var itemId = "test-item-id";
         var fileName = "test.xlsx";
 
-        // Mock list item with ProcessFlag = "Yes"
+        // Mock list item with ProcessingStatus = "Yes"
         var listItem = new ListItem
         {
             Fields = new FieldValueSet
             {
-                AdditionalData = new Dictionary<string, object> { { "ProcessFlag", "Yes" } }
+                AdditionalData = new Dictionary<string, object> { { "ProcessingStatus", "Yes" } }
             }
         };
 
@@ -922,12 +922,12 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         var itemId = "test-item-id";
         var fileName = "test.xlsx";
 
-        // Mock list item with ProcessFlag = "Yes"
+        // Mock list item with ProcessingStatus = "Yes"
         var listItem = new ListItem
         {
             Fields = new FieldValueSet
             {
-                AdditionalData = new Dictionary<string, object> { { "ProcessFlag", "Yes" } }
+                AdditionalData = new Dictionary<string, object> { { "ProcessingStatus", "Yes" } }
             }
         };
 
@@ -1014,12 +1014,12 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         var itemId = "test-item-id";
         var fileName = "test.xlsx";
 
-        // Mock list item with ProcessFlag = "Yes"
+        // Mock list item with ProcessingStatus = "Yes"
         var listItem = new ListItem
         {
             Fields = new FieldValueSet
             {
-                AdditionalData = new Dictionary<string, object> { { "ProcessFlag", "Yes" } }
+                AdditionalData = new Dictionary<string, object> { { "ProcessingStatus", "Yes" } }
             }
         };
 

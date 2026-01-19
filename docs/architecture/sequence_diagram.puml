@@ -69,7 +69,7 @@ else Connection Success
         Graph -> SyncProcessor: ListItem & DriveItem
         deactivate Graph
         
-        opt ProcessFlag == "Yes"
+        opt ProcessingStatus == "Yes"
             SyncProcessor -> Graph: DownloadAsync(driveId, itemId)
             activate Graph
             Graph -> SyncProcessor: Excel file stream
