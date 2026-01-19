@@ -367,10 +367,21 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             return;
         }
 
+        _log.LogInformation("Downloading file: {fileName} from drive: {driveId}, item: {itemId}", 
+            di.Name, di.ParentReference?.DriveId, di.Id);
+        
         await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
 
-        if (!await WriteStreamAsync(connection, transaction, stream, di.Name)) return;
+        _log.LogInformation("Download completed for file: {fileName}. Processing stream...", di.Name);
+        
+        if (!await WriteStreamAsync(connection, transaction, stream, di.Name))
+        {
+            _log.LogInformation("File {fileName} was not processed (duplicate or failed)", di.Name);
+            return;
+        }
 
+        _log.LogInformation("Successfully processed file: {fileName}", di.Name);
+        
         SuccessfulItems++;
     }
 
