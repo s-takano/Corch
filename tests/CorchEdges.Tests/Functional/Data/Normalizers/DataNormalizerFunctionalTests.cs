@@ -58,7 +58,9 @@ public class DataNormalizerFunctionalTests
         sourceTable.Rows.Add(row);
 
         // Act
-        var result = _tableNormalizer.Normalize("corch_edges_raw.contract_creation", sourceTable);
+        var metadataProvider = new ReflectionEntityMetadataProvider();
+        var config = metadataProvider.GetEntityTypeMetaInfoBySheetName()["新規to業務管理"].First();
+        var result = _tableNormalizer.Normalize("corch_edges_raw.contract_creation", config, sourceTable);
 
         // Assert
         Assert.Equal("corch_edges_raw.contract_creation", result.TableName);

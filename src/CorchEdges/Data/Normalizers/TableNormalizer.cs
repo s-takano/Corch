@@ -71,21 +71,20 @@ public class TableNormalizer : ITableNormalizer
                type.IsEnum;
     }
 
-    /// <summary>
-    /// Normalizes the column data types of a source DataTable to match the schema of the specified target table.
-    /// </summary>
-    /// <param name="entityName">The name of the target table whose schema will be used to normalize column types.</param>
-    /// <param name="sourceTable">The source DataTable containing the data to be normalized.</param>
-    /// <returns>A new DataTable with columns converted to match the data types of the target table schema.</returns>
-    public DataTable Normalize(string entityName, DataTable sourceTable)
+    public DataTable Normalize(string entityName, IEntityTypeMetaInfo configuration, DataTable sourceTable)
     {
         var result = new DataTable(entityName);
+
+        var columnMapper = new EntityBasedColumnMapper(new Dictionary<string, Dictionary<string, string>>
+        {
+            [configuration.SheetName] = configuration.GetColumnMappings()
+        });
 
         sourceTable.Columns.Cast<DataColumn>()
             .Where(dataColumn => IsDataConvertibleType(dataColumn.DataType))
             .ToList()
             .ForEach(dataColumn => result.Columns.Add(
-            MapColumnDefinition(sourceTable.TableName, dataColumn.ColumnName)));
+            MapColumnDefinition(configuration.SheetName, dataColumn.ColumnName)));
 
         sourceTable.Rows.Cast<DataRow>().ToList().ForEach(sourceRow => result.Rows.Add(
             ConvertRow(result, sourceRow)));
@@ -94,7 +93,7 @@ public class TableNormalizer : ITableNormalizer
 
         DataColumn MapColumnDefinition(string sheetName, string sheetColumnName)
         {
-            var entityPropertyName = _columnMapper.MapColumnName(sheetName, sheetColumnName);
+            var entityPropertyName = columnMapper.MapColumnName(sheetName, sheetColumnName);
             var entityPropertyType = _metadataProvider.GetPropertyType(entityName, entityPropertyName);
 
             // Handle nullable types - DataSet doesn't support nullable types directly

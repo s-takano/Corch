@@ -66,10 +66,13 @@ public class ExcelToDatabaseConverter : IDataSetConverter
             if (sourceTable.Rows.Count == 0)
                 continue;
 
-            // Resolve the specific entity and table name by strictly checking the column headers
-            var entityName = _schemaDetector.DetectQualifiedEntityName(sourceTable);
-            
-            var normalizedTable = _tableNormalizer.Normalize(entityName, sourceTable);
+            var detected = _schemaDetector.DetectQualifiedEntityWithConfiguration(sourceTable);
+
+            var normalizedTable = _tableNormalizer.Normalize(
+                detected.QualifiedTableName,
+                detected.Configuration,
+                sourceTable);
+
             result.Tables.Add(normalizedTable);
         }
 

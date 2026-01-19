@@ -12,7 +12,8 @@ public interface ITableNormalizer
     /// and mapping it to a new DataTable with the target structure.
     /// </summary>
     /// <param name="entityName">The name of the output DataTable after normalization.</param>
+    /// <param name="configuration"></param>
     /// <param name="sourceTable">The source DataTable containing data to be normalized.</param>
     /// <returns>A new DataTable with normalized column types and data, having the specified target table name.</returns>
-    DataTable Normalize(string entityName, DataTable sourceTable);
+    DataTable Normalize(string entityName, IEntityTypeMetaInfo configuration, DataTable sourceTable);
 }
