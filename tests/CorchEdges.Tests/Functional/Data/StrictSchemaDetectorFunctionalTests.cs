@@ -5,10 +5,10 @@ using CorchEdges.Data.Abstractions;
 using CorchEdges.Tests.Infrastructure;
 using CorchEdges.Utilities;
 
-namespace CorchEdges.Tests.Integration.Data;
+namespace CorchEdges.Tests.Functional.Data;
 
-[Trait("Category", TestCategories.Integration)]
-public class StrictSchemaDetectorIntegrationTests
+[Trait("Category", TestCategories.Functional)]
+public class StrictSchemaDetectorFunctionalTests
 {
     private readonly ITabularDataParser _parser = new ExcelDataParser();
     private readonly IDataSetConverter _converter = new ExcelToDatabaseConverter();
