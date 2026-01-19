@@ -53,7 +53,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Data\Configurations\"/>
         <Folder Include="Data\Utilities\"/>
         <Folder Include="Extensions\"/>
     </ItemGroup>
