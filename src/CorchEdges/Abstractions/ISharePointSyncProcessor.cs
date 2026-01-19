@@ -1,4 +1,6 @@
-﻿using CorchEdges.Models;
+﻿using System.Data.Common;
+using CorchEdges.Models;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace CorchEdges.Abstractions;
 
@@ -20,5 +22,11 @@ public interface ISharePointSyncProcessor
     /// </returns>
     Task<bool> EnsureGraphConnectionAsync();
 
-    Task<SharePointSyncResult> FetchAndStoreDeltaAsync();
+    Task<SharePointSyncResult> FetchAndStoreDeltaAsync(int batchSize = int.MaxValue);
+
+    Task<SharePointSyncResult> FetchAndStoreItemsAsync(
+        IReadOnlyList<string> itemIds,
+        string deltaLink,
+        bool finalizeDeltaLink,
+        int batchSize = int.MaxValue);
 }

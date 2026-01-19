@@ -22,19 +22,27 @@ public record SharePointSyncResult(
     [property: OpenApiProperty(Description = "Indicates whether the failed operation should be automatically retried by the Service Bus. Used for transient failures like network issues.")]
     bool ShouldRetry = false)
 {
+    public IReadOnlyList<string> RemainingItemIds { get; init; } = Array.Empty<string>();
+    public string? PendingDeltaLink { get; init; }
+    public bool HasMoreWork => RemainingItemIds.Count > 0;
+
     /// <summary>
     /// Creates a successful result.
     /// </summary>
     /// <returns>A SharePointSyncResult indicating success.</returns>
     [OpenApiIgnore]
-    public static SharePointSyncResult Succeeded() => new(true);
-    
-    /// <summary>
-    /// Creates a failed result.
-    /// </summary>
-    /// <param name="reason">The reason for the failure.</param>
-    /// <param name="shouldRetry">Whether the operation should be retried.</param>
-    /// <returns>A SharePointSyncResult indicating failure.</returns>
+    public static SharePointSyncResult Succeeded() => new(true)
+    {
+        ErrorReason = null,
+        ShouldRetry = false,
+        RemainingItemIds = Array.Empty<string>(),
+        PendingDeltaLink = null
+    };
+
     [OpenApiIgnore]
-    public static SharePointSyncResult Failed(string reason, bool shouldRetry = false) => new(false, reason, shouldRetry);
+    public static SharePointSyncResult Failed(string reason, bool shouldRetry = false) => new(false, reason, shouldRetry)
+    {
+        RemainingItemIds = Array.Empty<string>(),
+        PendingDeltaLink = null
+    };
 }
