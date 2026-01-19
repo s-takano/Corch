@@ -81,9 +81,7 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     public async Task Query_FilterByPropertyNo_ReturnsCorrectEntities()
     {
         using var dbContext = CreateInMemoryDbContext();
-        var processedFile = new ProcessedFile();
-        dbContext.ProcessedFiles.Add(processedFile);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var processedFile = await CreateProcessedFileAsync(dbContext);
 
         // Arrange
         var entities = new[]
@@ -115,9 +113,7 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     public async Task Query_FilterByRentRange_ReturnsCorrectEntities()
     {
         using var dbContext = CreateInMemoryDbContext();
-        var processedFile = new ProcessedFile();
-        dbContext.ProcessedFiles.Add(processedFile);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var processedFile = await CreateProcessedFileAsync(dbContext);
 
         // Arrange
         var entities = new[]
@@ -151,9 +147,7 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     public async Task Create_WithValidContractStatus_SavesSuccessfully()
     {
         using var dbContext = CreateInMemoryDbContext();
-        var processedFile = new ProcessedFile();
-        dbContext.ProcessedFiles.Add(processedFile);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var processedFile = await CreateProcessedFileAsync(dbContext);
 
         // Arrange
         var entity = CreateValidEntity(processedFile);
@@ -177,9 +171,7 @@ public class ContractCurrentCrudTests : EntityCrudTestBase<ContractCurrent>
     public async Task Query_FilterByFixedTermLease_ReturnsCorrectEntities()
     {
         using var dbContext = CreateInMemoryDbContext();
-        var processedFile = new ProcessedFile();
-        dbContext.ProcessedFiles.Add(processedFile);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var processedFile = await CreateProcessedFileAsync(dbContext);
    
         // Arrange
         var entities = new[]

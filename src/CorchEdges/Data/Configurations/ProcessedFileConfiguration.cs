@@ -47,5 +47,15 @@ public class ProcessedFileConfiguration : IEntityTypeConfiguration<ProcessedFile
         builder.Property(e => e.RecordCount)
             .HasColumnName("record_count")
             .HasColumnType("integer");
+            
+        builder.Property(e => e.ProcessingLogId)
+            .HasColumnName("processing_log_id")
+            .HasColumnType("integer")
+            .IsRequired();
+            
+        builder.HasOne(e => e.ProcessingLog)
+            .WithMany(p => p.ProcessedFiles)
+            .HasForeignKey(e => e.ProcessingLogId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

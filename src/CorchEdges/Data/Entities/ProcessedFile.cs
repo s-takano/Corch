@@ -26,6 +26,9 @@ public class ProcessedFile
     /// </summary>
     public long? FileSizeBytes { get; set; }
 
+    public int ProcessingLogId { get; set; }
+    public ProcessingLog ProcessingLog { get; set; } = null!;
+
     // Inverse navigations to records produced from this file
     public ICollection<ContractCreation> ContractCreations { get; set; } = new List<ContractCreation>();
     public ICollection<ContractCurrent> ContractCurrents { get; set; } = new List<ContractCurrent>();

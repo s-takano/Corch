@@ -29,8 +29,12 @@ public class ExcelDatasetWriter(
     /// <param name="connection">The database connection to be used for the operation.</param>
     /// <param name="transaction">The database transaction that ensures atomicity of the operation.</param>
     /// <returns>A <see cref="Task"/> that represents the asynchronous write operation.</returns>
-    public async Task<int> WriteAsync(DataSet tables, EdgesDbContext context, DbConnection connection,
-        DbTransaction transaction)
+    public async Task<int> WriteAsync(
+        DataSet tables,
+        EdgesDbContext context,
+        DbConnection connection,
+        DbTransaction transaction,
+        int processingLogId)
     {
         var startTime = DateTime.Now;
 
@@ -42,7 +46,8 @@ public class ExcelDatasetWriter(
                 FileName = "Excel_Import",
                 ProcessedAt = startTime,
                 Status = "Processing",
-                RecordCount = 0
+                RecordCount = 0,
+                ProcessingLogId = processingLogId
             };
 
             context.ProcessedFiles.Add(processedFile);

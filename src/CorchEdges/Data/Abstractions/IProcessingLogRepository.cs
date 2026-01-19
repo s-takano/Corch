@@ -32,6 +32,18 @@ public interface IProcessingLogRepository
         int processedCount,
         string? subscriptionId = null);
 
+    Task<ProcessingLog> CreateProcessingLogAsync(
+        string siteId,
+        string listId);
+
+    Task<ProcessingLog> UpdateProcessingLogAsync(
+        int logId,
+        string? deltaLink,
+        int successfulItems,
+        int failedItems,
+        bool hasErrors,
+        string? lastError);
+
     /// <summary>
     /// Records a failed synchronization attempt.
     /// </summary>

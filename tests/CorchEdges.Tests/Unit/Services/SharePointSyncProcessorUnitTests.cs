@@ -47,7 +47,8 @@ public class SharePointSyncProcessorUnitTests : IDisposable
     }
 
 
-    private SharePointSyncProcessor CreateHandlerWithProcessingLogRepository(string watchedPath = "/sites/test/Shared Documents/WatchedFolder")
+    private SharePointSyncProcessor CreateHandlerWithProcessingLogRepository(
+        string watchedPath = "/sites/test/Shared Documents/WatchedFolder")
     {
         return new SharePointSyncProcessor(
             _mockLogger.Object,
@@ -63,7 +64,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
             watchedPath);
     }
 
-    
+
     private SharePointSyncProcessor CreateHandler(string watchedPath = "/Shared Documents/WatchedFolder")
     {
         return new SharePointSyncProcessor(
@@ -79,7 +80,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
             _testListId,
             watchedPath);
     }
-    
+
     [Fact]
     public void Constructor_WithValidParameters_ShouldNotThrow()
     {
@@ -373,12 +374,16 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         // Setup processing log repository mock
         _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
             .ReturnsAsync("test-delta-link");
+        _mockProcessingLogRepository2.Setup(x => x.CreateProcessingLogAsync(
+                _testSiteId,
+                _testListId))
+            .ReturnsAsync(new ProcessingLog());
 
         _mockProcessedFileRepository.Setup(x => x.GetByIdAsync(It.IsAny<int>()))
             .ReturnsAsync(new ProcessedFile());
-        
+
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -424,9 +429,13 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         // Setup processing log repository mock
         _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
             .ReturnsAsync("test-delta-link");
+        _mockProcessingLogRepository2.Setup(x => x.CreateProcessingLogAsync(
+                _testSiteId,
+                _testListId))
+            .ReturnsAsync(new ProcessingLog());
 
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -436,7 +445,8 @@ public class SharePointSyncProcessorUnitTests : IDisposable
             It.IsAny<DataSet>(),
             It.IsAny<EdgesDbContext>(),
             It.IsAny<DbConnection>(),
-            It.IsAny<DbTransaction>()), Times.Never);
+            It.IsAny<DbTransaction>(),
+            It.IsAny<int>()), Times.Never);
     }
 
     [Theory]
@@ -491,6 +501,10 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         // Setup processing log repository mock
         _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
             .ReturnsAsync("test-delta-link");
+        _mockProcessingLogRepository2.Setup(x => x.CreateProcessingLogAsync(
+                _testSiteId,
+                _testListId))
+            .ReturnsAsync(new ProcessingLog());
 
         if (shouldProcess)
         {
@@ -499,11 +513,12 @@ public class SharePointSyncProcessorUnitTests : IDisposable
             _mockGraph.Setup(g => g.DownloadAsync(It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(new MemoryStream());
         }
+
         _mockProcessedFileRepository.Setup(x => x.GetByIdAsync(It.IsAny<int>()))
             .ReturnsAsync(new ProcessedFile());
 
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -555,6 +570,10 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         // Setup processing log repository mock
         _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
             .ReturnsAsync("test-delta-link");
+        _mockProcessingLogRepository2.Setup(x => x.CreateProcessingLogAsync(
+                _testSiteId,
+                _testListId))
+            .ReturnsAsync(new ProcessingLog());
 
         _mockParser.Setup(p => p.Parse(It.IsAny<Stream>()))
             .Returns((new DataSet(), string.Empty));
@@ -564,7 +583,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
             .ReturnsAsync(new ProcessedFile());
 
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -630,7 +649,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
             .ReturnsAsync(new ProcessedFile());
 
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -648,7 +667,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         log.LastProcessedCount.Should().Be(1);
     }
 
-    
+
     [Fact]
     public async Task FetchAndStoreDeltaAsync_WhenDeltaLinkExpired_UsesWindowedResync()
     {
@@ -663,6 +682,11 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         _mockProcessingLogRepository2.Setup(x => x.GetLastProcessedAtUtcAsync(_testSiteId, _testListId))
             .ReturnsAsync(lastProcessedAt);
 
+        _mockProcessingLogRepository2.Setup(x => x.CreateProcessingLogAsync(
+                _testSiteId,
+                _testListId))
+            .ReturnsAsync(new ProcessingLog());
+
         _mockProcessingLogRepository2.Setup(x => x.RecordSuccessfulSyncAsync(
                 _testSiteId,
                 _testListId,
@@ -671,11 +695,13 @@ public class SharePointSyncProcessorUnitTests : IDisposable
                 It.IsAny<string>()))
             .ReturnsAsync(new ProcessingLog());
 
+
         var graphError = new ODataError
         {
             Error = new MainError
             {
-                Message = "Exception of type 'Microsoft.Vroom.Exceptions.ResyncApplyDifferencesVroomException' was thrown."
+                Message =
+                    "Exception of type 'Microsoft.Vroom.Exceptions.ResyncApplyDifferencesVroomException' was thrown."
             }
         };
 
@@ -721,12 +747,18 @@ public class SharePointSyncProcessorUnitTests : IDisposable
                 It.IsAny<int>(),
                 It.IsAny<string>()))
             .ReturnsAsync(new ProcessingLog());
+        
+        _mockProcessingLogRepository2.Setup(x => x.CreateProcessingLogAsync(
+                _testSiteId,
+                _testListId))
+            .ReturnsAsync(new ProcessingLog());
 
         var graphError = new ODataError
         {
             Error = new MainError
             {
-                Message = "Exception of type 'Microsoft.Vroom.Exceptions.ResyncApplyDifferencesVroomException' was thrown."
+                Message =
+                    "Exception of type 'Microsoft.Vroom.Exceptions.ResyncApplyDifferencesVroomException' was thrown."
             }
         };
 
@@ -749,7 +781,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
 
         _mockGraph.Verify(g => g.GetFreshDeltaLinkAsync(_testSiteId, _testListId), Times.Once);
     }
-    
+
     [Fact]
     public async Task HandleAsync_WhenProcessingFails_ShouldStoreProcessingLogWithError()
     {
@@ -790,7 +822,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
 
 
         // Act
-        var notificationList = ((IEnumerable<SharePointNotification>) [changeNotification]).ToList();
+        var notificationList = ((IEnumerable<SharePointNotification>)[changeNotification]).ToList();
         foreach (var unused in notificationList) await handler.FetchAndStoreDeltaAsync();
 
         // Assert
@@ -855,6 +887,10 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         // Setup other required mocks
         _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
             .ReturnsAsync("test-delta-link");
+        _mockProcessingLogRepository2.Setup(x => x.CreateProcessingLogAsync(
+                _testSiteId,
+                _testListId))
+            .ReturnsAsync(new ProcessingLog());
         _mockGraph.Setup(x => x.PullItemsDeltaAsync(_testSiteId, _testListId, "test-delta-link"))
             .ReturnsAsync(("new-delta-link", new List<string> { itemId }));
 
@@ -872,7 +908,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         // Verify that parser and database writer were never called since file was skipped
         _mockParser.Verify(x => x.Parse(It.IsAny<Stream>()), Times.Never);
         _mockDb.Verify(x => x.WriteAsync(It.IsAny<DataSet>(), It.IsAny<EdgesDbContext>(),
-            It.IsAny<DbConnection>(), It.IsAny<DbTransaction>()), Times.Never);
+            It.IsAny<DbConnection>(), It.IsAny<DbTransaction>(), It.IsAny<int>()), Times.Never);
 
         // Verify log message for duplicate detection
         VerifyLogMessage("Duplicate file detected with hash", Times.Once());
@@ -936,6 +972,10 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         // Setup other required mocks
         _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
             .ReturnsAsync("test-delta-link");
+        _mockProcessingLogRepository2.Setup(x => x.CreateProcessingLogAsync(
+                _testSiteId,
+                _testListId))
+            .ReturnsAsync(new ProcessingLog());
         _mockGraph.Setup(x => x.PullItemsDeltaAsync(_testSiteId, _testListId, "test-delta-link"))
             .ReturnsAsync(("new-delta-link", new List<string> { itemId }));
 
@@ -956,7 +996,7 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         // Verify that parser and database writer were called since file was not a duplicate
         _mockParser.Verify(x => x.Parse(It.IsAny<Stream>()), Times.Once);
         _mockDb.Verify(x => x.WriteAsync(mockPreparedDataSet, It.IsAny<EdgesDbContext>(),
-            It.IsAny<DbConnection>(), It.IsAny<DbTransaction>()), Times.Once);
+            It.IsAny<DbConnection>(), It.IsAny<DbTransaction>(), It.IsAny<int>()), Times.Once);
 
         // Verify no duplicate log message was logged
         VerifyLogMessage("Duplicate file detected with hash", Times.Never());
@@ -1021,6 +1061,10 @@ public class SharePointSyncProcessorUnitTests : IDisposable
         // Setup other required mocks
         _mockProcessingLogRepository2.Setup(x => x.GetDeltaLinkForSyncAsync(_testSiteId, _testListId))
             .ReturnsAsync("test-delta-link");
+        _mockProcessingLogRepository2.Setup(x => x.CreateProcessingLogAsync(
+                _testSiteId,
+                _testListId))
+            .ReturnsAsync(new ProcessingLog());
         _mockGraph.Setup(x => x.PullItemsDeltaAsync(_testSiteId, _testListId, "test-delta-link"))
             .ReturnsAsync(("new-delta-link", new List<string> { itemId }));
 

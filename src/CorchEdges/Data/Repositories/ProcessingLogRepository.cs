@@ -109,6 +109,54 @@ public class ProcessingLogRepository(EdgesDbContext context) : IProcessingLogRep
         return existing;
     }
 
+    public async Task<ProcessingLog> CreateProcessingLogAsync(
+        string siteId,
+        string listId)
+    {
+        var now = DatabaseDateTime.UtcNow;
+
+        var log = new ProcessingLog
+        {
+            SiteId = siteId,
+            ListId = listId,
+            CreatedAt = now,
+            UpdatedAt = now,
+            LastProcessedAt = now,
+            Status = ProcessingStatus.Processing,
+            SubscriptionId = null
+        };
+
+        context.ProcessingLogs.Add(log);
+        await context.SaveChangesAsync();
+        return log;
+    }
+
+    public async Task<ProcessingLog> UpdateProcessingLogAsync(
+        int logId,
+        string? deltaLink,
+        int successfulItems,
+        int failedItems,
+        bool hasErrors,
+        string? lastError)
+    {
+        var log = await context.ProcessingLogs.FindAsync(logId)
+                  ?? throw new InvalidOperationException($"ProcessingLog {logId} not found");
+
+        var now = DatabaseDateTime.UtcNow;
+
+        log.UpdatedAt = now;
+        log.LastProcessedAt = now;
+        log.DeltaLink = deltaLink;
+        log.SuccessfulItems = successfulItems;
+        log.FailedItems = failedItems;
+        log.LastProcessedCount = successfulItems + failedItems;
+        log.LastError = hasErrors ? lastError : null;
+        log.Status = hasErrors ? ProcessingStatus.Failed : ProcessingStatus.Completed;
+
+        await context.SaveChangesAsync();
+        return log;
+    }
+
     /// <summary>
     /// Gets recent processing history for a specific site and list.
     /// </summary>

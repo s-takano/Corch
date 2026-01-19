@@ -241,163 +241,167 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         return true;
     }
 
-        public async Task<SharePointSyncResult> FetchAndStoreDeltaAsync(int batchSize = int.MaxValue)
+    public async Task<SharePointSyncResult> FetchAndStoreDeltaAsync(int batchSize = int.MaxValue)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        var lastDataLink = await _processingLogRepository.GetDeltaLinkForSyncAsync(_siteId, _listId);
+
+        var connection = _context.Database.GetDbConnection();
+        try
         {
-            await using var transaction = await _context.Database.BeginTransactionAsync();
+            _log.LogDebug("Pulling items delta");
 
-            var lastDataLink = await _processingLogRepository.GetDeltaLinkForSyncAsync(_siteId, _listId);
+            List<string> itemIds;
+            string deltaLink;
 
-            var connection = _context.Database.GetDbConnection();
             try
             {
-                _log.LogDebug("Pulling items delta");
+                (deltaLink, itemIds) = await _graph.PullItemsDeltaAsync(_siteId, _listId, lastDataLink);
+            }
+            catch (ODataError ex) when (IsResyncRequired(ex))
+            {
+                _log.LogWarning("Delta link expired. Attempting windowed resync from last_processed_at.");
 
-                List<string> itemIds;
-                string deltaLink;
+                var lastProcessedAt = await _processingLogRepository.GetLastProcessedAtUtcAsync(_siteId, _listId);
 
+                if (lastProcessedAt == null)
+                {
+                    _log.LogWarning("No last_processed_at available. Establishing fresh delta link.");
+                    deltaLink = await _graph.GetFreshDeltaLinkAsync(_siteId, _listId);
+                    itemIds = new List<string>();
+                }
+                else
+                {
+                    _log.LogInformation("Performing windowed resync from last_processed_at: {lastProcessedAt}",
+                        lastProcessedAt.Value);
+
+                    var windowStart = lastProcessedAt.Value.AddMinutes(-10);
+                    itemIds = await _graph.PullItemsModifiedSinceAsync(_siteId, _listId, windowStart);
+                    deltaLink = await _graph.GetFreshDeltaLinkAsync(_siteId, _listId);
+                }
+            }
+
+            if (itemIds.Count == 0)
+            {
+                var log = await _processingLogRepository.CreateProcessingLogAsync(_siteId, _listId);
+                await RecordProcessingLogAsync(
+                    log.Id, SuccessfulItems, FailedCount, HasErrors, LastError, deltaLink);
+
+                await transaction.CommitAsync();
+                return SharePointSyncResult.Succeeded();
+            }
+
+            var batch = itemIds.Take(batchSize).ToList();
+            var remaining = itemIds.Skip(batchSize).ToList();
+
+            var batchResult = await FetchAndStoreItemsAsync(
+                batch,
+                deltaLink,
+                finalizeDeltaLink: remaining.Count == 0,
+                connection,
+                transaction);
+            
+            await transaction.CommitAsync();
+
+            if (remaining.Count > 0)
+            {
+                return batchResult with
+                {
+                    RemainingItemIds = remaining,
+                    PendingDeltaLink = deltaLink
+                };
+            }
+
+            return batchResult;
+        }
+        catch (Exception e)
+        {
+            _log.LogWarning("Transaction failed: {EMessage}", e.Message);
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<SharePointSyncResult> FetchAndStoreItemsAsync(IReadOnlyList<string> itemIds, string deltaLink,
+        bool finalizeDeltaLink,
+        int batchSize = Int32.MaxValue)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        var connection = _context.Database.GetDbConnection();
+
+        try
+        {
+            var fetchAndStoreItemsAsync = await FetchAndStoreItemsAsync(
+                itemIds, deltaLink, finalizeDeltaLink, connection, transaction,
+                batchSize);
+
+            await transaction.CommitAsync();
+
+            return fetchAndStoreItemsAsync;
+        }
+        catch (Exception e)
+        {
+            _log.LogWarning("Transaction failed: {EMessage}", e.Message);
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<SharePointSyncResult> FetchAndStoreItemsAsync(
+        IReadOnlyList<string> itemIds,
+        string deltaLink,
+        bool finalizeDeltaLink,
+        DbConnection connection,
+        IDbContextTransaction transaction,
+        int batchSize = int.MaxValue)
+    {
+        try
+        {
+            _log.LogInformation("Processing {count} items from delta", itemIds.Count);
+
+            var batch = itemIds.Take(batchSize).ToList();
+            var remaining = itemIds.Skip(batchSize).ToList();
+
+            var log = await _processingLogRepository.CreateProcessingLogAsync(_siteId, _listId);
+
+            foreach (var itemId in batch)
+            {
                 try
                 {
-                    (deltaLink, itemIds) = await _graph.PullItemsDeltaAsync(_siteId, _listId, lastDataLink);
+                    await FetchAndStoreItemAsync(itemId, connection, transaction, log.Id);
                 }
-                catch (ODataError ex) when (IsResyncRequired(ex))
+                catch (Exception ex)
                 {
-                    _log.LogWarning("Delta link expired. Attempting windowed resync from last_processed_at.");
-
-                    var lastProcessedAt = await _processingLogRepository.GetLastProcessedAtUtcAsync(_siteId, _listId);
-
-                    if (lastProcessedAt == null)
-                    {
-                        _log.LogWarning("No last_processed_at available. Establishing fresh delta link.");
-                        deltaLink = await _graph.GetFreshDeltaLinkAsync(_siteId, _listId);
-                        itemIds = new List<string>();
-                    }
-                    else
-                    {
-                        _log.LogInformation("Performing windowed resync from last_processed_at: {lastProcessedAt}",
-                            lastProcessedAt.Value);
-
-                        var windowStart = lastProcessedAt.Value.AddMinutes(-10);
-                        itemIds = await _graph.PullItemsModifiedSinceAsync(_siteId, _listId, windowStart);
-                        deltaLink = await _graph.GetFreshDeltaLinkAsync(_siteId, _listId);
-                    }
+                    _log.LogError(ex,
+                        "Fatal error processing an item, error item: {itemId}.",
+                        itemId);
+                    throw;
                 }
-
-                if (itemIds.Count == 0)
-                {
-                    await RecordProcessingLogAsync(SuccessfulItems, FailedCount, HasErrors, LastError, deltaLink);
-                    await transaction.CommitAsync();
-                    return SharePointSyncResult.Succeeded();
-                }
-
-                var batch = itemIds.Take(batchSize).ToList();
-                var remaining = itemIds.Skip(batchSize).ToList();
-
-                var batchResult = await FetchAndStoreItemsAsync(
-                    batch,
-                    deltaLink, 
-                    finalizeDeltaLink: remaining.Count == 0,
-                    connection, 
-                    transaction);
-
-                await transaction.CommitAsync();
-
-                if (remaining.Count > 0)
-                {
-                    return batchResult with
-                    {
-                        RemainingItemIds = remaining,
-                        PendingDeltaLink = deltaLink
-                    };
-                }
-
-                return batchResult;
             }
-            catch (Exception e)
+
+            await RecordProcessingLogAsync(
+                log.Id, SuccessfulItems, FailedCount, HasErrors, LastError, deltaLink);
+
+            var result = SharePointSyncResult.Succeeded();
+
+            if (remaining.Count > 0)
             {
-                _log.LogWarning("Transaction failed: {EMessage}", e.Message);
-                await transaction.RollbackAsync();
-                throw;
+                return result with
+                {
+                    RemainingItemIds = remaining,
+                    PendingDeltaLink = deltaLink
+                };
             }
-        }
 
-        public async Task<SharePointSyncResult> FetchAndStoreItemsAsync(IReadOnlyList<string> itemIds, string deltaLink, bool finalizeDeltaLink,
-            int batchSize = Int32.MaxValue)
+            return result;
+        }
+        catch (Exception e)
         {
-            await using var transaction = await _context.Database.BeginTransactionAsync();
-            var connection = _context.Database.GetDbConnection();
-
-            try
-            {
-                var fetchAndStoreItemsAsync = await FetchAndStoreItemsAsync(
-                    itemIds, deltaLink, finalizeDeltaLink, connection, transaction,
-                    batchSize);
-                
-                await transaction.CommitAsync();
-                
-                return fetchAndStoreItemsAsync;
-            }
-            catch (Exception e)
-            {
-                _log.LogWarning("Transaction failed: {EMessage}", e.Message);
-                await transaction.RollbackAsync();
-                throw;
-            }
+            _log.LogWarning("Transaction failed: {EMessage}", e.Message);
+            throw;
         }
-
-        public async Task<SharePointSyncResult> FetchAndStoreItemsAsync(
-            IReadOnlyList<string> itemIds,
-            string deltaLink,
-            bool finalizeDeltaLink,
-            DbConnection connection,
-            IDbContextTransaction transaction,
-            int batchSize = int.MaxValue)
-        {
-            try
-            {
-                _log.LogInformation("Processing {count} items from delta", itemIds.Count);
-
-                var batch = itemIds.Take(batchSize).ToList();
-                var remaining = itemIds.Skip(batchSize).ToList();
-
-                foreach (var itemId in batch)
-                {
-                    try
-                    {
-                        await FetchAndStoreItemAsync(itemId, connection, transaction);
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.LogError(ex,
-                            "Fatal error processing an item, error item: {itemId}.",
-                            itemId);
-                        throw;
-                    }
-                }
-
-                if (finalizeDeltaLink && remaining.Count == 0)
-                {
-                    await RecordProcessingLogAsync(SuccessfulItems, FailedCount, HasErrors, LastError, deltaLink);
-                }
-
-                var result = SharePointSyncResult.Succeeded();
-
-                if (remaining.Count > 0)
-                {
-                    return result with
-                    {
-                        RemainingItemIds = remaining,
-                        PendingDeltaLink = deltaLink
-                    };
-                }
-
-                return result;
-            }
-            catch (Exception e)
-            {
-                _log.LogWarning("Transaction failed: {EMessage}", e.Message);
-                throw;
-            }
-        }
+    }
 
     private static bool IsResyncRequired(ODataError ex)
     {
@@ -410,8 +414,12 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
         return await _processedFileRepository.ExistsByHashAsync(fileHash, fileSize);
     }
 
-    private async Task FetchAndStoreItemAsync(string itemId, DbConnection connection, IDbContextTransaction transaction)
-    {
+        private async Task FetchAndStoreItemAsync(
+            string itemId,
+            DbConnection connection,
+            IDbContextTransaction transaction,
+            int processingLogId)
+        {
         var li = await _graph.GetListItemAsync(_siteId, _listId, itemId);
         if (li?.Fields?.AdditionalData?.TryGetValue("ProcessFlag", out var flag) == true &&
             !"Yes".Equals(flag?.ToString(), StringComparison.OrdinalIgnoreCase))
@@ -450,26 +458,30 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
             return;
         }
 
-        _log.LogInformation("Downloading file: {fileName} from drive: {driveId}, item: {itemId}", 
+        _log.LogInformation("Downloading file: {fileName} from drive: {driveId}, item: {itemId}",
             di.Name, di.ParentReference?.DriveId, di.Id);
-        
+
         await using var stream = await _graph.DownloadAsync(di.ParentReference?.DriveId!, di.Id!);
 
         _log.LogInformation("Download completed for file: {fileName}. Processing stream...", di.Name);
-        
-        if (!await WriteStreamAsync(connection, transaction, stream, di.Name))
+
+        if (!await WriteStreamAsync(connection, transaction, stream, di.Name, processingLogId))
         {
             _log.LogInformation("File {fileName} was not processed (duplicate or failed)", di.Name);
             return;
         }
 
         _log.LogInformation("Successfully processed file: {fileName}", di.Name);
-        
+
         SuccessfulItems++;
     }
 
-    private async Task<bool> WriteStreamAsync(DbConnection connection, IDbContextTransaction transaction, Stream stream,
-        string fileName)
+    private async Task<bool> WriteStreamAsync(
+            DbConnection connection,
+            IDbContextTransaction transaction,
+            Stream stream,
+            string fileName,
+            int processingLogId)
     {
         using var memoryStream = new MemoryStream();
         await stream.CopyToAsync(memoryStream);
@@ -510,7 +522,8 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
 
         var preparedDataSet = _dataSetConverter.ConvertForDatabase(ds);
 
-        var id = await _db.WriteAsync(preparedDataSet, _context, connection, transaction.GetDbTransaction());
+        var id = await _db.WriteAsync(
+                preparedDataSet, _context, connection, transaction.GetDbTransaction(), processingLogId);
 
         await UpdateProcessedFileMetadata(id, fileHash, fileSize, fileName);
 
@@ -539,16 +552,24 @@ public class SharePointSyncProcessor : ISharePointSyncProcessor
     /// <param name="hasErrors">Whether any errors occurred during processing</param>
     /// <param name="lastError">The last error message if any errors occurred</param>
     /// <param name="dataLink"></param>
-    private async Task RecordProcessingLogAsync(int successfulItems, int failedItems, bool hasErrors, string? lastError,
-        string dataLink)
-    {
-        if (hasErrors)
-            await _processingLogRepository.RecordFailedSyncAsync(_siteId, _listId, lastError!, failedItems);
-        else
-            await _processingLogRepository.RecordSuccessfulSyncAsync(_siteId, _listId, dataLink, successfulItems);
+        private async Task RecordProcessingLogAsync(
+            int processingLogId,
+            int successfulItems,
+            int failedItems,
+            bool hasErrors,
+            string? lastError,
+            string dataLink)
+        {
+            await _processingLogRepository.UpdateProcessingLogAsync(
+                processingLogId,
+                dataLink,
+                successfulItems,
+                failedItems,
+                hasErrors,
+                lastError);
 
-        _log.LogDebug("Processing log created successfully");
-    }
+            _log.LogDebug("Processing log created successfully");
+        }
 
 
     /// <summary>

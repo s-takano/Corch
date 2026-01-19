@@ -58,15 +58,29 @@ public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
     public async Task Create_WithNullableFieldsAsNull_SavesSuccessfully()
     {
         using var dbContext = CreateInMemoryDbContext();
-        
+
         // Arrange
-        var processedFile = new ProcessedFile();
+        var log = new ProcessingLog
+        {
+            SiteId = "test-site",
+            ListId = "test-list",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            LastProcessedAt = DateTime.UtcNow,
+            Status = ProcessingStatus.Completed
+        };
+        dbContext.ProcessingLogs.Add(log);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var processedFile = new ProcessedFile
+        {
+            ProcessingLogId = log.Id
+        };
         dbContext.ProcessedFiles.Add(processedFile);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var entity = new ContractCreation
         {
-            // Only set required fields, leave nullable ones as null
             ContractId = $"CONTRACT_MINIMAL_{Guid.NewGuid().ToString("N")[..8]}",
             OutputDateTime = DateTime.Now,
             ProcessedFile = processedFile
@@ -91,10 +105,8 @@ public class ContractCreationCrudTests : EntityCrudTestBase<ContractCreation>
     {
         using var dbContext = CreateInMemoryDbContext();
         
-        var processedFile = new ProcessedFile();
-        dbContext.ProcessedFiles.Add(processedFile);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-
+        var processedFile = await CreateProcessedFileAsync(dbContext);
+        
         // Arrange
         var entities = new[]
         {
